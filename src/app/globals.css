@@ -1,8 +1,9 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ecede6;
+  --foreground: #1e1712;
 }
 
 @theme inline {
@@ -13,6 +14,13 @@
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at 1px 1px, rgba(33, 77, 58, 0.08) 1px, transparent 0),
+    linear-gradient(135deg, rgba(31, 41, 51, 0.05), transparent 34%),
+    var(--background);
+  background-size:
+    22px 22px,
+    100% 100%,
+    auto;
   color: var(--foreground);
 }

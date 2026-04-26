@@ -56,20 +56,20 @@ export function TalentMapPage() {
   }, [search, languageFilter, readinessFilter, onlineStatus]);
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-950">
+    <main className="min-h-screen bg-transparent text-[#1e1712]">
       <TopNav />
 
       <section className="mx-auto max-w-7xl px-6 py-8">
         <div className="mb-6 grid gap-6 lg:grid-cols-[1.45fr_0.75fr]">
           <div>
-            <h1 className="text-4xl font-semibold text-gray-950 md:text-5xl">
+            <h1 className="text-5xl font-black leading-tight tracking-tight text-[#1e1712] md:text-6xl">
               Global Native Talent Coverage
             </h1>
-            <p className="mt-4 max-w-3xl text-lg font-medium leading-8 text-gray-900">
+            <p className="mt-5 max-w-3xl border-l-4 border-[#214d3a] pl-4 text-xl font-bold leading-8 text-[#214d3a]">
               True global talent capability is not a static list. It is real-time visibility,
               trackable progress, and deployable delivery capacity.
             </p>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-gray-700">
+            <p className="mt-4 max-w-3xl text-base font-medium leading-7 text-[#6b6258]">
               BlackDog Talent Hub turns global native talent resources into a visualized,
               trackable, and deployable delivery network, helping multilingual AI data, model
               evaluation, and localization projects assess coverage, match teams, and launch
@@ -77,35 +77,45 @@ export function TalentMapPage() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <div className="rounded-xl border border-[#d2c8ba] bg-white/95 p-5 shadow-[0_18px_45px_rgba(31,41,51,0.12)]">
             <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xl font-semibold text-gray-950">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-[#214d3a] bg-[#214d3a] text-xl font-black text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]">
                 BD
               </div>
               <div>
-                <div className="text-xl font-semibold text-gray-950">BlackDog Talent Hub</div>
-                <div className="mt-1 text-sm text-gray-600">Global Native Talent Network</div>
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#d2c8ba] bg-[#f7f6f0] px-2 py-1 text-xs font-semibold text-[#214d3a]">
+                  <span className="h-2 w-2 rounded-full bg-[#214d3a]" />
+                  Live Talent Signal
+                </div>
+                <div className="text-xl font-bold text-[#1e1712]">BlackDog Talent Hub</div>
+                <div className="mt-1 text-sm font-medium text-[#6b6258]">Global Native Talent Network</div>
               </div>
             </div>
 
-            <div className="mt-5 space-y-2 text-sm text-gray-700">
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[11px] font-semibold uppercase text-[#6b6258]">
+              <span className="rounded-md border border-[#d2c8ba] bg-[#f7f6f0] px-2 py-2">Active Pools</span>
+              <span className="rounded-md border border-[#d2c8ba] bg-[#f7f6f0] px-2 py-2">Online Now</span>
+              <span className="rounded-md border border-[#d2c8ba] bg-[#f7f6f0] px-2 py-2">Global Coverage</span>
+            </div>
+
+            <div className="mt-5 space-y-2 border-t border-[#d2c8ba] pt-4 text-sm text-[#6b6258]">
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Contact</span>
-                <span className="font-medium text-gray-950">Global Operations Team</span>
+                <span className="text-[#8b6f47]">Contact</span>
+                <span className="font-medium text-[#1e1712]">Global Operations Team</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Email</span>
-                <span className="font-medium text-gray-950">TBD</span>
+                <span className="text-[#8b6f47]">Email</span>
+                <span className="font-medium text-[#1e1712]">TBD</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Website</span>
-                <span className="font-medium text-gray-950">TBD</span>
+                <span className="text-[#8b6f47]">Website</span>
+                <span className="font-medium text-[#1e1712]">TBD</span>
               </div>
             </div>
           </div>
         </div>
 
-        <MetricCards resources={filteredResources} />
+        <MetricCards resources={languageResources} />
 
         <div className="mt-6">
           <TalentMapVisual
@@ -116,15 +126,15 @@ export function TalentMapPage() {
           />
         </div>
 
-        <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
+        <section className="mt-6 rounded-xl border border-[#d2c8ba] bg-white/95 p-5 shadow-[0_16px_42px_rgba(31,41,51,0.10)]">
           <div className="mb-4 flex flex-col justify-between gap-2 md:flex-row md:items-end">
             <div>
-              <h2 className="text-xl font-semibold text-gray-950">Full Language Resource List</h2>
-              <p className="mt-1 text-sm text-gray-600">
+              <h2 className="text-xl font-semibold text-[#1e1712]">Full Language Resource List</h2>
+              <p className="mt-1 text-sm text-[#6b6258]">
                 Scroll, filter, and click any language row to update the detail panel.
               </p>
             </div>
-            <div className="text-sm text-gray-500">{filteredResources.length} entries shown</div>
+            <div className="text-sm text-[#8b6f47]">{filteredResources.length} entries shown</div>
           </div>
 
           <div className="mb-4">

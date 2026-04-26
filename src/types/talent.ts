@@ -4,6 +4,13 @@ export type ReadinessFilter = "All" | Readiness;
 
 export type OnlineStatusFilter = "All" | "Online Now" | "Offline";
 
+export type ContinentGroup =
+  | "Americas"
+  | "Europe"
+  | "Middle East & Africa"
+  | "Asia-Pacific"
+  | "Global / RoW";
+
 export type LanguageResource = {
   id: string;
   code: string;
@@ -27,6 +34,9 @@ export type LanguageResource = {
     x: number;
     y: number;
   };
+  lat: number;
+  lng: number;
+  continentGroup: ContinentGroup;
 };
 
 export type LanguageTeamOption = {

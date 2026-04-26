@@ -1,4 +1,4 @@
-import type { LanguageResource, Readiness } from "@/types/talent";
+import type { ContinentGroup, LanguageResource, Readiness } from "@/types/talent";
 
 type ResourceSeed = {
   code: string;
@@ -17,6 +17,202 @@ type ResourceSeed = {
 
 const baseSkills = ["LLM Evaluation", "Localization Review", "Search Evaluation"];
 
+const coordinatesByPool: Record<string, { lat: number; lng: number }> = {
+  "English::UK": { lat: 55.3, lng: -3.4 },
+  "English::EU": { lat: 50.0, lng: 10.0 },
+  "English::RoW": { lat: 1.0, lng: 30.0 },
+  "English::North American Accent": { lat: 39.8, lng: -98.6 },
+  "Indonesian::Indonesia": { lat: -2.5, lng: 118.0 },
+  "Vietnamese::Vietnam": { lat: 14.1, lng: 108.3 },
+  "Thai::Thailand": { lat: 15.8, lng: 101.0 },
+  "Malay::Malaysia": { lat: 4.2, lng: 102.0 },
+  "Japanese::Japan": { lat: 36.2, lng: 138.2 },
+  "Korean::South Korea": { lat: 36.5, lng: 127.8 },
+  "Filipino::Philippines": { lat: 12.8, lng: 121.7 },
+  "Arabic::Middle East": { lat: 24.0, lng: 45.0 },
+  "Arabic::MENA": { lat: 26.8, lng: 30.8 },
+  "Arabic::RoW": { lat: 12.0, lng: 43.0 },
+  "Arabic::KSA": { lat: 23.9, lng: 45.1 },
+  "Russian::Russia": { lat: 61.5, lng: 90.0 },
+  "French::France": { lat: 46.2, lng: 2.2 },
+  "German::Germany": { lat: 51.2, lng: 10.4 },
+  "Portuguese::Brazil": { lat: -14.2, lng: -51.9 },
+  "Portuguese::Portugal": { lat: 39.5, lng: -8.0 },
+  "Spanish::Mexico": { lat: 23.6, lng: -102.5 },
+  "Spanish::Spain": { lat: 40.4, lng: -3.7 },
+  "Spanish::Argentina": { lat: -38.4, lng: -63.6 },
+  "Spanish::Chile": { lat: -35.7, lng: -71.5 },
+  "Spanish::Colombia": { lat: 4.6, lng: -74.1 },
+  "Spanish::Peru": { lat: -9.2, lng: -75.0 },
+  "Spanish::Venezuela": { lat: 6.4, lng: -66.6 },
+  "Spanish::Ecuador": { lat: -1.8, lng: -78.2 },
+  "Spanish::Bolivia": { lat: -16.3, lng: -63.6 },
+  "Spanish::Uruguay": { lat: -32.5, lng: -55.8 },
+  "Spanish::Paraguay": { lat: -23.4, lng: -58.4 },
+  "Spanish::Costa Rica": { lat: 9.7, lng: -84.0 },
+  "Spanish::Guatemala": { lat: 15.8, lng: -90.2 },
+  "Spanish::Dominican Republic": { lat: 18.7, lng: -70.2 },
+  "Spanish::Puerto Rico": { lat: 18.2, lng: -66.6 },
+  "Spanish::RoW": { lat: 0.0, lng: -55.0 },
+  "Italian::Italy": { lat: 42.8, lng: 12.5 },
+  "Afrikaans::South Africa": { lat: -30.6, lng: 22.9 },
+  "Azerbaijani::Azerbaijan": { lat: 40.1, lng: 47.6 },
+  "Bulgarian::Bulgaria": { lat: 42.7, lng: 25.5 },
+  "Bengali::Bangladesh": { lat: 23.7, lng: 90.3 },
+  "Bengali::India": { lat: 22.9, lng: 87.8 },
+  "Catalan::Spain": { lat: 41.6, lng: 1.5 },
+  "Cantonese::Hong Kong": { lat: 22.3, lng: 114.2 },
+  "Cebuano::Philippines": { lat: 10.3, lng: 123.9 },
+  "Czech::Czech Republic": { lat: 49.8, lng: 15.5 },
+  "Danish::Denmark": { lat: 56.0, lng: 10.0 },
+  "Dutch::Netherlands": { lat: 52.1, lng: 5.3 },
+  "Finnish::Finland": { lat: 64.0, lng: 26.0 },
+  "Greek::Greece": { lat: 39.0, lng: 22.0 },
+  "Hebrew::Israel": { lat: 31.5, lng: 35.0 },
+  "Hindi::India": { lat: 21.0, lng: 78.0 },
+  "Hungarian::Hungary": { lat: 47.1, lng: 19.5 },
+  "Norwegian::Norway": { lat: 60.5, lng: 8.5 },
+  "Polish::Poland": { lat: 52.0, lng: 19.0 },
+  "Romanian::Romania": { lat: 45.9, lng: 24.9 },
+  "Serbian::Serbia": { lat: 44.0, lng: 21.0 },
+  "Slovak::Slovakia": { lat: 48.7, lng: 19.7 },
+  "Swedish::Sweden": { lat: 62.0, lng: 15.0 },
+  "Turkish::Turkey": { lat: 39.0, lng: 35.0 },
+  "Ukrainian::Ukraine": { lat: 49.0, lng: 32.0 },
+  "Urdu::Pakistan": { lat: 30.0, lng: 70.0 },
+  "Tamil::India": { lat: 11.0, lng: 78.0 },
+  "Telugu::India": { lat: 16.0, lng: 80.0 },
+  "Marathi::India": { lat: 19.0, lng: 76.0 },
+  "Nepali::Nepal": { lat: 28.4, lng: 84.0 },
+  "Burmese::Myanmar": { lat: 21.0, lng: 96.0 },
+  "Khmer::Cambodia": { lat: 12.6, lng: 104.9 },
+  "Lao::Laos": { lat: 18.2, lng: 103.8 },
+  "Sinhala::Sri Lanka": { lat: 7.8, lng: 80.7 },
+  "Swahili::Kenya": { lat: 0.5, lng: 37.9 },
+  "Amharic::Ethiopia": { lat: 9.1, lng: 40.5 },
+  "Zulu::South Africa": { lat: -29.0, lng: 30.0 },
+  "Arabic::UAE": { lat: 24.4, lng: 54.3 },
+  "Arabic::Egypt": { lat: 26.8, lng: 30.8 },
+  "Arabic::Jordan": { lat: 31.2, lng: 36.5 },
+  "Arabic::Lebanon": { lat: 33.9, lng: 35.9 },
+  "Arabic::Iraq": { lat: 33.2, lng: 43.7 },
+  "Arabic::Qatar": { lat: 25.3, lng: 51.2 },
+  "Arabic::Kuwait": { lat: 29.3, lng: 47.5 },
+  "Arabic::Bahrain": { lat: 26.1, lng: 50.5 },
+  "Arabic::Oman": { lat: 21.5, lng: 55.9 },
+  "Arabic::Morocco": { lat: 31.8, lng: -7.1 },
+  "Arabic::Algeria": { lat: 28.0, lng: 1.7 },
+  "Arabic::Tunisia": { lat: 34.0, lng: 9.5 },
+  "Arabic::Libya": { lat: 26.3, lng: 17.2 },
+  "Arabic::Sudan": { lat: 12.9, lng: 30.2 },
+};
+
+const continentGroupByPool: Record<string, ContinentGroup> = {
+  "English::UK": "Europe",
+  "English::EU": "Europe",
+  "English::RoW": "Global / RoW",
+  "English::North American Accent": "Americas",
+  "Portuguese::Brazil": "Americas",
+  "Portuguese::Portugal": "Europe",
+  "Spanish::Spain": "Europe",
+  "Spanish::RoW": "Global / RoW",
+  "Arabic::RoW": "Global / RoW",
+};
+
+const europeRegions = new Set([
+  "France",
+  "Germany",
+  "Italy",
+  "Azerbaijan",
+  "Bulgaria",
+  "Spain",
+  "Czech Republic",
+  "Denmark",
+  "Netherlands",
+  "Finland",
+  "Greece",
+  "Hungary",
+  "Norway",
+  "Poland",
+  "Romania",
+  "Serbia",
+  "Slovakia",
+  "Sweden",
+  "Turkey",
+  "Ukraine",
+  "Russia",
+]);
+
+const asiaPacificRegions = new Set([
+  "Indonesia",
+  "Vietnam",
+  "Thailand",
+  "Malaysia",
+  "Japan",
+  "South Korea",
+  "Philippines",
+  "Hong Kong",
+  "Bangladesh",
+  "India",
+  "Pakistan",
+  "Nepal",
+  "Myanmar",
+  "Cambodia",
+  "Laos",
+  "Sri Lanka",
+]);
+
+const middleEastAfricaRegions = new Set([
+  "Middle East",
+  "MENA",
+  "KSA",
+  "UAE",
+  "Egypt",
+  "Jordan",
+  "Lebanon",
+  "Iraq",
+  "Qatar",
+  "Kuwait",
+  "Bahrain",
+  "Oman",
+  "Morocco",
+  "Algeria",
+  "Tunisia",
+  "Libya",
+  "Sudan",
+  "Israel",
+  "South Africa",
+  "Kenya",
+  "Ethiopia",
+]);
+
+const americasRegions = new Set([
+  "Mexico",
+  "Argentina",
+  "Chile",
+  "Colombia",
+  "Peru",
+  "Venezuela",
+  "Ecuador",
+  "Bolivia",
+  "Uruguay",
+  "Paraguay",
+  "Costa Rica",
+  "Guatemala",
+  "Dominican Republic",
+  "Puerto Rico",
+]);
+
+function continentGroupFor(seed: ResourceSeed): ContinentGroup {
+  const directGroup = continentGroupByPool[`${seed.language}::${seed.region}`];
+  if (directGroup) return directGroup;
+  if (americasRegions.has(seed.region)) return "Americas";
+  if (europeRegions.has(seed.region)) return "Europe";
+  if (middleEastAfricaRegions.has(seed.region)) return "Middle East & Africa";
+  if (asiaPacificRegions.has(seed.region)) return "Asia-Pacific";
+  return "Global / RoW";
+}
+
 function slug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
@@ -25,10 +221,16 @@ function createResource(seed: ResourceSeed): LanguageResource {
   const aLevel = Math.max(0, Math.round(seed.activeTalents * 0.25));
   const bLevel = Math.max(0, Math.round(seed.activeTalents * 0.45));
   const cLevel = Math.max(0, seed.activeTalents - aLevel - bLevel);
+  const coordinates = coordinatesByPool[`${seed.language}::${seed.region}`] ?? {
+    lat: 1.0,
+    lng: 30.0,
+  };
 
   return {
     id: `${slug(seed.language)}-${slug(seed.region)}`,
     ...seed,
+    ...coordinates,
+    continentGroup: continentGroupFor(seed),
     quality: {
       A: aLevel,
       B: bLevel,
@@ -37,6 +239,76 @@ function createResource(seed: ResourceSeed): LanguageResource {
     },
   };
 }
+
+const additionalSpanishResources = [
+  ["Argentina", 62, 22, 4, "Stable"],
+  ["Chile", 44, 15, 3, "Developing"],
+  ["Colombia", 58, 21, 4, "Stable"],
+  ["Peru", 40, 13, 2, "Developing"],
+  ["Venezuela", 32, 10, 1, "Developing"],
+  ["Ecuador", 28, 9, 1, "Developing"],
+  ["Bolivia", 24, 7, 1, "Backup"],
+  ["Uruguay", 20, 6, 1, "Backup"],
+  ["Paraguay", 18, 5, 0, "Backup"],
+  ["Costa Rica", 26, 8, 1, "Developing"],
+  ["Guatemala", 24, 7, 1, "Developing"],
+  ["Dominican Republic", 22, 6, 1, "Backup"],
+  ["Puerto Rico", 20, 6, 1, "Backup"],
+  ["RoW", 36, 11, 1, "Backup"],
+] satisfies Array<[string, number, number, number, Readiness]>;
+
+const spanishResources = additionalSpanishResources.map(
+  ([region, totalResources, activeTalents, onlineNow, readiness]) =>
+    createResource({
+      code: "ES",
+      language: "Spanish",
+      region,
+      totalResources,
+      activeTalents,
+      onlineNow,
+      readiness,
+      averageRate: "$9-$22 / hour",
+      skills: ["LLM Evaluation", "Localization Review", "Search Evaluation", "Cultural Review"],
+      resourceNotes: `${region} Spanish pool supports regional native evaluation and localization coverage.`,
+      recommendedAction: `Use ${region} Spanish resources for country-specific review and expand active backup capacity.`,
+      position: { x: 30, y: 55 },
+    }),
+);
+
+const additionalArabicResources = [
+  ["UAE", 44, 15, 3, "Developing"],
+  ["Egypt", 68, 24, 5, "Stable"],
+  ["Jordan", 30, 10, 2, "Developing"],
+  ["Lebanon", 24, 8, 1, "Backup"],
+  ["Iraq", 34, 11, 2, "Developing"],
+  ["Qatar", 22, 7, 1, "Backup"],
+  ["Kuwait", 24, 8, 1, "Backup"],
+  ["Bahrain", 16, 5, 0, "Backup"],
+  ["Oman", 20, 6, 1, "Backup"],
+  ["Morocco", 46, 16, 3, "Developing"],
+  ["Algeria", 42, 14, 2, "Developing"],
+  ["Tunisia", 32, 10, 2, "Developing"],
+  ["Libya", 20, 6, 0, "Backup"],
+  ["Sudan", 26, 8, 1, "Backup"],
+] satisfies Array<[string, number, number, number, Readiness]>;
+
+const arabicResources = additionalArabicResources.map(
+  ([region, totalResources, activeTalents, onlineNow, readiness]) =>
+    createResource({
+      code: "AR",
+      language: "Arabic",
+      region,
+      totalResources,
+      activeTalents,
+      onlineNow,
+      readiness,
+      averageRate: "$9-$26 / hour",
+      skills: ["LLM Evaluation", "Safety Review", "Localization Review", "Cultural Review"],
+      resourceNotes: `${region} Arabic pool supports country-specific dialect and cultural review needs.`,
+      recommendedAction: `Use ${region} Arabic resources for regional review and continue expanding active native coverage.`,
+      position: { x: 58, y: 45 },
+    }),
+);
 
 export const languageResources: LanguageResource[] = [
   createResource({
@@ -249,6 +521,7 @@ export const languageResources: LanguageResource[] = [
     recommendedAction: "Recruit more KSA-native reviewers for market-sensitive tasks.",
     position: { x: 60, y: 46 },
   }),
+  ...arabicResources,
   createResource({
     code: "RU",
     language: "Russian",
@@ -347,6 +620,7 @@ export const languageResources: LanguageResource[] = [
     recommendedAction: "Add backup reviewers for urgent requests.",
     position: { x: 48, y: 38 },
   }),
+  ...spanishResources,
   createResource({
     code: "IT",
     language: "Italian",

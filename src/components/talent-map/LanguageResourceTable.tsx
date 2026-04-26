@@ -8,11 +8,11 @@ type LanguageResourceTableProps = {
 
 function readinessBadgeClass(readiness: Readiness) {
   const styles = {
-    Core: "border-gray-950 bg-gray-950 text-white",
-    Stable: "border-gray-700 bg-gray-700 text-white",
-    Developing: "border-gray-400 bg-white text-gray-950",
-    Backup: "border-gray-300 bg-gray-100 text-gray-700",
-    Gap: "border-gray-200 bg-white text-gray-500",
+    Core: "border-[#214d3a] bg-[#214d3a] text-white",
+    Stable: "border-[#6b7d3a] bg-[#6b7d3a] text-white",
+    Developing: "border-[#c9852b] bg-[#fff8ed] text-[#1e1712]",
+    Backup: "border-[#8a8175] bg-[#f3eee7] text-[#1e1712]",
+    Gap: "border-[#d2c8ba] bg-[#f7f6f0] text-[#6b6258]",
   };
 
   return styles[readiness];
@@ -24,9 +24,9 @@ export function LanguageResourceTable({
   onSelect,
 }: LanguageResourceTableProps) {
   return (
-    <div className="max-h-[460px] overflow-auto rounded-lg border border-gray-200">
+    <div className="max-h-[460px] overflow-auto rounded-lg border border-[#d2c8ba] bg-white shadow-[0_12px_28px_rgba(31,41,51,0.07)]">
       <table className="w-full min-w-[900px] border-collapse text-center text-sm">
-        <thead className="sticky top-0 z-10 bg-gray-100 text-xs uppercase text-gray-600">
+        <thead className="sticky top-0 z-10 bg-[#e7ebe1] text-xs uppercase text-[#1f2933]">
           <tr>
             <th className="px-3 py-2">Code</th>
             <th className="px-3 py-2">Language</th>
@@ -42,20 +42,26 @@ export function LanguageResourceTable({
             <tr
               key={item.id}
               onClick={() => onSelect(item.id)}
-              className={`cursor-pointer border-t border-gray-100 hover:bg-gray-50 ${
-                selectedId === item.id ? "bg-gray-100" : "bg-white"
+              className={`cursor-pointer border-t border-[#d7cdbf] transition hover:bg-[#eef3e7] ${
+                selectedId === item.id ? "bg-[#e3eadc] shadow-[inset_3px_0_0_#214d3a]" : "bg-white"
               }`}
             >
-              <td className="px-3 py-2 font-semibold text-gray-950">{item.code}</td>
-              <td className="px-3 py-2 font-medium text-gray-950">{item.language}</td>
-              <td className="px-3 py-2 text-gray-700">{item.region}</td>
-              <td className="px-3 py-2 font-medium text-gray-950">
+              <td className="px-3 py-2">
+                <span className="rounded-full border border-[#9caf88] bg-[#eef3e7] px-2.5 py-1 font-mono text-xs font-black text-[#214d3a]">
+                  {item.code}
+                </span>
+              </td>
+              <td className="px-3 py-2 font-medium text-[#1e1712]">{item.language}</td>
+              <td className="px-3 py-2 text-[#6b6258]">{item.region}</td>
+              <td className="px-3 py-2 font-mono font-semibold tabular-nums text-[#1f2933]">
                 {item.totalResources}
               </td>
-              <td className="px-3 py-2 font-medium text-gray-950">
+              <td className="px-3 py-2 font-mono font-semibold tabular-nums text-[#1f2933]">
                 {item.activeTalents}
               </td>
-              <td className="px-3 py-2 font-medium text-gray-950">{item.onlineNow}</td>
+              <td className="px-3 py-2 font-mono font-semibold tabular-nums text-[#1f2933]">
+                {item.onlineNow}
+              </td>
               <td className="px-3 py-2">
                 <span className={`rounded-md border px-2 py-1 text-xs font-medium ${readinessBadgeClass(item.readiness)}`}>
                   {item.readiness}
