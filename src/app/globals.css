@@ -2,8 +2,8 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --background: #ecede6;
-  --foreground: #1e1712;
+  --background: #f5f1e8;
+  --foreground: #111827;
 }
 
 @theme inline {
@@ -14,13 +14,6 @@
 }
 
 body {
-  background:
-    radial-gradient(circle at 1px 1px, rgba(33, 77, 58, 0.08) 1px, transparent 0),
-    linear-gradient(135deg, rgba(31, 41, 51, 0.05), transparent 34%),
-    var(--background);
-  background-size:
-    22px 22px,
-    100% 100%,
-    auto;
+  background: var(--background);
   color: var(--foreground);
 }

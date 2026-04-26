@@ -31,7 +31,7 @@ export function TalentMapFilters({
       <select
         value={languageFilter}
         onChange={(event) => onLanguageFilterChange(event.target.value)}
-        className="rounded-md border border-[#d2c8ba] bg-[#f7f6f0] px-3 py-2 text-sm font-medium text-[#1e1712] outline-none transition focus:border-[#214d3a] focus:bg-white"
+        className="rounded-md border border-[#e2d8c8] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#111827] outline-none transition focus:border-[#1f5c43] focus:bg-white"
         aria-label="Filter by language"
       >
         {languages.map((language) => (
@@ -44,7 +44,7 @@ export function TalentMapFilters({
       <select
         value={readinessFilter}
         onChange={(event) => onReadinessFilterChange(event.target.value as ReadinessFilter)}
-        className="rounded-md border border-[#d2c8ba] bg-[#f7f6f0] px-3 py-2 text-sm font-medium text-[#1e1712] outline-none transition focus:border-[#214d3a] focus:bg-white"
+        className="rounded-md border border-[#e2d8c8] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#111827] outline-none transition focus:border-[#1f5c43] focus:bg-white"
         aria-label="Filter by readiness"
       >
         {readinessOptions.map((readiness) => (
@@ -57,7 +57,7 @@ export function TalentMapFilters({
       <select
         value={onlineStatus}
         onChange={(event) => onOnlineStatusChange(event.target.value as OnlineStatusFilter)}
-        className="rounded-md border border-[#d2c8ba] bg-[#f7f6f0] px-3 py-2 text-sm font-medium text-[#1e1712] outline-none transition focus:border-[#214d3a] focus:bg-white"
+        className="rounded-md border border-[#e2d8c8] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#111827] outline-none transition focus:border-[#1f5c43] focus:bg-white"
         aria-label="Filter by online status"
       >
         {onlineStatusOptions.map((status) => (
@@ -71,7 +71,7 @@ export function TalentMapFilters({
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
         placeholder="Search code, language, or region..."
-        className="rounded-md border border-[#d2c8ba] bg-[#f7f6f0] px-3 py-2 text-sm font-medium text-[#1e1712] outline-none transition placeholder:text-[#8a8175] focus:border-[#214d3a] focus:bg-white"
+        className="rounded-md border border-[#e2d8c8] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#111827] outline-none transition placeholder:text-[#94a3b8] focus:border-[#1f5c43] focus:bg-white"
       />
     </div>
   );

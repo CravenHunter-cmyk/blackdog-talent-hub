@@ -22,10 +22,10 @@ const focusViewByGroup: Record<ContinentGroup, { center: [number, number]; zoom:
 
 function markerColor(readiness: Readiness) {
   const colors = {
-    Core: "#214d3a",
-    Stable: "#6b7d3a",
-    Developing: "#c9852b",
-    Backup: "#8a8175",
+    Core: "#1f5c43",
+    Stable: "#4d6b57",
+    Developing: "#9a6a1e",
+    Backup: "#7a7f86",
     Gap: "#b8aea2",
   };
 
@@ -35,7 +35,7 @@ function markerColor(readiness: Readiness) {
 function markerIcon(item: LanguageResource, isSelected: boolean) {
   const size = isSelected ? 34 : item.readiness === "Core" ? 30 : 28;
   const color = markerColor(item.readiness);
-  const textColor = item.readiness === "Developing" || item.readiness === "Gap" ? "#2b2118" : "#fffdf8";
+  const textColor = item.readiness === "Developing" || item.readiness === "Gap" ? "#111827" : "#ffffff";
 
   return L.divIcon({
     className: "",
@@ -47,7 +47,7 @@ function markerIcon(item: LanguageResource, isSelected: boolean) {
           width:${size}px;
           height:${size}px;
           border-radius:9999px;
-          border:${isSelected ? 3 : 2}px solid ${isSelected ? "#1f2933" : "#ffffff"};
+          border:${isSelected ? 3 : 2}px solid ${isSelected ? "#111827" : "#ffffff"};
           background:${color};
           color:${textColor};
           display:flex;
@@ -57,7 +57,7 @@ function markerIcon(item: LanguageResource, isSelected: boolean) {
           font-weight:700;
           line-height:1;
           box-sizing:border-box;
-          box-shadow:${isSelected ? "0 0 0 4px #fffdf8, 0 0 0 7px #214d3a" : "0 3px 8px rgba(31,41,51,0.22)"};
+          box-shadow:${isSelected ? "0 0 0 4px #ffffff, 0 0 0 7px #1f5c43" : "0 3px 8px rgba(31,41,51,0.18)"};
         "
       >
         ${item.code}
