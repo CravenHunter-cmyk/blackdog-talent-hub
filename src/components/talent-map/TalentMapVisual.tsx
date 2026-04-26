@@ -5,6 +5,7 @@ type TalentMapVisualProps = {
   resources: LanguageResource[];
   selectedId: string;
   onSelect: (id: string) => void;
+  detail: React.ReactNode;
 };
 
 function nodeClass(readiness: Readiness, isSelected: boolean) {
@@ -23,7 +24,7 @@ function nodeClass(readiness: Readiness, isSelected: boolean) {
   ].join(" ");
 }
 
-export function TalentMapVisual({ resources, selectedId, onSelect }: TalentMapVisualProps) {
+export function TalentMapVisual({ resources, selectedId, onSelect, detail }: TalentMapVisualProps) {
   const selected = resources.find((item) => item.id === selectedId) ?? resources[0];
 
   return (
@@ -42,32 +43,30 @@ export function TalentMapVisual({ resources, selectedId, onSelect }: TalentMapVi
         </div>
       </div>
 
-      <div className="relative h-[520px] overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-        <WorldMapSvg />
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="relative h-[520px] overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+          <WorldMapSvg />
 
-        {resources.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onSelect(item.id)}
-            className={nodeClass(item.readiness, selectedId === item.id)}
-            style={{
-              left: `${item.position.x}%`,
-              top: `${item.position.y}%`,
-              width: item.readiness === "Core" ? 44 : item.readiness === "Stable" ? 38 : 34,
-              height: item.readiness === "Core" ? 44 : item.readiness === "Stable" ? 38 : 34,
-            }}
-            aria-label={`Select ${item.language} ${item.region}`}
-          >
-            {item.code}
-          </button>
-        ))}
-
-        <div className="absolute bottom-4 left-4 max-w-sm rounded-md border border-gray-200 bg-white p-3 text-sm leading-6 text-gray-600">
-          <div className="font-semibold text-gray-950">Public display mode</div>
-          This mock data view shows language-level resource strength only. Candidate details
-          require login.
+          {resources.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSelect(item.id)}
+              className={nodeClass(item.readiness, selectedId === item.id)}
+              style={{
+                left: `${item.position.x}%`,
+                top: `${item.position.y}%`,
+                width: item.readiness === "Core" ? 44 : item.readiness === "Stable" ? 38 : 34,
+                height: item.readiness === "Core" ? 44 : item.readiness === "Stable" ? 38 : 34,
+              }}
+              aria-label={`Select ${item.language} ${item.region}`}
+            >
+              {item.code}
+            </button>
+          ))}
         </div>
+
+        {detail}
       </div>
 
       <LanguageManagementTeam selected={selected} />

@@ -62,41 +62,58 @@ export function TalentMapPage() {
       <section className="mx-auto max-w-7xl px-6 py-8">
         <div className="mb-6 grid gap-6 lg:grid-cols-[1.45fr_0.75fr]">
           <div>
-            <div className="mb-3 text-sm font-medium text-gray-600">
-              Talent Map · Public Coverage View
-            </div>
             <h1 className="text-4xl font-semibold text-gray-950 md:text-5xl">
-              BlackDog Talent Hub
+              Global Native Talent Coverage
             </h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-gray-700">
-              A public Talent Map for viewing native talent coverage by language, region,
-              resource pool size, active talent capacity, online status, skill coverage,
-              average rate, and readiness. Current stage uses mock data and does not connect
-              to a database.
+            <p className="mt-4 max-w-3xl text-lg font-medium leading-8 text-gray-900">
+              True global talent capability is not a static list. It is real-time visibility,
+              trackable progress, and deployable delivery capacity.
+            </p>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-gray-700">
+              BlackDog Talent Hub turns global native talent resources into a visualized,
+              trackable, and deployable delivery network, helping multilingual AI data, model
+              evaluation, and localization projects assess coverage, match teams, and launch
+              faster.
             </p>
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-white p-5">
-            <div className="text-xs font-semibold uppercase text-gray-500">Access Rule</div>
-            <div className="mt-2 text-xl font-semibold text-gray-950">
-              Public map, protected workspace.
+            <div className="flex items-center gap-4">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xl font-semibold text-gray-950">
+                BD
+              </div>
+              <div>
+                <div className="text-xl font-semibold text-gray-950">BlackDog Talent Hub</div>
+                <div className="mt-1 text-sm text-gray-600">Global Native Talent Network</div>
+              </div>
             </div>
-            <p className="mt-3 text-sm leading-6 text-gray-700">
-              Talent Map can be viewed publicly. Candidates, Screening, Intake Forms,
-              AI Assistant, and Settings require login permissions in later releases.
-            </p>
+
+            <div className="mt-5 space-y-2 text-sm text-gray-700">
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Contact</span>
+                <span className="font-medium text-gray-950">Global Operations Team</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Email</span>
+                <span className="font-medium text-gray-950">TBD</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Website</span>
+                <span className="font-medium text-gray-950">TBD</span>
+              </div>
+            </div>
           </div>
         </div>
 
         <MetricCards resources={filteredResources} />
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.65fr_0.95fr]">
+        <div className="mt-6">
           <TalentMapVisual
             resources={languageResources}
             selectedId={selectedLanguage}
             onSelect={setSelectedLanguage}
+            detail={<LanguageDetailCard selected={selected} />}
           />
-          <LanguageDetailCard selected={selected} />
         </div>
 
         <section className="mt-6 rounded-lg border border-gray-200 bg-white p-5">

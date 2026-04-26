@@ -25,16 +25,16 @@ export function LanguageResourceTable({
 }: LanguageResourceTableProps) {
   return (
     <div className="max-h-[460px] overflow-auto rounded-lg border border-gray-200">
-      <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+      <table className="w-full min-w-[900px] border-collapse text-center text-sm">
         <thead className="sticky top-0 z-10 bg-gray-100 text-xs uppercase text-gray-600">
           <tr>
-            <th className="px-4 py-3">Code</th>
-            <th className="px-4 py-3">Language</th>
-            <th className="px-4 py-3">Region</th>
-            <th className="px-4 py-3 text-right">Total Resources</th>
-            <th className="px-4 py-3 text-right">Active Talents</th>
-            <th className="px-4 py-3 text-right">Online Now</th>
-            <th className="px-4 py-3">Readiness</th>
+            <th className="px-3 py-2">Code</th>
+            <th className="px-3 py-2">Language</th>
+            <th className="px-3 py-2">Region</th>
+            <th className="px-3 py-2">Total Resources</th>
+            <th className="px-3 py-2">Active Talents</th>
+            <th className="px-3 py-2">Online Now</th>
+            <th className="px-3 py-2">Readiness</th>
           </tr>
         </thead>
         <tbody>
@@ -46,17 +46,17 @@ export function LanguageResourceTable({
                 selectedId === item.id ? "bg-gray-100" : "bg-white"
               }`}
             >
-              <td className="px-4 py-3 font-semibold text-gray-950">{item.code}</td>
-              <td className="px-4 py-3 font-medium text-gray-950">{item.language}</td>
-              <td className="px-4 py-3 text-gray-700">{item.region}</td>
-              <td className="px-4 py-3 text-right font-medium text-gray-950">
+              <td className="px-3 py-2 font-semibold text-gray-950">{item.code}</td>
+              <td className="px-3 py-2 font-medium text-gray-950">{item.language}</td>
+              <td className="px-3 py-2 text-gray-700">{item.region}</td>
+              <td className="px-3 py-2 font-medium text-gray-950">
                 {item.totalResources}
               </td>
-              <td className="px-4 py-3 text-right font-medium text-gray-950">
+              <td className="px-3 py-2 font-medium text-gray-950">
                 {item.activeTalents}
               </td>
-              <td className="px-4 py-3 text-right font-medium text-gray-950">{item.onlineNow}</td>
-              <td className="px-4 py-3">
+              <td className="px-3 py-2 font-medium text-gray-950">{item.onlineNow}</td>
+              <td className="px-3 py-2">
                 <span className={`rounded-md border px-2 py-1 text-xs font-medium ${readinessBadgeClass(item.readiness)}`}>
                   {item.readiness}
                 </span>

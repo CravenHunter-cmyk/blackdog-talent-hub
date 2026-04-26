@@ -66,14 +66,6 @@ export function LanguageDetailCard({ selected }: LanguageDetailCardProps) {
         <QualityRow label="Pending" value={selected.quality.Pending} />
       </DetailBlock>
 
-      <DetailBlock title="Resource Notes">
-        <p className="text-sm leading-6 text-gray-700">{selected.resourceNotes}</p>
-      </DetailBlock>
-
-      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <DetailLabel>Recommended Action</DetailLabel>
-        <p className="mt-2 text-sm leading-6 text-gray-700">{selected.recommendedAction}</p>
-      </div>
     </aside>
   );
 }
