@@ -436,6 +436,17 @@ function getTalentProfileDraftMatch(room = {}, draft = state.talentProfileDraft)
   )
 }
 
+function getVerifiedTalentProfileAvatar(room = {}, saved = {}) {
+  const roomKey = safeName(getRoomKey(room) || "")
+  const roomName = safeName(room?.candidateName || "")
+  const savedRoomId = safeName(saved?.roomId || "")
+  const savedName = safeName(saved?.candidateName || "")
+  const matches =
+    (roomKey && savedRoomId && roomKey === savedRoomId) ||
+    (roomName && savedName && roomName === savedName)
+  return matches ? safeName(saved?.avatarUrl || "") : ""
+}
+
 function candidateHeadlineToTaskTags(headline = "") {
   const raw = safeName(headline || "")
   if (!raw) return ""
@@ -1740,6 +1751,7 @@ function readTalentProfileForm() {
   const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
   const draftSubmittedToTalentPool = draftMatchesRoom ? Boolean(state.talentProfileDraft?.submittedToTalentPool) : false
   const draftSubmittedAt = draftMatchesRoom ? state.talentProfileDraft?.submittedAt || "" : ""
+  const savedAvatarUrl = getVerifiedTalentProfileAvatar(room || {}, state.talentProfiles[getTalentProfileKey(room || {})] || {})
   return {
     roomId: state.talentProfileRoomId || room?.roomId || "",
     candidateName: safeName(el(fields.candidateName)?.value || room?.candidateName || "Unknown Candidate"),
@@ -1762,7 +1774,7 @@ function readTalentProfileForm() {
     email: safeName(el(fields.email)?.value || ""),
     onlineContactMethod: safeName(el(fields.onlineContactMethod)?.value || "WhatsApp") || "WhatsApp",
     onlineContactAccount: safeName(el(fields.onlineContactAccount)?.value || ""),
-    avatarUrl: draftAvatarUrl || room?.candidateAvatarUrl || room?.avatarUrl || "",
+    avatarUrl: draftAvatarUrl || safeName(room?.candidateAvatarUrl || room?.avatarUrl || "") || savedAvatarUrl || "",
     submittedToTalentPool: draftSubmittedToTalentPool,
     submittedAt: draftSubmittedAt,
     updatedAt: nowIso(),
@@ -1849,13 +1861,16 @@ function renderTalentProfileModal() {
   const roomCandidateAvatarUrl = safeName(room?.candidateAvatarUrl || room?.avatarUrl || "")
   const draftMatchesRoom = getTalentProfileDraftMatch(room || {})
   const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
-  const finalAvatarUrl = draftAvatarUrl || roomCandidateAvatarUrl || saved.avatarUrl || ""
-  console.log("[BlackDog] profile draft match", {
+  const savedAvatarUrl = getVerifiedTalentProfileAvatar(room || {}, saved || {})
+  const finalAvatarUrl = draftAvatarUrl || roomCandidateAvatarUrl || savedAvatarUrl || ""
+  console.log("[BlackDog] profile avatar final", {
     candidateName: room?.candidateName,
     resolvedRoomKey: state.talentProfileRoomId,
     draftCandidateName: state.talentProfileDraft?.candidateName,
     draftRoomId: state.talentProfileDraft?.roomId,
     draftMatchesRoom: Boolean(draftMatchesRoom),
+    roomAvatar: Boolean(roomCandidateAvatarUrl),
+    savedAvatar: Boolean(savedAvatarUrl),
     finalAvatarUrl,
   })
   const merged = prefillTalentProfileFromRoom(
@@ -1986,22 +2001,25 @@ function openTalentProfile(roomId) {
   }
   const candidateAvatarUrl = safeName(room.candidateAvatarUrl || room.avatarUrl || "")
   const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
-  const finalAvatarUrl = draftAvatarUrl || candidateAvatarUrl || saved.avatarUrl || ""
+  const savedAvatarUrl = getVerifiedTalentProfileAvatar(room, saved)
+  const finalAvatarUrl = draftAvatarUrl || candidateAvatarUrl || savedAvatarUrl || ""
   console.log("[BlackDog] profile avatar source", {
     candidateName: room?.candidateName,
     resolvedRoomKey,
     hasMatchingDraft: Boolean(draftMatchesRoom),
     draftAvatar: Boolean(state.talentProfileDraft?.avatarUrl),
     roomAvatar: Boolean(candidateAvatarUrl),
-    savedAvatar: Boolean(saved.avatarUrl),
+    savedAvatar: Boolean(savedAvatarUrl),
     finalAvatarUrl,
   })
-  console.log("[BlackDog] profile draft match", {
+  console.log("[BlackDog] profile avatar final", {
     candidateName: room?.candidateName,
     resolvedRoomKey,
     draftCandidateName: state.talentProfileDraft?.candidateName,
     draftRoomId: state.talentProfileDraft?.roomId,
     draftMatchesRoom: Boolean(draftMatchesRoom),
+    roomAvatar: Boolean(candidateAvatarUrl),
+    savedAvatar: Boolean(savedAvatarUrl),
     finalAvatarUrl,
   })
   state.talentProfileDraft = prefillTalentProfileFromRoom(
@@ -2596,6 +2614,13 @@ function normalizeIncomingSnapshot(snapshot = {}) {
     noiseBlocksRemoved: snapshot.noiseBlocksRemoved || 0,
     cachedConversation: false,
     status: existing.status || snapshot.status || "active",
+  })
+  console.log("[BlackDog] avatar room merge", {
+    roomKey: roomId,
+    candidateName: room.candidateName,
+    incomingAvatar: snapshot.candidateAvatarUrl,
+    storedAvatar: room.candidateAvatarUrl,
+    roomUrl: room.roomUrl,
   })
 
   if (existingKey && existingKey !== roomId) {

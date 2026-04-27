@@ -81,6 +81,8 @@ let lastCandidateAvatarCandidateName = ""
 let lastAvatarBackgroundImageCandidateCount = 0
 let lastAvatarBestScore = 0
 let lastAvatarBestSourceType = ""
+let lastAvatarSourceType = "none"
+let lastAvatarMatchedRoomListText = ""
 let avatarRetryTimer = null
 let avatarRetryCount = 0
 let avatarRetryRoomKey = ""
@@ -441,6 +443,62 @@ function extractAvatarUrlFromContainer(container) {
   return ""
 }
 
+function extractCandidateAvatarFromMessageBlocks(candidateName = "") {
+  const name = safeName(candidateName || "")
+  if (!name || name === "Unknown Candidate") return ""
+
+  const storyNodes = Array.from(document.querySelectorAll("div.up-d-story, [class*='up-d-story']"))
+  const matchedStories = storyNodes
+    .filter((node) => {
+      if (!(node instanceof Element)) return false
+      const text = safeName(node.innerText || node.textContent || "")
+      return text.includes(name)
+    })
+    .sort((a, b) => {
+      const ar = a.getBoundingClientRect()
+      const br = b.getBoundingClientRect()
+      const aArea = Math.max(1, ar.width * ar.height)
+      const bArea = Math.max(1, br.width * br.height)
+      return aArea - bArea
+    })
+
+  for (const story of matchedStories) {
+    const avatar = extractAvatarUrlFromContainer(story)
+    if (avatar && /profile-portraits/i.test(avatar)) {
+      console.log("[BlackDog] avatar matched from message block", {
+        candidateName,
+        avatarUrl: avatar,
+      })
+      return avatar
+    }
+  }
+
+  return ""
+}
+
+function findCurrentCandidateSidebarContainer(candidateName = "") {
+  const name = safeName(candidateName || "")
+  if (!name || name === "Unknown Candidate") return null
+
+  const selectors = "aside, section, div, article"
+  const candidates = Array.from(document.querySelectorAll(selectors))
+    .filter((el) => {
+      if (!(el instanceof Element)) return false
+      const text = safeName(el.innerText || "")
+      if (!text.includes(name)) return false
+      return /View proposal|Activity timeline|Project alignment|Proposal received|Send offer|Offer acceptance|Contract starts/i.test(text)
+    })
+    .sort((a, b) => {
+      const ar = a.getBoundingClientRect()
+      const br = b.getBoundingClientRect()
+      const aArea = Math.max(1, ar.width * ar.height)
+      const bArea = Math.max(1, br.width * br.height)
+      return aArea - bArea
+    })
+
+  return candidates[0] || null
+}
+
 function findLikelyCandidateNameFromText(value = "", meName = "") {
   const lines = String(value || "")
     .replace(/\r\n/g, "\n")
@@ -539,18 +597,46 @@ function extractCandidateAvatarUrl(candidateName = "", meName = "") {
   let bestSourceType = ""
   let backgroundImageCandidateCount = 0
 
+  const sidebarContainer = findCurrentCandidateSidebarContainer(candidateText)
+  const sidebarAvatar = extractAvatarUrlFromContainer(sidebarContainer)
+  if (sidebarAvatar) {
+    lastAvatarBackgroundImageCandidateCount = 1
+    lastAvatarBestScore = 9999
+    lastAvatarBestSourceType = "sidebar"
+    lastAvatarSourceType = "sidebar"
+    lastAvatarMatchedRoomListText = safeName(sidebarContainer?.innerText || "")
+    console.log("[BlackDog] avatar matched from sidebar", {
+      candidateName,
+      avatarUrl: sidebarAvatar,
+      containerText: safeName(sidebarContainer?.innerText || "").slice(0, 160),
+    })
+    return sidebarAvatar
+  }
+
   const roomListItem = findCandidateRoomListItem(candidateText)
   const scopedAvatarUrl = extractAvatarUrlFromContainer(roomListItem)
   if (scopedAvatarUrl) {
     lastAvatarBackgroundImageCandidateCount = 1
     lastAvatarBestScore = 9999
     lastAvatarBestSourceType = "room-list-item"
+    lastAvatarSourceType = "room-list-item"
+    lastAvatarMatchedRoomListText = safeName(roomListItem?.innerText || "")
     console.log("[BlackDog] avatar from room list item", {
       candidateName,
       scopedAvatarUrl,
       containerText: safeName(roomListItem?.innerText || "").slice(0, 160),
     })
     return scopedAvatarUrl
+  }
+
+  const messageAvatarUrl = extractCandidateAvatarFromMessageBlocks(candidateText)
+  if (messageAvatarUrl) {
+    lastAvatarBackgroundImageCandidateCount = 1
+    lastAvatarBestScore = 9500
+    lastAvatarBestSourceType = "message-block"
+    lastAvatarSourceType = "message-block"
+    lastAvatarMatchedRoomListText = candidateText
+    return messageAvatarUrl
   }
 
   const candidateContainer = findCandidateRoomListContainer(candidateText)
@@ -606,6 +692,8 @@ function extractCandidateAvatarUrl(candidateName = "", meName = "") {
   const scopedSources = candidateContainer ? collectAvatarSources(candidateContainer, true) : []
   const fallbackSources = scopedSources.length ? [] : collectAvatarSources(document, false)
   const candidateSources = scopedSources.length ? scopedSources : fallbackSources
+  lastAvatarSourceType = candidateContainer ? "scoped" : "fallback"
+  lastAvatarMatchedRoomListText = safeName(candidateContainer?.innerText || "")
 
   for (const candidate of candidateSources) {
     const currentText = normalizeText(candidate.element?.innerText || candidate.element?.parentElement?.innerText || "")
@@ -632,25 +720,24 @@ function extractCandidateAvatarUrl(candidateName = "", meName = "") {
   lastAvatarBackgroundImageCandidateCount = backgroundImageCandidateCount
   lastAvatarBestScore = Number.isFinite(bestScore) ? bestScore : 0
   lastAvatarBestSourceType = bestSourceType
-  console.log("[BlackDog] avatar scoped search fallback", {
+  if (!best) lastAvatarSourceType = "none"
+  if (!best) {
+    console.log("[BlackDog] avatar not confidently matched", {
+      candidateName,
+      roomId: extractRoomIdFromUrl() || guessRoomId(),
+    })
+  }
+  console.log("[BlackDog] avatar pipeline", {
     candidateName,
     roomId: extractRoomIdFromUrl() || guessRoomId(),
-    foundContainer: Boolean(candidateContainer),
-    containerText: candidateContainer ? safeName(candidateContainer.innerText || "").slice(0, 120) : "",
     candidateAvatarUrl: best || "",
-    lastCandidateAvatarUrl,
+    avatarSource: lastAvatarSourceType,
+    matchedRoomListText: lastAvatarMatchedRoomListText.slice(0, 160),
     lastCandidateAvatarRoomKey,
     lastCandidateAvatarCandidateName,
-  })
-  console.log("[BlackDog] avatar scoped search", {
-    candidateName,
-    roomId: extractRoomIdFromUrl() || guessRoomId(),
     foundContainer: Boolean(candidateContainer),
     containerText: candidateContainer ? safeName(candidateContainer.innerText || "").slice(0, 120) : "",
-    candidateAvatarUrl: best || "",
     lastCandidateAvatarUrl,
-    lastCandidateAvatarRoomKey,
-    lastCandidateAvatarCandidateName,
   })
   return best || ""
 }
@@ -1147,6 +1234,8 @@ async function extractConversationData() {
     candidateName,
     meName,
     candidateAvatarUrl,
+    avatarSource: lastAvatarSourceType,
+    matchedRoomListText: lastAvatarMatchedRoomListText.slice(0, 160),
     backgroundImageCandidateCount: lastAvatarBackgroundImageCandidateCount,
     bestAvatarScore: lastAvatarBestScore,
     bestAvatarSourceType: lastAvatarBestSourceType,
@@ -1188,6 +1277,8 @@ async function extractConversationData() {
     candidateHeadline,
     conversationTitle,
     candidateAvatarUrl: candidateAvatarUrl || stableAvatarUrl || "",
+    avatarSource: lastAvatarSourceType,
+    matchedRoomListText: lastAvatarMatchedRoomListText,
     conversationMessages: finalMessages,
     conversationText: fallbackNote || conversationText,
     extractionMode,
