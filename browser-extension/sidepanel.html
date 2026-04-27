@@ -8,87 +8,290 @@
   </head>
   <body>
     <div class="shell">
-      <header class="hero card">
-        <div>
-          <div class="eyebrow">BlackDog Recruiting Helper</div>
-          <h1>Upwork Conversation Capture</h1>
-          <p>Capture the active Upwork message room, keep a local record, and prepare future AI-assisted replies.</p>
-          <div id="debug-status" class="debug-status">Side panel script loaded · Last action: idle</div>
-        </div>
-        <span class="badge">Preview Mode</span>
+      <header class="topbar card">
+        <strong>BlackDog Helper</strong>
+        <span id="topbar-status" class="topbar-status">Waiting</span>
       </header>
 
       <main class="content">
         <section class="card">
           <div class="section-head">
             <div>
-              <h2>Connection</h2>
-              <p>Preview mode only. No automatic sending, no auto-login, and no profile passwords are stored.</p>
+              <h2>PM Info</h2>
             </div>
           </div>
 
-          <div class="grid two">
-            <div class="kv"><span>Platform</span><strong>Upwork</strong></div>
-            <div class="kv"><span>Status</span><strong id="connection-status">Waiting for active Upwork tab</strong></div>
-            <div class="kv"><span>Last Sync</span><strong id="last-sync">Never</strong></div>
-            <div class="kv"><span>Extraction Mode</span><strong id="extraction-mode">Unknown</strong></div>
-          </div>
-
           <div class="stack">
-            <label class="stack">
-              <span class="group-label">Upwork User Name</span>
-              <input id="upwork-user-name" class="text-input" type="text" placeholder="e.g. Julie Zhu" />
-            </label>
-            <div class="actions">
-              <button id="save-user-name" class="secondary" type="button">Save User Name</button>
-              <button id="sync-page" class="primary" type="button">Sync Current Conversation</button>
-              <button id="refresh-visible-history" class="secondary" type="button">Refresh Visible History</button>
-              <button id="debug-dom-scan" class="secondary" type="button">Debug DOM Scan</button>
+            <div class="connection-inline-fields">
+              <label class="stack">
+                <span class="group-label">Upwork User Name</span>
+                <input id="upwork-user-name" class="text-input" type="text" placeholder="e.g. Julie Zhu" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Recruiting Project</span>
+                <select id="reply-project" class="text-input"></select>
+              </label>
+            </div>
+            <div class="actions compact-actions">
+              <button id="save-user-name" class="secondary" type="button">Save</button>
+              <button id="sync-page" class="primary" type="button">Refresh</button>
+              <button id="debug-dom-scan" class="secondary" type="button">Debug</button>
               <button id="clear-cache" class="secondary" type="button">Clear Cache</button>
             </div>
           </div>
         </section>
 
-        <section class="card">
-          <div class="section-head">
-            <div>
-              <h2>Current Conversation</h2>
-              <p id="conversation-meta">No conversation synced yet.</p>
+        <div class="workspace-body">
+        <section class="card current-conversation-card">
+            <div class="section-head conversation-section-head">
+              <div>
+                <h2>Current Conversation</h2>
+                <p id="conversation-meta">No conversation synced yet.</p>
+              </div>
+              <div class="conversation-translation-controls">
+                <button id="conversation-translation-toggle" class="secondary compact" type="button">中文翻译</button>
+                <label class="conversation-translation-default">
+                  <input id="conversation-translation-default-expanded" type="checkbox" />
+                  <span>默认展开中文翻译</span>
+                </label>
+                <span id="conversation-translation-status" class="conversation-translation-status" hidden>Translating...</span>
+              </div>
             </div>
-          </div>
 
-          <div class="stack">
-            <div class="kv-row"><span>Me</span><strong id="me-name">Unknown</strong></div>
-            <div class="kv-row"><span>Candidate</span><strong id="candidate-name">Unknown Candidate</strong></div>
-            <div class="kv-row"><span>Total Messages Captured</span><strong id="total-messages-captured">0</strong></div>
-            <div class="kv-row"><span>Last Message Time</span><strong id="last-message-time">—</strong></div>
-            <div class="kv-row"><span>Room URL</span><strong id="room-url">-</strong></div>
-          </div>
-
-          <div class="conversation-debug">
-            <div class="conversation-debug-item">
-              <span>Hidden low-confidence blocks</span>
-              <strong id="low-confidence-blocks">0</strong>
+            <div class="stack">
+              <div class="kv-row"><span>Me</span><strong id="me-name">Unknown</strong></div>
+              <div class="kv-row"><span>Candidate</span><strong id="candidate-name">Unknown Candidate</strong></div>
+              <div class="kv-row"><span>Total Messages Captured</span><strong id="total-messages-captured">0</strong></div>
+              <div class="kv-row"><span>Last Message Time</span><strong id="last-message-time">—</strong></div>
             </div>
-            <div class="conversation-debug-item">
-              <span>Noise blocks removed</span>
-              <strong id="noise-blocks-removed">0</strong>
+
+            <section class="assistant-panel">
+              <div class="smart-reply-layout">
+                <div class="smart-reply-main">
+                  <div class="reply-head-row">
+                    <button id="generate-reply" class="primary compact" type="button">AI Reply</button>
+                    <span id="reply-result-type-badge" class="assistant-result-type" hidden>MOCK</span>
+                  </div>
+
+                  <label class="stack">
+                    <textarea id="reply-english" class="reply-textarea" rows="7" placeholder="AI reply will appear here."></textarea>
+                  </label>
+
+                  <label class="stack">
+                    <textarea
+                      id="reply-chinese"
+                      class="reply-textarea reply-chinese-textarea"
+                      rows="4"
+                      placeholder="输入中文，翻译成英文回复"
+                    ></textarea>
+                  </label>
+
+                  <div class="assistant-bottom-actions">
+                    <button id="translate-reply" class="secondary compact" type="button">Translate</button>
+                    <button id="copy-reply" class="secondary compact" type="button">Copy</button>
+                    <button id="clear-reply" class="secondary compact" type="button">Clear</button>
+                    <span id="reply-copy-status" class="inline-copy-status" hidden>Copied</span>
+                  </div>
+
+                  <div id="reply-error" class="assistant-error" hidden></div>
+                </div>
+
+                <div class="reply-tools-divider" aria-hidden="true"></div>
+
+                <div class="project-script-column">
+                  <div class="reply-head-row">
+                    <h4>Project Scripts</h4>
+                    <span id="reply-script-status" class="project-script-status" hidden>Copied</span>
+                  </div>
+
+                  <select id="reply-script" class="text-input" aria-label="Project Script">
+                    <option value="">Select a script</option>
+                  </select>
+
+                  <div id="reply-script-preview" class="project-script-preview" hidden></div>
+                </div>
+              </div>
+            </section>
+
+            <div class="conversation-debug">
+              <div class="conversation-debug-item">
+                <span>Hidden low-confidence blocks</span>
+                <strong id="low-confidence-blocks">0</strong>
+              </div>
+              <div class="conversation-debug-item">
+                <span>Noise blocks removed</span>
+                <strong id="noise-blocks-removed">0</strong>
+              </div>
             </div>
-          </div>
 
-          <p id="history-help" class="history-help">
-            To import older messages, scroll up in Upwork to load history, then click Refresh Visible History.
-          </p>
+            <div id="conversation-list" class="conversation-list"></div>
 
-          <div id="conversation-list" class="conversation-list"></div>
+            <details class="debug-scan-panel" open>
+              <summary>Debug DOM Scan</summary>
+              <div class="debug-scan-status" id="debug-scan-status">idle</div>
+              <div id="debug-scan-results" class="debug-scan-results"></div>
+            </details>
+          </section>
 
-          <details class="debug-scan-panel" open>
-            <summary>Debug DOM Scan</summary>
-            <div class="debug-scan-status" id="debug-scan-status">idle</div>
-            <div id="debug-scan-results" class="debug-scan-results"></div>
-          </details>
-        </section>
+          <aside class="card candidate-chats-card">
+            <div class="section-head">
+              <div>
+                <h2>Candidate Chats</h2>
+                <p>Switch and manage cached candidates.</p>
+              </div>
+            </div>
+
+            <div id="candidate-chats-live-note" class="candidate-live-note">No active room selected yet.</div>
+            <div id="candidate-chats-list" class="candidate-chats-list"></div>
+
+            <div class="candidate-closed-panel">
+              <div class="candidate-closed-head">
+                <div class="candidate-closed-title">Closed Chats</div>
+                <button id="clear-closed-chats" class="secondary compact candidate-closed-clear" type="button">Clear Closed</button>
+              </div>
+              <div id="candidate-chats-closed-list" class="candidate-chats-closed-list"></div>
+            </div>
+          </aside>
+        </div>
       </main>
+    </div>
+
+    <div id="talent-profile-modal" class="talent-profile-modal" hidden>
+      <div class="talent-profile-overlay"></div>
+      <div class="talent-profile-dialog card" role="dialog" aria-modal="true" aria-labelledby="talent-profile-title">
+        <div class="talent-profile-header">
+          <h3 id="talent-profile-title">Talent Profile</h3>
+          <button id="talent-profile-close" class="secondary compact" type="button">×</button>
+        </div>
+
+        <div class="talent-profile-body">
+          <section class="talent-profile-section">
+            <div class="talent-profile-section-title">Basic Info</div>
+            <div class="talent-profile-grid">
+              <div class="talent-avatar-box">
+                <div id="talent-profile-avatar" class="talent-avatar">U</div>
+              </div>
+              <label class="stack">
+                <span class="group-label">Candidate Name</span>
+                <input id="talent-profile-candidate-name" class="text-input" type="text" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Platform</span>
+                <input id="talent-profile-platform" class="text-input" type="text" readonly />
+              </label>
+              <label class="stack">
+                <span class="group-label">Country / Region</span>
+                <input id="talent-profile-country-region" class="text-input" type="text" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Timezone</span>
+                <input id="talent-profile-timezone" class="text-input" type="text" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Identity</span>
+                <select id="talent-profile-identity" class="text-input">
+                  <option>Student</option>
+                  <option>Full-time Employee</option>
+                  <option>Part-time Worker</option>
+                  <option>Freelancer</option>
+                  <option>Self-employed</option>
+                  <option selected>Unknown</option>
+                </select>
+              </label>
+              <label class="stack">
+                <span class="group-label">Upwork Profile URL</span>
+                <input id="talent-profile-upwork-profile-url" class="text-input" type="url" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Upwork Chat URL</span>
+                <input id="talent-profile-upwork-chat-url" class="text-input" type="url" />
+              </label>
+            </div>
+          </section>
+
+          <section class="talent-profile-section">
+            <div class="talent-profile-section-title">Language</div>
+            <div class="talent-profile-grid">
+              <label class="stack">
+                <span class="group-label">Native Language</span>
+                <input id="talent-profile-native-language" class="text-input" type="text" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Language Variant</span>
+                <input id="talent-profile-language-variant" class="text-input" type="text" />
+              </label>
+              <label class="stack talent-profile-full">
+                <span class="group-label">Other Languages</span>
+                <input id="talent-profile-other-languages" class="text-input" type="text" />
+              </label>
+            </div>
+          </section>
+
+          <section class="talent-profile-section">
+            <div class="talent-profile-section-title">Skills & Experience</div>
+            <div class="talent-profile-grid">
+              <label class="stack">
+                <span class="group-label">Main Skill</span>
+                <input id="talent-profile-main-skill" class="text-input" type="text" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Task Tags</span>
+                <input id="talent-profile-task-tags" class="text-input" type="text" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Has LLM Evaluation Experience</span>
+                <select id="talent-profile-has-llm-evaluation-experience" class="text-input">
+                  <option>Yes</option>
+                  <option>No</option>
+                  <option selected>Unknown</option>
+                </select>
+              </label>
+              <label class="stack">
+                <span class="group-label">Evaluation Types</span>
+                <input id="talent-profile-evaluation-types" class="text-input" type="text" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Platforms / Companies</span>
+                <input id="talent-profile-platforms-companies" class="text-input" type="text" />
+              </label>
+              <label class="stack talent-profile-full">
+                <span class="group-label">Experience Summary</span>
+                <textarea id="talent-profile-experience-summary" class="reply-textarea talent-profile-textarea" rows="4"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="talent-profile-section">
+            <div class="talent-profile-section-title">Availability</div>
+            <div class="talent-profile-grid">
+              <label class="stack">
+                <span class="group-label">Daily Availability</span>
+                <input id="talent-profile-daily-availability" class="text-input" type="text" />
+              </label>
+              <label class="stack">
+                <span class="group-label">Weekend Availability</span>
+                <select id="talent-profile-weekend-availability" class="text-input">
+                  <option>Yes</option>
+                  <option>No</option>
+                  <option>Depends</option>
+                  <option selected>Unknown</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="talent-profile-footer">
+          <button id="talent-profile-ai-fill" class="secondary compact" type="button">AI Fill from Chat</button>
+          <div class="talent-profile-footer-actions">
+            <button id="talent-profile-close-footer" class="secondary compact" type="button">Close</button>
+            <button id="talent-profile-save-draft" class="secondary compact" type="button">Save Draft</button>
+            <button id="talent-profile-save-pool" class="primary compact" type="button">Save to Talent Pool</button>
+          </div>
+        </div>
+
+        <div id="talent-profile-status" class="talent-profile-status" hidden></div>
+      </div>
     </div>
 
     <script src="sidepanel.js"></script>

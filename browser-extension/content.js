@@ -40,6 +40,32 @@ const UI_TEXT_PATTERNS = [
   /^settings$/i,
 ]
 
+const INVALID_CANDIDATE_NAME_VALUES = [
+  "account settings",
+  "settings",
+  "messages",
+  "search messages",
+  "meeting recaps",
+  "people",
+  "files and links",
+  "personal notepad",
+  "activity timeline",
+  "proposal received",
+  "project alignment",
+  "offer acceptance",
+  "contract starts",
+  "send offer",
+  "view proposal",
+  "upwork home",
+  "toggle search",
+  "skip to content",
+  "more options",
+  "favorites",
+  "unread",
+  "jobs",
+  "all job posts",
+]
+
 const TIME_PATTERN = /\b(?:\d{1,2}:\d{2}\s?(?:AM|PM|am|pm)?|Yesterday|Today|[A-Z][a-z]{2}\s\d{1,2}|[A-Z][a-z]{2}\s\d{1,2},?\s\d{4})\b/
 
 const SNAPSHOT_DEBOUNCE_MS = 450
@@ -48,6 +74,17 @@ let lastBroadcastSignature = ""
 let snapshotTimer = null
 let observerStarted = false
 let cachedUpworkUserName = ""
+let lastObservedUrl = window.location.href
+let lastCandidateAvatarUrl = ""
+let lastCandidateAvatarRoomKey = ""
+let lastAvatarBackgroundImageCandidateCount = 0
+let lastAvatarBestScore = 0
+let lastAvatarBestSourceType = ""
+let avatarRetryTimer = null
+let avatarRetryCount = 0
+let avatarRetryRoomKey = ""
+const AVATAR_RETRY_LIMIT = 10
+const AVATAR_RETRY_DELAY_MS = 700
 
 function normalizeText(value = "") {
   return String(value).replace(/\s+/g, " ").trim()
@@ -98,6 +135,11 @@ function looksLikeName(value = "") {
   return words.every((word) => /^[A-ZÀ-ÿ][A-Za-zÀ-ÿ'’-]*$/.test(word))
 }
 
+function isInvalidCandidateName(name = "") {
+  const value = normalizeText(name).toLowerCase()
+  return !value || INVALID_CANDIDATE_NAME_VALUES.includes(value)
+}
+
 async function readUpworkUserName() {
   if (cachedUpworkUserName) return cachedUpworkUserName
   const items = await chrome.storage.local.get(["upworkUserName"])
@@ -110,12 +152,40 @@ function setCachedUpworkUserName(value) {
 }
 
 function guessRoomId() {
-  const path = `${window.location.pathname}${window.location.search}${window.location.hash}`
-  return normalizeText(path || window.location.href || hashString(document.title || `${Date.now()}`))
+  return extractRoomIdFromUrl(window.location.href) || normalizeText(window.location.pathname || window.location.href || hashString(document.title || `${Date.now()}`))
 }
 
 function guessRoomUrl() {
   return window.location.href
+}
+
+function extractRoomIdFromUrl(url = window.location.href) {
+  const match = String(url || "").match(/\/rooms\/([^/?#]+)/i)
+  return normalizeText(match?.[1] || "")
+}
+
+function extractCandidateNameFromUrl(pageUrl = window.location.href, meName = "") {
+  try {
+    const url = new URL(pageUrl, window.location.origin)
+    const raw = normalizeText((url.searchParams.get("pageTitle") || "").replace(/\+/g, " "))
+    if (!raw) return ""
+
+    const candidates = raw
+      .split(/[\u2022|•–—-]/)
+      .map((part) => normalizeText(part))
+      .filter(Boolean)
+
+    const pool = candidates.length ? candidates : [raw]
+    for (const candidate of pool) {
+      if (!looksLikeName(candidate)) continue
+      if (similarName(candidate, meName)) continue
+      if (isInvalidCandidateName(candidate)) continue
+      return candidate
+    }
+    return ""
+  } catch {
+    return ""
+  }
 }
 
 function getConversationRoot() {
@@ -138,10 +208,384 @@ function extractConversationTitle(root) {
   return normalizeText(document.title || "Upwork Conversation")
 }
 
+function extractCandidateNameFromPageTitle(pageTitle = "", meName = "") {
+  const title = normalizeText(pageTitle || "")
+  if (!title) return ""
+  const segments = title
+    .split(/[\u2022|•–—-]/)
+    .map((segment) => normalizeText(segment))
+    .filter(Boolean)
+
+  for (const segment of segments) {
+    if (looksLikeName(segment) && !similarName(segment, meName) && !isInvalidCandidateName(segment)) return segment
+  }
+
+  if (looksLikeName(title) && !similarName(title, meName) && !isInvalidCandidateName(title)) return title
+  return ""
+}
+
+function extractCandidateNameFromBodyText(bodyText = "", meName = "", preferredName = "") {
+  const lines = normalizeBlockText(bodyText)
+    .slice(0, 1500)
+    .split("\n")
+    .map((line) => normalizeText(line))
+    .filter(Boolean)
+
+  if (preferredName) {
+    const preferred = safeName(preferredName)
+    const preferredMatch = lines.find((line) => similarName(line, preferred) && !isInvalidCandidateName(line))
+    if (preferredMatch) return preferredMatch
+  }
+
+  for (const line of lines.slice(0, 20)) {
+    if (looksLikeName(line) && !similarName(line, meName) && !isInvalidCandidateName(line)) return line
+  }
+  return ""
+}
+
+function isLikelyHeadlineLine(line = "", meName = "", candidateName = "") {
+  const textValue = normalizeText(line)
+  if (!textValue) return false
+  if (isTimestampLine(textValue)) return false
+  if (looksLikeName(textValue)) return false
+  if (UI_TEXT_PATTERNS.some((pattern) => pattern.test(textValue))) return false
+  if (MESSAGE_NOISE_PATTERNS.some((pattern) => pattern.test(textValue))) return false
+  if (similarName(textValue, meName)) return false
+  if (candidateName && similarName(textValue, candidateName)) return false
+  if (/^(hi|hello|hey|thanks|thank you|dear|good morning|good afternoon|good evening)\b/i.test(textValue)) return false
+  if (textValue.length < 4 || textValue.length > 140) return false
+  return true
+}
+
+function extractCandidateHeadline(bodyText = "", candidateName = "", meName = "") {
+  const text = normalizeBlockText(bodyText).slice(0, 1500)
+  if (!text) return ""
+  const lines = text.split("\n").map((line) => normalizeText(line)).filter(Boolean)
+  if (!lines.length) return ""
+
+  let startIndex = -1
+  const targetName = safeName(candidateName || "")
+  if (targetName) {
+    startIndex = lines.findIndex((line) => similarName(line, targetName))
+  }
+  if (startIndex < 0) {
+    startIndex = lines.findIndex((line) => looksLikeName(line) && !similarName(line, meName))
+  }
+  if (startIndex < 0) return ""
+
+  const headlineParts = []
+  for (let index = startIndex + 1; index < Math.min(lines.length, startIndex + 6); index += 1) {
+    const line = lines[index]
+    if (!line) continue
+    if (looksLikeName(line) || isTimestampLine(line)) break
+    if (UI_TEXT_PATTERNS.some((pattern) => pattern.test(line))) continue
+    if (MESSAGE_NOISE_PATTERNS.some((pattern) => pattern.test(line))) continue
+    if (!isLikelyHeadlineLine(line, meName, candidateName)) continue
+    headlineParts.push(line)
+    if (headlineParts.join(" ").length >= 140) break
+    if (headlineParts.length >= 2) break
+  }
+
+  return normalizeText(headlineParts.join(" "))
+}
+
+function extractConversationIdentity({ pageTitle = "", bodyText = "", messages = [], meName = "" } = {}) {
+  const urlCandidateName = extractCandidateNameFromUrl(pageTitle, meName) || extractCandidateNameFromPageTitle(pageTitle, meName)
+  const headerCandidateName = extractCandidateNameFromBodyText(bodyText, meName, urlCandidateName)
+  const inferredCandidateName = chooseCandidateName(messages, meName, "Unknown Candidate")
+  const finalCandidateName =
+    (!isInvalidCandidateName(urlCandidateName) && urlCandidateName) ||
+    (!isInvalidCandidateName(headerCandidateName) && headerCandidateName) ||
+    (!isInvalidCandidateName(inferredCandidateName) && inferredCandidateName) ||
+    "Unknown Candidate"
+  const candidateHeadline = extractCandidateHeadline(bodyText, finalCandidateName, meName)
+  return {
+    urlCandidateName,
+    headerCandidateName,
+    inferredCandidateName,
+    finalCandidateName,
+    candidateHeadline,
+  }
+}
+
 function isTimestampLine(textValue = "") {
   const normalized = normalizeText(textValue)
   if (!normalized) return false
   return TIME_PATTERN.test(normalized)
+}
+
+function extractUrlFromBackgroundImage(value = "") {
+  const text = String(value || "").trim()
+  if (!text || text === "none") return ""
+
+  const match = text.match(/url\((['"]?)(.*?)\1\)/i)
+  const url = normalizeText(match?.[2] || "")
+  return /^https?:\/\//i.test(url) ? url : ""
+}
+
+function extractImageUrlFromElement(element) {
+  if (!element || !(element instanceof Element)) return ""
+
+  const candidates = []
+  const directSrc = normalizeText(element.getAttribute("src") || "")
+  const directSrcset = normalizeText(element.getAttribute("srcset") || "")
+  if (directSrc) candidates.push(directSrc)
+  if (directSrcset) {
+    const srcsetUrl = directSrcset
+      .split(",")
+      .map((entry) => normalizeText(entry.split(/\s+/)[0] || ""))
+      .find((value) => /^https?:\/\//i.test(value))
+    if (srcsetUrl) candidates.push(srcsetUrl)
+  }
+
+  const style = window.getComputedStyle(element)
+  const bgUrl = extractUrlFromBackgroundImage(style.backgroundImage || "")
+  if (bgUrl) candidates.push(bgUrl)
+
+  return candidates.find((value) => /^https?:\/\//i.test(value)) || ""
+}
+
+function isLikelyAvatarElement(element) {
+  if (!element || !(element instanceof Element)) return false
+  const rect = element.getBoundingClientRect()
+  if (!rect || rect.width < 24 || rect.height < 24) return false
+  const className = String(element.className || "").toLowerCase()
+  const ariaLabel = String(element.getAttribute("aria-label") || "").toLowerCase()
+  const alt = String(element.getAttribute("alt") || "").toLowerCase()
+  if (/icon|favicon|svg|badge|avatar-placeholder|placeholder/.test(className)) return false
+  if (/icon|favicon|badge/.test(ariaLabel)) return false
+  if (/icon|favicon/.test(alt)) return false
+  return true
+}
+
+function findLikelyCandidateNameFromText(value = "", meName = "") {
+  const lines = String(value || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => normalizeText(line))
+    .filter(Boolean)
+
+  for (const line of lines.slice(0, 30)) {
+    if (!looksLikeName(line)) continue
+    if (similarName(line, meName)) continue
+    if (isInvalidCandidateName(line)) continue
+    if (/^(candidate|me|unknown|saved|view details)$/i.test(line)) continue
+    return line
+  }
+
+  return ""
+}
+
+function inferCandidateNameForAvatar(candidateName = "", meName = "") {
+  const normalizedCandidateName = safeName(candidateName || "")
+  if (normalizedCandidateName && normalizedCandidateName !== "Unknown Candidate" && !isInvalidCandidateName(normalizedCandidateName)) {
+    return normalizedCandidateName
+  }
+
+  const title = normalizeText(document.title || "")
+  const bodyText = normalizeBlockText(document.body?.innerText || "")
+  return (
+    findLikelyCandidateNameFromText(title, meName) ||
+    findLikelyCandidateNameFromText(bodyText, meName) ||
+    normalizedCandidateName ||
+    "Unknown Candidate"
+  )
+}
+
+function scoreAvatarElement({
+  element,
+  url,
+  candidateText,
+  meText,
+  sourceType,
+}) {
+  if (!element || !(element instanceof Element)) return { score: Number.NEGATIVE_INFINITY, width: 0, height: 0 }
+
+  const rect = element.getBoundingClientRect()
+  const width = Math.round(rect.width || 0)
+  const height = Math.round(rect.height || 0)
+  if (width < 24 || height < 24) return { score: Number.NEGATIVE_INFINITY, width, height }
+
+  const currentText = normalizeText(
+    [
+      element.getAttribute("alt") || "",
+      element.getAttribute("aria-label") || "",
+      element.parentElement?.innerText || "",
+      element.closest("article,section,div,header,[role='main'],[role='heading']")?.innerText || "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+  )
+
+  let score = 0
+  const lowerText = currentText.toLowerCase()
+  const lowerUrl = normalizeText(url || "").toLowerCase()
+  const className = String(element.className || "").toLowerCase()
+  const ariaLabel = String(element.getAttribute("aria-label") || "").toLowerCase()
+
+  if (candidateText && lowerText.includes(candidateText.toLowerCase())) score += 1000
+  if (meText && lowerText.includes(meText.toLowerCase())) score -= 1000
+  else if (meText) score += 200
+
+  const topLeftDistance = Math.abs(rect.left) + Math.abs(rect.top)
+  if (topLeftDistance < 900) score += 300
+  if (width >= 32 && width <= 120 && height >= 32 && height <= 120) score += 200
+  if (Math.abs(width - height) <= 8 || /50%|9999px/i.test(String(element.style.borderRadius || ""))) score += 100
+  if (width > 180 || height > 180) score -= 300
+  if (element.closest("nav,aside,footer,[role='navigation']")) score -= 300
+  if (/(favicon|logo|icon|sprite|\.svg(\?|#|$))/i.test(lowerUrl)) score -= 500
+  if (/(favicon|logo|icon|sprite)/i.test(className)) score -= 300
+  if (/(favicon|logo|icon|sprite)/i.test(ariaLabel)) score -= 300
+
+  if (candidateText && lowerText.includes(candidateText.toLowerCase())) score += 400
+  if (/Me\b/i.test(currentText) || /Julie Zhu/i.test(currentText)) score -= 500
+  if (sourceType === "background") score += 25
+  if (sourceType === "img") score += 10
+
+  return { score, width, height }
+}
+
+function extractCandidateAvatarUrl(candidateName = "", meName = "") {
+  const resolvedCandidateName = inferCandidateNameForAvatar(candidateName || "", meName || "")
+  const candidateText = safeName(resolvedCandidateName || candidateName || "")
+  const meText = safeName(meName || "")
+
+  const allImgs = Array.from(document.querySelectorAll("img"))
+  const allElements = Array.from(document.querySelectorAll("div, span, button, a, figure"))
+  const seen = new Set()
+  let best = ""
+  let bestScore = Number.NEGATIVE_INFINITY
+  let bestSourceType = ""
+  let backgroundImageCandidateCount = 0
+
+  const candidateSources = []
+
+  for (const img of allImgs) {
+    if (!(img instanceof Element)) continue
+    if (!isVisibleElement(img)) continue
+    if (!isLikelyAvatarElement(img)) continue
+
+    const src = img.currentSrc || img.src || extractImageUrlFromElement(img)
+    if (!src || !/^https?:\/\//i.test(src)) continue
+    if (seen.has(src)) continue
+    seen.add(src)
+    candidateSources.push({ element: img, url: src, sourceType: "img" })
+  }
+
+  for (const element of allElements) {
+    if (!(element instanceof Element)) continue
+    if (!isVisibleElement(element)) continue
+    if (element.closest("nav,aside,footer,[role='navigation']")) continue
+
+    const computed = window.getComputedStyle(element)
+    const bgUrl = extractUrlFromBackgroundImage(computed.backgroundImage || "")
+    if (!bgUrl || !/^https?:\/\//i.test(bgUrl)) continue
+    if (/favicon|logo|icon|sprite|\.svg(\?|#|$)/i.test(bgUrl)) continue
+    const rect = element.getBoundingClientRect()
+    const width = Math.round(rect.width || 0)
+    const height = Math.round(rect.height || 0)
+    if (width < 24 || height < 24) continue
+    backgroundImageCandidateCount += 1
+    if (seen.has(bgUrl)) continue
+    seen.add(bgUrl)
+    candidateSources.push({ element, url: bgUrl, sourceType: "background" })
+  }
+
+  for (const candidate of candidateSources) {
+    const { score } = scoreAvatarElement({
+      element: candidate.element,
+      url: candidate.url,
+      candidateText,
+      meText,
+      sourceType: candidate.sourceType,
+    })
+    if (score > bestScore) {
+      bestScore = score
+      best = candidate.url
+      bestSourceType = candidate.sourceType
+    }
+  }
+
+  lastAvatarBackgroundImageCandidateCount = backgroundImageCandidateCount
+  lastAvatarBestScore = Number.isFinite(bestScore) ? bestScore : 0
+  lastAvatarBestSourceType = bestSourceType
+  return best || ""
+}
+
+function isUpworkMessagesRoomPage() {
+  return /upwork\.com\/ab\/messages\/rooms\//i.test(String(window.location.href || ""))
+}
+
+function scheduleAvatarRetry() {
+  if (avatarRetryTimer) clearTimeout(avatarRetryTimer)
+  const roomId = extractRoomIdFromUrl() || guessRoomId()
+  if (avatarRetryRoomKey !== roomId) {
+    avatarRetryRoomKey = roomId
+    avatarRetryCount = 0
+  }
+  if (avatarRetryCount >= AVATAR_RETRY_LIMIT) return
+
+  avatarRetryTimer = window.setTimeout(() => {
+    avatarRetryTimer = null
+    avatarRetryCount += 1
+    if (!isUpworkMessagesRoomPage()) return
+
+    const nextRoomId = extractRoomIdFromUrl() || guessRoomId()
+    const meName = cachedUpworkUserName || ""
+    const candidateAvatarUrl = extractCandidateAvatarUrl("Unknown Candidate", meName)
+    console.log("[BlackDog] avatar retry", {
+      retry: avatarRetryCount,
+      roomId: nextRoomId,
+      candidateAvatarUrl,
+      lastCandidateAvatarUrl,
+      imgCount: document.querySelectorAll("img").length,
+    })
+
+    if (candidateAvatarUrl) {
+      lastCandidateAvatarUrl = candidateAvatarUrl
+      lastCandidateAvatarRoomKey = nextRoomId
+      void broadcastSnapshot()
+      return
+    }
+
+    if (avatarRetryCount < AVATAR_RETRY_LIMIT) {
+      scheduleAvatarRetry()
+    }
+  }, AVATAR_RETRY_DELAY_MS)
+}
+
+function resetCurrentRoomTransientState() {
+  lastCandidateAvatarUrl = ""
+  lastCandidateAvatarRoomKey = ""
+  avatarRetryCount = 0
+  if (avatarRetryTimer) {
+    clearTimeout(avatarRetryTimer)
+    avatarRetryTimer = null
+  }
+}
+
+function scheduleSnapshotBroadcast(reason = "mutation") {
+  if (snapshotTimer) clearTimeout(snapshotTimer)
+  snapshotTimer = window.setTimeout(() => {
+    console.log("[BlackDog] schedule snapshot broadcast", {
+      reason,
+      url: window.location.href,
+    })
+    void broadcastSnapshot()
+  }, SNAPSHOT_DEBOUNCE_MS)
+}
+
+function handlePossibleRoomChange(reason = "mutation") {
+  const currentUrl = window.location.href
+  if (currentUrl === lastObservedUrl) return false
+  lastObservedUrl = currentUrl
+  console.log("[BlackDog] room url changed", {
+    reason,
+    currentUrl,
+  })
+  resetCurrentRoomTransientState()
+  scheduleSnapshotBroadcast("room_url_changed")
+  return true
 }
 
 function parseStoryContainerNode(node, roomId) {
@@ -443,7 +887,7 @@ function chooseCandidateName(messages, meName, fallback = "Unknown Candidate") {
   const counts = new Map()
   for (const message of messages) {
     const sender = safeName(message.sender || "")
-    if (!sender || sender === "Unknown") continue
+    if (!sender || sender === "Unknown" || isInvalidCandidateName(sender)) continue
     if (similarName(sender, meName)) continue
     counts.set(sender, (counts.get(sender) || 0) + 1)
   }
@@ -492,11 +936,20 @@ function dedupeMessages(messages, roomId) {
 
 async function extractConversationData() {
   const meName = await readUpworkUserName()
-  const roomId = guessRoomId()
   const roomUrl = guessRoomUrl()
+  const roomId = extractRoomIdFromUrl(roomUrl) || guessRoomId()
   const sourceNode = getConversationRoot()
+  const urlPageTitle = (() => {
+    try {
+      const url = new URL(roomUrl, window.location.origin)
+      return normalizeText(url.searchParams.get("pageTitle") || "")
+    } catch {
+      return ""
+    }
+  })()
   const pageTitle = normalizeText(document.title || "Untitled Page")
   const conversationTitle = extractConversationTitle(sourceNode)
+  const bodyText = normalizeBlockText(document.body?.innerText || "")
 
   let messages = []
   let noiseBlocksRemoved = 0
@@ -511,7 +964,24 @@ async function extractConversationData() {
   foundStoryContainer = Boolean(extracted.foundStoryContainer)
   messages = dedupeMessages(messages, roomId)
 
-  const candidateName = chooseCandidateName(messages, meName, "Unknown Candidate")
+  const identity = extractConversationIdentity({
+    pageTitle: urlPageTitle,
+    bodyText,
+    messages,
+    meName,
+  })
+  const candidateName = identity.finalCandidateName
+  const candidateHeadline = identity.candidateHeadline
+  console.log("[BlackDog] snapshot identity", {
+    roomId,
+    roomUrl,
+    urlCandidateName: identity.urlCandidateName,
+    headerCandidateName: identity.headerCandidateName,
+    inferredCandidateName: identity.inferredCandidateName,
+    finalCandidateName: candidateName,
+    messageCount: messages.length,
+    candidateHeadline,
+  })
   const normalizedMessages = normalizeDirectionForRoom(messages, meName, candidateName)
   console.log("[BlackDog] parsed messages", messages)
   console.log("[BlackDog] normalized messages", normalizedMessages)
@@ -527,6 +997,27 @@ async function extractConversationData() {
   console.log("[BlackDog] reliable messages", reliableMessages)
   const finalMessages = foundStoryContainer ? reliableMessages : []
   const extractionMode = foundStoryContainer ? "story_container_capture" : "no_story_container_found"
+  const candidateAvatarUrl = extractCandidateAvatarUrl(candidateName, meName)
+  console.log("[BlackDog] candidate avatar", {
+    candidateName,
+    meName,
+    candidateAvatarUrl,
+    backgroundImageCandidateCount: lastAvatarBackgroundImageCandidateCount,
+    bestAvatarScore: lastAvatarBestScore,
+    bestAvatarSourceType: lastAvatarBestSourceType,
+    lastCandidateAvatarUrl,
+    imgCount: document.querySelectorAll("img").length,
+    retryScheduled: Boolean(avatarRetryTimer),
+  })
+  const imageCount = document.querySelectorAll("img").length
+  const shouldRetryAvatar = (candidateName === "Unknown Candidate" || imageCount === 0) && !candidateAvatarUrl
+  if (candidateAvatarUrl) {
+    lastCandidateAvatarUrl = candidateAvatarUrl
+    lastCandidateAvatarRoomKey = roomId
+  } else if (!lastCandidateAvatarUrl && shouldRetryAvatar && !avatarRetryTimer && avatarRetryCount < AVATAR_RETRY_LIMIT) {
+    scheduleAvatarRetry()
+  }
+  const stableAvatarUrl = roomId && lastCandidateAvatarRoomKey === roomId ? lastCandidateAvatarUrl : ""
   const conversationText = finalMessages
     .map((message) => `${message.sender}${message.timestamp && message.timestamp !== "Unknown" ? ` (${message.timestamp})` : ""}: ${message.text}`)
     .join("\n\n")
@@ -541,7 +1032,9 @@ async function extractConversationData() {
     pageTitle,
     meName: meName || "Unknown",
     candidateName,
+    candidateHeadline,
     conversationTitle,
+    candidateAvatarUrl: candidateAvatarUrl || stableAvatarUrl || "",
     conversationMessages: finalMessages,
     conversationText: fallbackNote || conversationText,
     extractionMode,
@@ -553,7 +1046,7 @@ async function extractConversationData() {
   }
 
   snapshot.snapshotSignature = hashString(
-    `${snapshot.roomId}|${snapshot.meName}|${snapshot.candidateName}|${snapshot.conversationMessages.map((message) => message.id).join("|")}|${snapshot.totalMessagesCaptured}`,
+    `${snapshot.roomId}|${snapshot.meName}|${snapshot.candidateName}|${snapshot.candidateHeadline}|${snapshot.candidateAvatarUrl}|${snapshot.conversationMessages.map((message) => message.id).join("|")}|${snapshot.totalMessagesCaptured}`,
   )
 
   return snapshot
@@ -575,10 +1068,7 @@ async function broadcastSnapshot() {
 }
 
 function scheduleBroadcast() {
-  if (snapshotTimer) clearTimeout(snapshotTimer)
-  snapshotTimer = window.setTimeout(() => {
-    void broadcastSnapshot()
-  }, SNAPSHOT_DEBOUNCE_MS)
+  scheduleSnapshotBroadcast("mutation")
 }
 
 function startObserver() {
@@ -589,7 +1079,9 @@ function startObserver() {
   if (!target) return
 
   const observer = new MutationObserver(() => {
-    scheduleBroadcast()
+    if (!handlePossibleRoomChange("mutation")) {
+      scheduleBroadcast()
+    }
   })
 
   observer.observe(target, {
@@ -598,8 +1090,34 @@ function startObserver() {
     characterData: true,
   })
 
-  window.addEventListener("focus", scheduleBroadcast)
-  window.addEventListener("visibilitychange", scheduleBroadcast)
+  const patchHistoryMethod = (methodName) => {
+    const original = history[methodName]
+    if (typeof original !== "function") return
+    if (original.__blackdogPatched) return
+    const patched = function patchedHistoryState(...args) {
+      const result = original.apply(this, args)
+      handlePossibleRoomChange(methodName)
+      return result
+    }
+    patched.__blackdogPatched = true
+    history[methodName] = patched
+  }
+
+  patchHistoryMethod("pushState")
+  patchHistoryMethod("replaceState")
+
+  window.addEventListener("popstate", () => {
+    handlePossibleRoomChange("popstate")
+    scheduleBroadcast()
+  })
+  window.addEventListener("focus", () => {
+    handlePossibleRoomChange("focus")
+    scheduleBroadcast()
+  })
+  window.addEventListener("visibilitychange", () => {
+    handlePossibleRoomChange("visibilitychange")
+    scheduleBroadcast()
+  })
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local" || !changes.upworkUserName) return
     setCachedUpworkUserName(changes.upworkUserName.newValue || "")
