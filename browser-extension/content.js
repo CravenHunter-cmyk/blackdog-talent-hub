@@ -1128,6 +1128,7 @@ function startObserver() {
 }
 
 function collectUpworkSnapshot() {
+  console.log("[BlackDog content] collect snapshot requested")
   return extractConversationData()
 }
 
@@ -1140,7 +1141,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message?.type === "COLLECT_UPWORK_SNAPSHOT") {
       void Promise.resolve(collectUpworkSnapshot())
-        .then((snapshot) => sendResponse({ ok: true, snapshot }))
+        .then((snapshot) => {
+          console.log("[BlackDog content] snapshot result", {
+            roomId: snapshot?.roomId,
+            candidateName: snapshot?.candidateName,
+            messageCount: Array.isArray(snapshot?.conversationMessages) ? snapshot.conversationMessages.length : 0,
+          })
+          sendResponse({ ok: true, snapshot })
+        })
         .catch((error) => {
           sendResponse({
             ok: false,

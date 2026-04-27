@@ -102,17 +102,40 @@ async function ensureContentScript(tabId) {
 }
 
 async function requestSnapshotFromTab(tabId) {
+  console.log("[BlackDog background] request snapshot tab", { tabId })
   const injected = await ensureContentScript(tabId)
   if (!injected) return { ok: false, error: "Could not read Upwork page." }
 
-  try {
-    const response = await sendMessageToTab(tabId, { type: "COLLECT_UPWORK_SNAPSHOT" })
-    if (response?.ok && response.snapshot) return { ok: true, snapshot: response.snapshot }
-    if (response && response.roomId && response.conversationMessages) return { ok: true, snapshot: response }
-    return { ok: false, error: response?.error || "Could not read Upwork page." }
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Could not read Upwork page." }
+  const readSnapshot = async (label) => {
+    try {
+      const response = await sendMessageToTab(tabId, { type: "COLLECT_UPWORK_SNAPSHOT" })
+      console.log("[BlackDog background] content response", {
+        tabId,
+        label,
+        ok: Boolean(response?.ok),
+        hasSnapshot: Boolean(response?.snapshot),
+      })
+      if (response?.ok && response.snapshot) return { ok: true, snapshot: response.snapshot }
+      if (response && response.roomId && response.conversationMessages) return { ok: true, snapshot: response }
+      return { ok: false, error: response?.error || "Could not read Upwork page." }
+    } catch (error) {
+      console.warn("[BlackDog background] snapshot request failed", {
+        tabId,
+        label,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return { ok: false, error: error instanceof Error ? error.message : "Could not read Upwork page." }
+    }
   }
+
+  const first = await readSnapshot("first")
+  if (first.ok) return first
+
+  const reinjected = await ensureContentScriptInjected(tabId)
+  if (!reinjected) return first
+
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  return await readSnapshot("retry")
 }
 
 async function requestDebugScanFromTab(tabId) {
@@ -129,12 +152,16 @@ async function requestDebugScanFromTab(tabId) {
 }
 
 async function requestSnapshotFromBestTab(forceRefresh = false) {
-  const tab = await findBestUpworkMessagesRoomTab()
+  const activeTab = await getActiveTab()
+  const tab = activeTab && isUpworkUrl(activeTab.url) ? activeTab : await findBestUpworkMessagesRoomTab()
+  console.log("[BlackDog background] active tab", {
+    forceRefresh,
+    activeTabId: activeTab?.id,
+    activeTabUrl: activeTab?.url,
+    selectedTabId: tab?.id,
+    selectedTabUrl: tab?.url,
+  })
   if (!tab?.id) return { ok: false, error: "No Upwork messages room found." }
-
-  if (!forceRefresh && latestSnapshotsByTab.has(tab.id)) {
-    return { ok: true, snapshot: latestSnapshotsByTab.get(tab.id) }
-  }
 
   const response = await requestSnapshotFromTab(tab.id)
   if (response.ok && response.snapshot) {
@@ -226,6 +253,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "BLACKDOG_REQUEST_SNAPSHOT" || message?.type === "REQUEST_UPWORK_SNAPSHOT") {
     void (async () => {
+      console.log("[BlackDog background] request snapshot", message)
       const response = await requestSnapshotFromBestTab(Boolean(message.forceRefresh))
       sendResponse(response)
     })()

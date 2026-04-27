@@ -469,6 +469,7 @@ function createInitialTalentProfile(room = {}) {
     candidateHeadline: safeName(room.candidateHeadline || ""),
     platform: "Upwork",
     upworkChatUrl: safeName(room.roomUrl || room.pageUrl || ""),
+    profileUrl: "",
     upworkProfileUrl: "",
     nativeLanguage: "",
     secondLanguage: "",
@@ -507,7 +508,8 @@ function normalizeTalentProfile(profile = {}, room = {}) {
     candidateHeadline: safeName(profile.candidateHeadline || room.candidateHeadline || fallback.candidateHeadline),
     platform: "Upwork",
     upworkChatUrl: safeName(profile.upworkChatUrl || room.roomUrl || room.pageUrl || fallback.upworkChatUrl),
-    upworkProfileUrl: safeName(profile.upworkProfileUrl || fallback.upworkProfileUrl || ""),
+    profileUrl: safeName(profile.profileUrl || profile.upworkProfileUrl || fallback.profileUrl || fallback.upworkProfileUrl || ""),
+    upworkProfileUrl: safeName(profile.profileUrl || profile.upworkProfileUrl || fallback.profileUrl || fallback.upworkProfileUrl || ""),
     weekendAvailability: ["", "Yes", "No"].includes(profile.weekendAvailability) ? profile.weekendAvailability : "",
     nativeLanguage: safeName(profile.nativeLanguage || fallback.nativeLanguage || ""),
     secondLanguage: safeName(profile.secondLanguage || profile.otherLanguages || fallback.secondLanguage || ""),
@@ -1289,7 +1291,8 @@ function getTalentProfileFieldIds() {
     avatar: "talent-profile-avatar",
     candidateName: "talent-profile-candidate-name",
     upworkChatUrl: "talent-profile-upwork-chat-url",
-    upworkProfileUrl: "talent-profile-upwork-profile-url",
+    profileUrl: "talent-profile-profile-url",
+    upworkProfileUrl: "talent-profile-profile-url",
     nativeLanguage: "talent-profile-native-language",
     secondLanguage: "talent-profile-other-languages",
     mainSkill: "talent-profile-main-skill",
@@ -1495,16 +1498,19 @@ function ensureTalentProfileTemplate() {
   ;["talent-profile-platform", "talent-profile-country-region", "talent-profile-timezone", "talent-profile-identity"].forEach(
     (id) => hideTalentProfileField(id),
   )
-  const upworkProfileUrl = el("talent-profile-upwork-profile-url")
-  if (upworkProfileUrl) {
-    const profileLabel = upworkProfileUrl.closest("label.stack")
+  const profileUrlNode = el("talent-profile-profile-url") || el("talent-profile-upwork-profile-url")
+  if (profileUrlNode) {
+    if (profileUrlNode.id !== "talent-profile-profile-url") {
+      profileUrlNode.id = "talent-profile-profile-url"
+    }
+    const profileLabel = profileUrlNode.closest("label.stack")
     if (profileLabel) {
       profileLabel.classList.remove("talent-profile-hidden-field")
     }
   }
-  const chatUrlNode = el("talent-profile-upwork-chat-url")
-  if (chatUrlNode) {
-    chatUrlNode.readOnly = true
+  const basicInfoChatUrlNode = el("talent-profile-upwork-chat-url")
+  if (basicInfoChatUrlNode) {
+    basicInfoChatUrlNode.readOnly = true
   }
 
   if (basicInfoSection) {
@@ -1539,9 +1545,11 @@ function ensureTalentProfileTemplate() {
     }
     urlGrid.style.display = "grid"
     moveTalentProfileField("talent-profile-upwork-chat-url", urlGrid)
-    moveTalentProfileField("talent-profile-upwork-profile-url", urlGrid)
-    const chatUrlNode = el("talent-profile-upwork-chat-url")
-    if (chatUrlNode) chatUrlNode.readOnly = true
+    moveTalentProfileField("talent-profile-profile-url", urlGrid)
+    const urlGridChatUrlNode = el("talent-profile-upwork-chat-url")
+    if (urlGridChatUrlNode) urlGridChatUrlNode.readOnly = true
+    const urlGridProfileUrlNode = el("talent-profile-profile-url")
+    if (urlGridProfileUrlNode) urlGridProfileUrlNode.placeholder = "Paste candidate profile URL"
   }
 
   if (languageSection) {
@@ -1559,6 +1567,7 @@ function ensureTalentProfileTemplate() {
     moveTalentProfileField("talent-profile-native-language", grid)
     const secondLanguageLabel = moveTalentProfileField("talent-profile-other-languages", grid)
     if (secondLanguageLabel) {
+      secondLanguageLabel.classList.remove("talent-profile-full")
       const labelSpan = secondLanguageLabel.querySelector(".group-label")
       if (labelSpan) labelSpan.textContent = "Second Language"
     }
@@ -1645,11 +1654,11 @@ function ensureTalentProfileTemplate() {
     body.append(contactSection)
   }
 
-  const chatUrlNode = el("talent-profile-upwork-chat-url")
-  if (chatUrlNode) {
-    chatUrlNode.readOnly = true
-    const chatLabel = chatUrlNode.closest("label.stack")
-    if (chatLabel) chatLabel.classList.add("talent-profile-hidden-field")
+  const contactChatUrlNode = el("talent-profile-upwork-chat-url")
+  if (contactChatUrlNode) {
+    contactChatUrlNode.readOnly = true
+    const chatLabel = contactChatUrlNode.closest("label.stack")
+    if (chatLabel) chatLabel.classList.remove("talent-profile-hidden-field")
   }
 
   const dailyAvailability = el("talent-profile-daily-availability")
@@ -1717,6 +1726,7 @@ function readTalentProfileForm() {
     candidateHeadline: safeName(state.talentProfileDraft?.candidateHeadline || room?.candidateHeadline || ""),
     platform: "Upwork",
     upworkChatUrl: safeName(el(fields.upworkChatUrl)?.value || room?.roomUrl || room?.pageUrl || ""),
+    profileUrl: safeName(el(fields.profileUrl)?.value || el(fields.upworkProfileUrl)?.value || ""),
     upworkProfileUrl: safeName(el(fields.upworkProfileUrl)?.value || ""),
     nativeLanguage: safeName(el(fields.nativeLanguage)?.value || ""),
     secondLanguage: safeName(el(fields.secondLanguage)?.value || ""),
@@ -1759,7 +1769,7 @@ function fillTalentProfileForm(profile = {}) {
 
   set(fields.candidateName, candidateName)
   set(fields.upworkChatUrl, profile.upworkChatUrl || "")
-  set(fields.upworkProfileUrl, profile.upworkProfileUrl || "")
+  set(fields.profileUrl, profile.profileUrl || profile.upworkProfileUrl || "")
   set(fields.nativeLanguage, profile.nativeLanguage || "")
   set(fields.secondLanguage, profile.secondLanguage || profile.otherLanguages || "")
   set(fields.mainSkill, profile.mainSkill || "")
@@ -2721,6 +2731,7 @@ function isWaitingSnapshotError(message = "") {
 }
 
 async function requestSnapshot(forceRefresh = false) {
+  console.log("[BlackDog] request snapshot start", { forceRefresh })
   setDebugAction(forceRefresh ? "Refresh Visible History clicked" : "Refresh clicked")
   setStatus("connection-status", "Requesting active Upwork snapshot")
   try {
@@ -2737,6 +2748,8 @@ async function requestSnapshot(forceRefresh = false) {
 
     console.log("[BlackDog] snapshot.conversationMessages.length", Array.isArray(response.snapshot.conversationMessages) ? response.snapshot.conversationMessages.length : 0)
     upsertRoomFromSnapshot(response.snapshot)
+    state.connectionStatus = `Connected to ${response.snapshot.candidateName || "current room"}`
+    renderConnection()
     return response.snapshot
   } catch (error) {
     const message = normalizeSnapshotError(error instanceof Error ? error.message : "")
@@ -2825,9 +2838,11 @@ function bindEvents() {
     })
   }
   bindClick("sync-page", () => {
+    console.log("[BlackDog] Refresh clicked")
     void requestSnapshot(false)
   })
   bindClick("refresh-visible-history", () => {
+    console.log("[BlackDog] Refresh Visible History clicked")
     void requestSnapshot(true)
   })
   bindClick("debug-dom-scan", () => {
