@@ -420,6 +420,22 @@ function getTalentProfileKey(room = {}) {
   return candidate ? `${candidate}:${platform}` : ""
 }
 
+function getTalentProfileDraftMatch(room = {}, draft = state.talentProfileDraft) {
+  if (!draft || typeof draft !== "object") return false
+
+  const roomName = safeName(room?.candidateName || "")
+  const draftName = safeName(draft.candidateName || "")
+  const draftRoomId = safeName(draft.roomId || "")
+  const roomId = safeName(room?.roomId || "")
+  const roomKey = safeName(getRoomKey(room) || "")
+
+  return (
+    (draftRoomId && roomId && draftRoomId === roomId) ||
+    (draftRoomId && roomKey && draftRoomId === roomKey) ||
+    (draftName && roomName && draftName === roomName)
+  )
+}
+
 function candidateHeadlineToTaskTags(headline = "") {
   const raw = safeName(headline || "")
   if (!raw) return ""
@@ -1720,10 +1736,14 @@ function ensureTalentProfileTemplate() {
 function readTalentProfileForm() {
   const room = activeRoom()
   const fields = getTalentProfileFieldIds()
+  const draftMatchesRoom = getTalentProfileDraftMatch(room)
+  const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
+  const draftSubmittedToTalentPool = draftMatchesRoom ? Boolean(state.talentProfileDraft?.submittedToTalentPool) : false
+  const draftSubmittedAt = draftMatchesRoom ? state.talentProfileDraft?.submittedAt || "" : ""
   return {
     roomId: state.talentProfileRoomId || room?.roomId || "",
     candidateName: safeName(el(fields.candidateName)?.value || room?.candidateName || "Unknown Candidate"),
-    candidateHeadline: safeName(state.talentProfileDraft?.candidateHeadline || room?.candidateHeadline || ""),
+    candidateHeadline: safeName(draftMatchesRoom ? state.talentProfileDraft?.candidateHeadline || "" : room?.candidateHeadline || ""),
     platform: "Upwork",
     upworkChatUrl: safeName(el(fields.upworkChatUrl)?.value || room?.roomUrl || room?.pageUrl || ""),
     profileUrl: safeName(el(fields.profileUrl)?.value || el(fields.upworkProfileUrl)?.value || ""),
@@ -1742,9 +1762,9 @@ function readTalentProfileForm() {
     email: safeName(el(fields.email)?.value || ""),
     onlineContactMethod: safeName(el(fields.onlineContactMethod)?.value || "WhatsApp") || "WhatsApp",
     onlineContactAccount: safeName(el(fields.onlineContactAccount)?.value || ""),
-    avatarUrl: state.talentProfileDraft?.avatarUrl || room?.candidateAvatarUrl || room?.avatarUrl || "",
-    submittedToTalentPool: Boolean(state.talentProfileDraft?.submittedToTalentPool),
-    submittedAt: state.talentProfileDraft?.submittedAt || "",
+    avatarUrl: draftAvatarUrl || room?.candidateAvatarUrl || room?.avatarUrl || "",
+    submittedToTalentPool: draftSubmittedToTalentPool,
+    submittedAt: draftSubmittedAt,
     updatedAt: nowIso(),
   }
 }
@@ -1827,12 +1847,23 @@ function renderTalentProfileModal() {
   const key = getTalentProfileKey(room || {})
   const saved = state.talentProfiles[key] || createInitialTalentProfile(room || {})
   const roomCandidateAvatarUrl = safeName(room?.candidateAvatarUrl || room?.avatarUrl || "")
+  const draftMatchesRoom = getTalentProfileDraftMatch(room || {})
+  const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
+  const finalAvatarUrl = draftAvatarUrl || roomCandidateAvatarUrl || saved.avatarUrl || ""
+  console.log("[BlackDog] profile draft match", {
+    candidateName: room?.candidateName,
+    resolvedRoomKey: state.talentProfileRoomId,
+    draftCandidateName: state.talentProfileDraft?.candidateName,
+    draftRoomId: state.talentProfileDraft?.roomId,
+    draftMatchesRoom: Boolean(draftMatchesRoom),
+    finalAvatarUrl,
+  })
   const merged = prefillTalentProfileFromRoom(
     normalizeTalentProfile(
       {
         ...saved,
-        ...state.talentProfileDraft,
-        avatarUrl: state.talentProfileDraft?.avatarUrl || roomCandidateAvatarUrl || saved.avatarUrl || "",
+        ...(draftMatchesRoom ? state.talentProfileDraft : {}),
+        avatarUrl: finalAvatarUrl,
       },
       room || {},
     ),
@@ -1949,16 +1980,37 @@ function openTalentProfile(roomId) {
   state.talentProfileRoomId = resolvedRoomKey
   const key = getTalentProfileKey(room)
   const saved = state.talentProfiles[key] || createInitialTalentProfile(room)
-  const hasMatchingDraft = state.talentProfileDraft && state.talentProfileDraft.roomId === resolvedRoomKey
+  const draftMatchesRoom = getTalentProfileDraftMatch(room)
+  if (!draftMatchesRoom) {
+    state.talentProfileDraft = null
+  }
   const candidateAvatarUrl = safeName(room.candidateAvatarUrl || room.avatarUrl || "")
+  const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
+  const finalAvatarUrl = draftAvatarUrl || candidateAvatarUrl || saved.avatarUrl || ""
+  console.log("[BlackDog] profile avatar source", {
+    candidateName: room?.candidateName,
+    resolvedRoomKey,
+    hasMatchingDraft: Boolean(draftMatchesRoom),
+    draftAvatar: Boolean(state.talentProfileDraft?.avatarUrl),
+    roomAvatar: Boolean(candidateAvatarUrl),
+    savedAvatar: Boolean(saved.avatarUrl),
+    finalAvatarUrl,
+  })
+  console.log("[BlackDog] profile draft match", {
+    candidateName: room?.candidateName,
+    resolvedRoomKey,
+    draftCandidateName: state.talentProfileDraft?.candidateName,
+    draftRoomId: state.talentProfileDraft?.roomId,
+    draftMatchesRoom: Boolean(draftMatchesRoom),
+    finalAvatarUrl,
+  })
   state.talentProfileDraft = prefillTalentProfileFromRoom(
     normalizeTalentProfile(
       {
         ...saved,
-        ...(hasMatchingDraft ? state.talentProfileDraft : {}),
+        ...(draftMatchesRoom ? state.talentProfileDraft : {}),
         roomId: resolvedRoomKey,
-        avatarUrl:
-          (hasMatchingDraft ? state.talentProfileDraft?.avatarUrl : "") || candidateAvatarUrl || saved.avatarUrl || "",
+        avatarUrl: finalAvatarUrl,
       },
       room,
     ),

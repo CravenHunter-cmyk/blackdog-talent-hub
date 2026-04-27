@@ -77,6 +77,7 @@ let cachedUpworkUserName = ""
 let lastObservedUrl = window.location.href
 let lastCandidateAvatarUrl = ""
 let lastCandidateAvatarRoomKey = ""
+let lastCandidateAvatarCandidateName = ""
 let lastAvatarBackgroundImageCandidateCount = 0
 let lastAvatarBestScore = 0
 let lastAvatarBestSourceType = ""
@@ -358,6 +359,88 @@ function isLikelyAvatarElement(element) {
   return true
 }
 
+function findCandidateRoomListContainer(candidateName = "") {
+  const target = safeName(candidateName || "")
+  if (!target || target === "Unknown Candidate" || isInvalidCandidateName(target)) return null
+
+  const nodes = Array.from(document.querySelectorAll("section, div, article, li, a, button")).filter((node) => {
+    if (!(node instanceof Element)) return false
+    if (!isVisibleElement(node)) return false
+    if (node === document.body || node === document.documentElement) return false
+    const text = normalizeText(node.innerText || "")
+    return Boolean(text) && text.toLowerCase().includes(target.toLowerCase())
+  })
+
+  let bestNode = null
+  let bestScore = Number.NEGATIVE_INFINITY
+
+  for (const node of nodes) {
+    const rect = node.getBoundingClientRect()
+    const width = Math.round(rect.width || 0)
+    const height = Math.round(rect.height || 0)
+    if (width < 80 || height < 32) continue
+    if (width > 1800 || height > 1400) continue
+
+    const className = String(node.className || "").toLowerCase()
+    const text = normalizeText(node.innerText || "")
+    let score = 0
+
+    if (/rooms-panel|rooms-panel-room-list|room-list|right-content|header-row|avatar-content|room\b/.test(className)) score += 200
+    if (text.toLowerCase().includes(target.toLowerCase())) score += 120
+    if (node.querySelector("img,[style*='background-image']")) score += 120
+    if (width <= 600 && height <= 260) score += 90
+    if (width <= 400 && height <= 220) score += 60
+    if (text.length > 1800) score -= 100
+    if (/account settings|search messages|meeting recaps|people|files and links|personal notepad|activity timeline/i.test(text)) score -= 300
+
+    if (score > bestScore) {
+      bestScore = score
+      bestNode = node
+    }
+  }
+
+  return bestNode
+}
+
+function findCandidateRoomListItem(candidateName = "") {
+  const name = safeName(candidateName || "")
+  if (!name || name === "Unknown Candidate" || isInvalidCandidateName(name)) return null
+
+  const candidates = Array.from(document.querySelectorAll("a.room-list-item, [class*='room-list-item']"))
+
+  const matched = candidates
+    .filter((el) => {
+      if (!(el instanceof Element)) return false
+      const text = safeName(el.innerText || "")
+      return text.includes(name)
+    })
+    .sort((a, b) => {
+      const aText = safeName(a.innerText || "")
+      const bText = safeName(b.innerText || "")
+      return aText.length - bText.length
+    })
+
+  return matched[0] || null
+}
+
+function extractAvatarUrlFromContainer(container) {
+  if (!container) return ""
+
+  const elements = Array.from(container.querySelectorAll("img, div, span, button, a, figure"))
+  for (const el of elements) {
+    if (!(el instanceof Element)) continue
+
+    const src = el.tagName === "IMG" ? (el.currentSrc || el.src || "") : ""
+    if (src && /profile-portraits/i.test(src)) return src
+
+    const bg = window.getComputedStyle(el).backgroundImage || ""
+    const bgUrl = extractUrlFromBackgroundImage(bg)
+    if (bgUrl && /profile-portraits/i.test(bgUrl)) return bgUrl
+  }
+
+  return ""
+}
+
 function findLikelyCandidateNameFromText(value = "", meName = "") {
   const lines = String(value || "")
     .replace(/\r\n/g, "\n")
@@ -436,6 +519,7 @@ function scoreAvatarElement({
   if (/(favicon|logo|icon|sprite|\.svg(\?|#|$))/i.test(lowerUrl)) score -= 500
   if (/(favicon|logo|icon|sprite)/i.test(className)) score -= 300
   if (/(favicon|logo|icon|sprite)/i.test(ariaLabel)) score -= 300
+  if (/\/profile-portraits\//i.test(lowerUrl)) score += 600
 
   if (candidateText && lowerText.includes(candidateText.toLowerCase())) score += 400
   if (/Me\b/i.test(currentText) || /Julie Zhu/i.test(currentText)) score -= 500
@@ -449,49 +533,88 @@ function extractCandidateAvatarUrl(candidateName = "", meName = "") {
   const resolvedCandidateName = inferCandidateNameForAvatar(candidateName || "", meName || "")
   const candidateText = safeName(resolvedCandidateName || candidateName || "")
   const meText = safeName(meName || "")
-
-  const allImgs = Array.from(document.querySelectorAll("img"))
-  const allElements = Array.from(document.querySelectorAll("div, span, button, a, figure"))
   const seen = new Set()
   let best = ""
   let bestScore = Number.NEGATIVE_INFINITY
   let bestSourceType = ""
   let backgroundImageCandidateCount = 0
 
-  const candidateSources = []
-
-  for (const img of allImgs) {
-    if (!(img instanceof Element)) continue
-    if (!isVisibleElement(img)) continue
-    if (!isLikelyAvatarElement(img)) continue
-
-    const src = img.currentSrc || img.src || extractImageUrlFromElement(img)
-    if (!src || !/^https?:\/\//i.test(src)) continue
-    if (seen.has(src)) continue
-    seen.add(src)
-    candidateSources.push({ element: img, url: src, sourceType: "img" })
+  const roomListItem = findCandidateRoomListItem(candidateText)
+  const scopedAvatarUrl = extractAvatarUrlFromContainer(roomListItem)
+  if (scopedAvatarUrl) {
+    lastAvatarBackgroundImageCandidateCount = 1
+    lastAvatarBestScore = 9999
+    lastAvatarBestSourceType = "room-list-item"
+    console.log("[BlackDog] avatar from room list item", {
+      candidateName,
+      scopedAvatarUrl,
+      containerText: safeName(roomListItem?.innerText || "").slice(0, 160),
+    })
+    return scopedAvatarUrl
   }
 
-  for (const element of allElements) {
-    if (!(element instanceof Element)) continue
-    if (!isVisibleElement(element)) continue
-    if (element.closest("nav,aside,footer,[role='navigation']")) continue
+  const candidateContainer = findCandidateRoomListContainer(candidateText)
+  const collectAvatarSources = (root, strictCandidateScope = false) => {
+    const sources = []
+    if (!root || !(root instanceof Element || root instanceof Document || root instanceof ShadowRoot)) return sources
 
-    const computed = window.getComputedStyle(element)
-    const bgUrl = extractUrlFromBackgroundImage(computed.backgroundImage || "")
-    if (!bgUrl || !/^https?:\/\//i.test(bgUrl)) continue
-    if (/favicon|logo|icon|sprite|\.svg(\?|#|$)/i.test(bgUrl)) continue
-    const rect = element.getBoundingClientRect()
-    const width = Math.round(rect.width || 0)
-    const height = Math.round(rect.height || 0)
-    if (width < 24 || height < 24) continue
-    backgroundImageCandidateCount += 1
-    if (seen.has(bgUrl)) continue
-    seen.add(bgUrl)
-    candidateSources.push({ element, url: bgUrl, sourceType: "background" })
+    const rootImgs = Array.from(root.querySelectorAll("img"))
+    for (const img of rootImgs) {
+      if (!(img instanceof Element)) continue
+      if (!isVisibleElement(img)) continue
+      if (!isLikelyAvatarElement(img)) continue
+
+      const src = img.currentSrc || img.src || extractImageUrlFromElement(img)
+      if (!src || !/^https?:\/\//i.test(src)) continue
+      if (/favicon|logo|icon|sprite|\.svg(\?|#|$)/i.test(src)) continue
+      if (seen.has(src)) continue
+      seen.add(src)
+      sources.push({ element: img, url: src, sourceType: "img" })
+    }
+
+    const rootElements = Array.from(root.querySelectorAll("div, span, button, a, figure"))
+    for (const element of rootElements) {
+      if (!(element instanceof Element)) continue
+      if (!isVisibleElement(element)) continue
+      if (element.closest("nav,aside,footer,[role='navigation']")) continue
+
+      const computed = window.getComputedStyle(element)
+      const bgUrl = extractUrlFromBackgroundImage(computed.backgroundImage || "")
+      if (!bgUrl || !/^https?:\/\//i.test(bgUrl)) continue
+      if (/favicon|logo|icon|sprite|\.svg(\?|#|$)/i.test(bgUrl)) continue
+      const rect = element.getBoundingClientRect()
+      const width = Math.round(rect.width || 0)
+      const height = Math.round(rect.height || 0)
+      if (width < 24 || height < 24) continue
+      if (seen.has(bgUrl)) continue
+      if (strictCandidateScope) {
+        const currentText = normalizeText(element.innerText || element.parentElement?.innerText || "")
+        const nearestText = normalizeText(
+          element.closest("article,section,div,header,[role='main'],[role='heading']")?.innerText || "",
+        )
+        if (candidateText && !currentText.toLowerCase().includes(candidateText.toLowerCase()) && !nearestText.toLowerCase().includes(candidateText.toLowerCase())) continue
+        if (meText && (currentText.toLowerCase().includes(meText.toLowerCase()) || nearestText.toLowerCase().includes(meText.toLowerCase()))) continue
+      }
+      seen.add(bgUrl)
+      sources.push({ element, url: bgUrl, sourceType: "background" })
+      backgroundImageCandidateCount += 1
+    }
+
+    return sources
   }
+
+  const scopedSources = candidateContainer ? collectAvatarSources(candidateContainer, true) : []
+  const fallbackSources = scopedSources.length ? [] : collectAvatarSources(document, false)
+  const candidateSources = scopedSources.length ? scopedSources : fallbackSources
 
   for (const candidate of candidateSources) {
+    const currentText = normalizeText(candidate.element?.innerText || candidate.element?.parentElement?.innerText || "")
+    const nearestText = normalizeText(
+      candidate.element?.closest("article,section,div,header,[role='main'],[role='heading']")?.innerText || "",
+    )
+    if (candidateText && !currentText.toLowerCase().includes(candidateText.toLowerCase()) && !nearestText.toLowerCase().includes(candidateText.toLowerCase())) continue
+    if (meText && (currentText.toLowerCase().includes(meText.toLowerCase()) || nearestText.toLowerCase().includes(meText.toLowerCase()))) continue
+
     const { score } = scoreAvatarElement({
       element: candidate.element,
       url: candidate.url,
@@ -509,6 +632,26 @@ function extractCandidateAvatarUrl(candidateName = "", meName = "") {
   lastAvatarBackgroundImageCandidateCount = backgroundImageCandidateCount
   lastAvatarBestScore = Number.isFinite(bestScore) ? bestScore : 0
   lastAvatarBestSourceType = bestSourceType
+  console.log("[BlackDog] avatar scoped search fallback", {
+    candidateName,
+    roomId: extractRoomIdFromUrl() || guessRoomId(),
+    foundContainer: Boolean(candidateContainer),
+    containerText: candidateContainer ? safeName(candidateContainer.innerText || "").slice(0, 120) : "",
+    candidateAvatarUrl: best || "",
+    lastCandidateAvatarUrl,
+    lastCandidateAvatarRoomKey,
+    lastCandidateAvatarCandidateName,
+  })
+  console.log("[BlackDog] avatar scoped search", {
+    candidateName,
+    roomId: extractRoomIdFromUrl() || guessRoomId(),
+    foundContainer: Boolean(candidateContainer),
+    containerText: candidateContainer ? safeName(candidateContainer.innerText || "").slice(0, 120) : "",
+    candidateAvatarUrl: best || "",
+    lastCandidateAvatarUrl,
+    lastCandidateAvatarRoomKey,
+    lastCandidateAvatarCandidateName,
+  })
   return best || ""
 }
 
@@ -544,6 +687,7 @@ function scheduleAvatarRetry() {
     if (candidateAvatarUrl) {
       lastCandidateAvatarUrl = candidateAvatarUrl
       lastCandidateAvatarRoomKey = nextRoomId
+      lastCandidateAvatarCandidateName = "Unknown Candidate"
       void broadcastSnapshot()
       return
     }
@@ -557,6 +701,7 @@ function scheduleAvatarRetry() {
 function resetCurrentRoomTransientState() {
   lastCandidateAvatarUrl = ""
   lastCandidateAvatarRoomKey = ""
+  lastCandidateAvatarCandidateName = ""
   avatarRetryCount = 0
   if (avatarRetryTimer) {
     clearTimeout(avatarRetryTimer)
@@ -1006,6 +1151,8 @@ async function extractConversationData() {
     bestAvatarScore: lastAvatarBestScore,
     bestAvatarSourceType: lastAvatarBestSourceType,
     lastCandidateAvatarUrl,
+    lastCandidateAvatarRoomKey,
+    lastCandidateAvatarCandidateName,
     imgCount: document.querySelectorAll("img").length,
     retryScheduled: Boolean(avatarRetryTimer),
   })
@@ -1014,10 +1161,16 @@ async function extractConversationData() {
   if (candidateAvatarUrl) {
     lastCandidateAvatarUrl = candidateAvatarUrl
     lastCandidateAvatarRoomKey = roomId
+    lastCandidateAvatarCandidateName = candidateName
   } else if (!lastCandidateAvatarUrl && shouldRetryAvatar && !avatarRetryTimer && avatarRetryCount < AVATAR_RETRY_LIMIT) {
     scheduleAvatarRetry()
   }
-  const stableAvatarUrl = roomId && lastCandidateAvatarRoomKey === roomId ? lastCandidateAvatarUrl : ""
+  const stableAvatarUrl =
+    roomId &&
+    lastCandidateAvatarRoomKey === roomId &&
+    safeName(lastCandidateAvatarCandidateName) === safeName(candidateName)
+      ? lastCandidateAvatarUrl
+      : ""
   const conversationText = finalMessages
     .map((message) => `${message.sender}${message.timestamp && message.timestamp !== "Unknown" ? ` (${message.timestamp})` : ""}: ${message.text}`)
     .join("\n\n")
