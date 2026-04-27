@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "BlackDog Browser Helper",
+  "description": "AI-assisted recruiting side panel for Upwork conversations.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "BlackDog Browser Helper"
+  },
+  "permissions": ["sidePanel", "activeTab", "scripting", "tabs", "storage"],
+  "host_permissions": [
+    "https://www.upwork.com/*",
+    "https://upwork.com/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.upwork.com/*", "https://upwork.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

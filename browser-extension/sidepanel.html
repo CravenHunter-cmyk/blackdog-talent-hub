@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlackDog Recruiting Helper</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero card">
+        <div>
+          <div class="eyebrow">BlackDog Recruiting Helper</div>
+          <h1>Upwork Conversation Capture</h1>
+          <p>Capture the active Upwork message room, keep a local record, and prepare future AI-assisted replies.</p>
+          <div id="debug-status" class="debug-status">Side panel script loaded · Last action: idle</div>
+        </div>
+        <span class="badge">Preview Mode</span>
+      </header>
+
+      <main class="content">
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>Connection</h2>
+              <p>Preview mode only. No automatic sending, no auto-login, and no profile passwords are stored.</p>
+            </div>
+          </div>
+
+          <div class="grid two">
+            <div class="kv"><span>Platform</span><strong>Upwork</strong></div>
+            <div class="kv"><span>Status</span><strong id="connection-status">Waiting for active Upwork tab</strong></div>
+            <div class="kv"><span>Last Sync</span><strong id="last-sync">Never</strong></div>
+            <div class="kv"><span>Extraction Mode</span><strong id="extraction-mode">Unknown</strong></div>
+          </div>
+
+          <div class="stack">
+            <label class="stack">
+              <span class="group-label">Upwork User Name</span>
+              <input id="upwork-user-name" class="text-input" type="text" placeholder="e.g. Julie Zhu" />
+            </label>
+            <div class="actions">
+              <button id="save-user-name" class="secondary" type="button">Save User Name</button>
+              <button id="sync-page" class="primary" type="button">Sync Current Conversation</button>
+              <button id="refresh-visible-history" class="secondary" type="button">Refresh Visible History</button>
+              <button id="debug-dom-scan" class="secondary" type="button">Debug DOM Scan</button>
+              <button id="clear-cache" class="secondary" type="button">Clear Cache</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <div>
+              <h2>Current Conversation</h2>
+              <p id="conversation-meta">No conversation synced yet.</p>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="kv-row"><span>Me</span><strong id="me-name">Unknown</strong></div>
+            <div class="kv-row"><span>Candidate</span><strong id="candidate-name">Unknown Candidate</strong></div>
+            <div class="kv-row"><span>Total Messages Captured</span><strong id="total-messages-captured">0</strong></div>
+            <div class="kv-row"><span>Last Message Time</span><strong id="last-message-time">—</strong></div>
+            <div class="kv-row"><span>Room URL</span><strong id="room-url">-</strong></div>
+          </div>
+
+          <div class="conversation-debug">
+            <div class="conversation-debug-item">
+              <span>Hidden low-confidence blocks</span>
+              <strong id="low-confidence-blocks">0</strong>
+            </div>
+            <div class="conversation-debug-item">
+              <span>Noise blocks removed</span>
+              <strong id="noise-blocks-removed">0</strong>
+            </div>
+          </div>
+
+          <p id="history-help" class="history-help">
+            To import older messages, scroll up in Upwork to load history, then click Refresh Visible History.
+          </p>
+
+          <div id="conversation-list" class="conversation-list"></div>
+
+          <details class="debug-scan-panel" open>
+            <summary>Debug DOM Scan</summary>
+            <div class="debug-scan-status" id="debug-scan-status">idle</div>
+            <div id="debug-scan-results" class="debug-scan-results"></div>
+          </details>
+        </section>
+      </main>
+    </div>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
