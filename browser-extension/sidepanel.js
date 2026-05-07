@@ -1445,7 +1445,10 @@ function renderReplyAssistant() {
   const translateButton = el("translate-reply")
 
   if (englishNode && document.activeElement !== englishNode) englishNode.value = state.replyEnglish || ""
-  if (chineseNode && document.activeElement !== chineseNode) chineseNode.value = state.replyChineseDraft || ""
+  if (chineseNode) {
+    chineseNode.placeholder = "输入中文翻译成英文；输入英文翻译成中文"
+    if (document.activeElement !== chineseNode) chineseNode.value = state.replyChineseDraft || ""
+  }
   if (copyStatusNode) {
     copyStatusNode.hidden = !state.replyEnglishCopyStatus
     copyStatusNode.textContent = state.replyEnglishCopyStatus || "Copied"
@@ -2711,6 +2714,25 @@ function buildMockReplyFallback(room = activeRoom()) {
   return `Hi ${candidateName}, thank you for sharing the details. Could you please confirm your relevant project experience, your usual daily availability, and the best contact method for next steps?`
 }
 
+function containsChineseCharacters(value = "") {
+  return /[\u4e00-\u9fff]/.test(String(value || ""))
+}
+
+function getTranslatedTextFromGatewayResponse(response = {}) {
+  const resultText = text(response?.result?.translatedText || "")
+  if (resultText) return resultText
+
+  const rawText = text(response?.text || "")
+  if (!rawText) return ""
+
+  try {
+    const parsed = JSON.parse(rawText)
+    return text(parsed?.translatedText || "") || rawText
+  } catch {
+    return rawText
+  }
+}
+
 async function generateReply() {
   const room = activeRoom()
   if (!room) {
@@ -2757,17 +2779,16 @@ async function generateReply() {
 
 async function translateReplyDraftToEnglish() {
   const room = activeRoom()
-  const chineseDraft = text(state.replyChineseDraft || "")
-  if (!chineseDraft) {
-    setReplyState({ replyError: "请输入中文内容" })
+  const draftText = text(el("reply-chinese")?.value || state.replyChineseDraft || "")
+  if (!draftText) {
+    setReplyState({ replyError: "Please enter text to translate." })
     return
   }
-  if (!room) {
-    setReplyState({ replyError: "No active candidate chat selected.", replyStatus: "Error" })
-    return
-  }
+  const sourceLanguage = containsChineseCharacters(draftText) ? "Chinese" : "English"
+  const targetLanguage = sourceLanguage === "Chinese" ? "English" : "Chinese"
 
   setReplyState({
+    replyChineseDraft: draftText,
     replyTranslateLoading: true,
     replyError: "",
     replyStatus: "Translating...",
@@ -2776,17 +2797,16 @@ async function translateReplyDraftToEnglish() {
 
   try {
     const response = await callBlackDogAIGateway("translate_message", {
-      sourceLanguage: "Chinese",
-      targetLanguage: "English",
-      text: chineseDraft,
-      context: getConversationMessagesForReply(room).slice(-8),
+      sourceLanguage,
+      targetLanguage,
+      text: draftText,
+      context: room ? getConversationMessagesForReply(room).slice(-8) : [],
     })
 
-    const result = response?.result || {}
-    const englishReply = text(result.translatedText || response?.text || "")
+    const translatedText = getTranslatedTextFromGatewayResponse(response)
 
     setReplyState({
-      replyEnglish: englishReply,
+      replyEnglish: translatedText,
       replyResultType: "Real AI",
       replyError: "",
       replyTranslateLoading: false,
@@ -2794,8 +2814,9 @@ async function translateReplyDraftToEnglish() {
     })
   } catch (error) {
     console.error("[BlackDog] translate reply failed", error)
+    const message = text(error instanceof Error ? error.message : "Translation request failed.")
     setReplyState({
-      replyError: "Translation failed.",
+      replyError: `Translation failed: ${message}`,
       replyTranslateLoading: false,
       replyStatus: "Error",
       replyResultType: "",
