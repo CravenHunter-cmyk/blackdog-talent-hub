@@ -1,4 +1,4 @@
-export type AIGatewayProvider = "openai" | "deepseek_future";
+export type AIGatewayProvider = "openai" | "deepseek";
 
 export type AIGatewayTask =
   | "health_check"
@@ -46,7 +46,7 @@ export type AIGatewayHealthSuccess = {
   ok: true;
   provider: AIGatewayProvider;
   model: string;
-  message: string;
+  message?: string;
 };
 
 export type AIGatewayHealthFailure = {
@@ -60,6 +60,7 @@ export type AIGatewayAnalyzeSuccess = {
   task: "analyze_project";
   provider: AIGatewayProvider;
   model: string;
+  text: string;
   result: AnalyzeProjectResult;
 };
 
