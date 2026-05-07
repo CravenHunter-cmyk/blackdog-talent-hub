@@ -25,7 +25,12 @@ import {
   type BrainProjectRecord,
   type BrainProjectStatus,
 } from "@/lib/blackdogBrain";
-import { getStoredRecruitingTasks, saveStoredRecruitingTasks, type RecruitingTask } from "@/lib/recruitingTasks";
+import {
+  getStoredRecruitingTasks,
+  initializeDefaultRecruitingTasks,
+  saveStoredRecruitingTasks,
+  type RecruitingTask,
+} from "@/lib/recruitingTasks";
 
 type BrainTalentProfile = {
   talentId: string;
@@ -106,7 +111,7 @@ type ProjectRowView = {
   recruiting: number;
   matched: number;
   ready: boolean;
-  status: "Draft" | "Analyzing" | "Matching" | "Recruiting" | "Ready" | "Completed";
+  status: BrainProjectStatus;
   eta: string;
   talentMatches: BrainTalentProfile[];
   languagePlan: LanguagePlanRow[];
@@ -561,7 +566,7 @@ function scoreAvailability(value = "") {
   return 7;
 }
 
-function getMatchStatus(score: number, assignedTasks: string[], availability: string) {
+function getMatchStatus(score: number, assignedTasks: string[], availability: string): BrainTalentProfile["matchStatus"] {
   const limitedAvailability = normalizeLower(availability).includes("limited") || normalizeLower(availability).includes("this month");
   if (limitedAvailability || assignedTasks.length >= 3 || score < 50) return "Not Available";
   if (score >= 85) return "Recommended";
@@ -574,7 +579,7 @@ function matchTalentProfiles(
   analysis: BrainProjectAnalysis | null,
   profiles: BrainTalentProfile[],
   tasks: RecruitingTask[],
-) {
+): BrainTalentProfile[] {
   const targetLanguages = analysis?.inferredLanguages || [];
   const requiredSkills = splitListInput(project.requiredSkills);
   const projectTokens = [
@@ -1147,11 +1152,13 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
         : shouldAnalyze && evaluatedAnalysis
           ? deriveProjectStatus(evaluatedAnalysis, evaluatedMatches, evaluatedLanguagePlan, evaluatedGapRows)
           : existingRecord?.status || "Draft";
+    const previousStatus: Exclude<BrainProjectStatus, "Locked"> =
+      existingRecord?.previousStatus || (existingRecord?.status && existingRecord.status !== "Locked" ? existingRecord.status : "Draft");
     const projectAfterSave: BrainProjectRecord = {
       ...tempRecord,
       analysis: nextAnalysis || tempRecord.analysis,
       status: nextStatus,
-      previousStatus: nextStatus === "Locked" ? existingRecord?.previousStatus || existingRecord?.status || "Draft" : undefined,
+      previousStatus: nextStatus === "Locked" ? previousStatus : undefined,
     };
 
     setBrainProjects((current) => {

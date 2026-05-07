@@ -1125,7 +1125,7 @@ export function TalentMessagesPage() {
                     {selectedConversation?.kind === "group" ? (
                       <>
                         <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.groupType}</Badge>
-                        <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.memberCount} members</Badge>
+                        <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{`${selectedConversation.memberCount} members`}</Badge>
                       </>
                     ) : null}
                     {selectedConversation?.kind === "platform" ? (
@@ -1322,7 +1322,7 @@ export function TalentMessagesPage() {
                       <div className="text-base font-semibold text-[#111827]">{selectedConversation.name}</div>
                       <div className="mt-1 flex flex-wrap gap-2">
                         <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.groupType}</Badge>
-                        <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">{selectedConversation.memberCount} members</Badge>
+                        <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">{`${selectedConversation.memberCount} members`}</Badge>
                       </div>
                     </div>
                   </div>

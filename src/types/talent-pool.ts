@@ -29,6 +29,8 @@ export type TalentPoolSubmissionPayload = {
   submittedByHrName: string
 }
 
+export type TalentProfileStatus = "submitted" | "qualified" | "rejected" | "archived" | "deleted"
+
 export type TalentProfileRecord = {
   talentId: string
   sourcePlatform: "Upwork"
@@ -50,12 +52,11 @@ export type TalentProfileRecord = {
   submittedByHrId: string
   submittedByHrName: string
   submittedAt: string
-  status: "submitted"
+  status: TalentProfileStatus
   profilePdfFileUrl: string
   profilePdfFilePath: string
   createdAt: string
   updatedAt: string
-  status: "submitted" | "deleted"
   deletedAt?: string
   deletedById?: string
   deletedByName?: string

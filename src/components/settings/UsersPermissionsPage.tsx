@@ -93,6 +93,7 @@ type AccountDraft = {
   assignedTeams: string;
   linkedTalentProfile: string;
   linkedTalentProfileManuallySelected: boolean;
+  lastLogin: string;
   notes: string;
   isNew: boolean;
 };
@@ -379,6 +380,7 @@ function createDefaultDraft(role: RoleKey, isNew = true): AccountDraft {
     assignedTeams: "",
     linkedTalentProfile: "",
     linkedTalentProfileManuallySelected: false,
+    lastLogin: "Never",
     notes: "",
     isNew,
   };
@@ -650,6 +652,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       assignedTeams: account.assignedTeams.join(", "),
       linkedTalentProfile,
       linkedTalentProfileManuallySelected: Boolean(linkedTalentProfile),
+      lastLogin: account.lastLogin || "Never",
       tempPassword: "",
       notes: account.notes,
       ...overrides,

@@ -12,7 +12,7 @@ import {
 } from "@/lib/languageOptions";
 import { recruitingCandidates } from "@/data/recruitingCandidates";
 import { readLoggedInSession } from "@/lib/currentUser";
-import { DEFAULT_LOCAL_ACCOUNTS, getStoredAccounts, type LocalAccount } from "@/lib/localAccounts";
+import { DEFAULT_LOCAL_ACCOUNTS, getStoredAccounts, updateStoredAccount, type LocalAccount } from "@/lib/localAccounts";
 import {
   getAllRecruitingTaskScripts,
   getStoredRecruitingTasks,
@@ -527,6 +527,8 @@ type PluginWorkspacePreviewData = {
   lastSync: string;
   lastSubmitStatus: string;
   selectedProject: string;
+  selectedCandidate: PluginPreviewCandidate;
+  closedCandidate: PluginPreviewCandidate;
   selectedScriptTitle: string;
   targetLanguages: string[];
   requiredCount: string;
@@ -841,7 +843,7 @@ function PluginWorkspacePreview({ scriptOptions }: PluginWorkspacePreviewProps) 
                 </label>
                 <label className="block">
                   <span className={labelClass}>Recruiting Task</span>
-                  <select className={`${inputClass} mt-1`} value={data.projectName} readOnly>
+                  <select className={`${inputClass} mt-1`} value={data.projectName} disabled>
                     <option>{data.projectName}</option>
                   </select>
                 </label>
@@ -943,7 +945,7 @@ function PluginWorkspacePreview({ scriptOptions }: PluginWorkspacePreviewProps) 
 
                 <label className="block">
                   <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Select a script</span>
-                  <select className={`${inputClass} mt-1`} value={selectedScriptTitle} readOnly>
+                  <select className={`${inputClass} mt-1`} value={selectedScriptTitle} disabled>
                     {nextScriptOptions.map((script) => (
                       <option key={script.title} value={script.title}>{script.title}</option>
                     ))}
@@ -1433,10 +1435,7 @@ export function RecruitingWorkbenchPage() {
     setProjectScriptDrafts((current) => ({
       ...current,
       [projectId]: {
-        title: "",
-        content: "",
-        editingScriptId: null,
-        ...(current[projectId] || {}),
+        ...(current[projectId] || { title: "", content: "", editingScriptId: null }),
         ...patch,
       },
     }));

@@ -24,6 +24,8 @@ export const DEFAULT_CURRENT_USER: AppUser = {
   permissions: [],
 }
 
+type StoredUserSession = Partial<LoggedInSession> & Partial<AppUser>
+
 function normalizeList(value: unknown) {
   return Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : []
 }
@@ -36,7 +38,7 @@ function normalizeRole(value: unknown): AppRole {
   return "viewer"
 }
 
-function readSessionObject(): Partial<LoggedInSession & AppUser> | null {
+function readSessionObject(): StoredUserSession | null {
   if (typeof window === "undefined") return null
 
   const candidates = [
@@ -47,7 +49,7 @@ function readSessionObject(): Partial<LoggedInSession & AppUser> | null {
 
   for (const candidate of candidates) {
     try {
-      const parsed = JSON.parse(candidate as string) as Partial<LoggedInSession & AppUser>
+      const parsed = JSON.parse(candidate as string) as StoredUserSession
       if (parsed && typeof parsed === "object") {
         return parsed
       }
@@ -56,7 +58,7 @@ function readSessionObject(): Partial<LoggedInSession & AppUser> | null {
     }
   }
 
-  const globalUser = (window as Window & { __BLACKDOG_CURRENT_USER__?: Partial<LoggedInSession & AppUser> }).__BLACKDOG_CURRENT_USER__
+  const globalUser = (window as Window & { __BLACKDOG_CURRENT_USER__?: StoredUserSession }).__BLACKDOG_CURRENT_USER__
   return globalUser || null
 }
 

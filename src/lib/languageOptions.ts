@@ -126,7 +126,7 @@ function withCodePrefix(option: Omit<RecruitingLanguageOption, "code">): Recruit
   }
 }
 
-const LANGUAGE_OPTION_ROWS: RecruitingLanguageOption[] = [
+const LANGUAGE_OPTION_ROWS: Array<Omit<RecruitingLanguageOption, "code">> = [
   // English
   option("English - UK", "english_uk", "English", "UK"),
   option("English - EU", "english_eu", "English", "EU"),
