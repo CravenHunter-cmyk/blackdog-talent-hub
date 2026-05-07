@@ -1,0 +1,28 @@
+[
+  {
+    "progressId": "progress_dce99fac-6565-4a11-81fa-3a7029c0eb4a",
+    "talentId": "tal_nayara-ribeiro_3249d5e082b1",
+    "hrId": "mock-hr-julie",
+    "hrName": "Julie Zhu",
+    "candidateName": "Nayara Ribeiro",
+    "avatarUrl": "https://www.upwork.com/profile-portraits/c1hZBcZqmwJCmwtz-jn2f123HWWXP98WRnn3eiCoshOWGil3xSrbxhzzvjVJYByiLN",
+    "nativeLanguage": "",
+    "secondLanguage": "",
+    "upworkChatUrl": "https://www.upwork.com/ab/messages/rooms/room_dc68e470428822bab618d29d22761039?pageTitle=Nayara%20Ribeiro&companyReference=1529646438335582209&sidebar=true",
+    "submitStatus": "success",
+    "submittedAt": "2026-04-28T05:06:50.030Z"
+  },
+  {
+    "progressId": "progress_08ffd5eb-62c0-44f0-937e-774968e765d9",
+    "talentId": "tal_ken-kishikawa_210d8c306dbf",
+    "hrId": "mock-hr-julie",
+    "hrName": "Julie Zhu",
+    "candidateName": "Ken Kishikawa",
+    "avatarUrl": "https://www.upwork.com/profile-portraits/c1_RHjQ54J-r6iMp_meU3ylDJyHlZLJ6QdDCwA9lPcri1PMRJX5cUl8zAx6ZLibz34",
+    "nativeLanguage": "",
+    "secondLanguage": "",
+    "upworkChatUrl": "https://www.upwork.com/ab/messages/rooms/room_2a027a0e2a372f3afeae12a8580ac404?pageTitle=Ken%20Kishikawa&companyReference=1529646438335582209&sidebar=true",
+    "submitStatus": "success",
+    "submittedAt": "2026-05-04T02:54:32.386Z"
+  }
+]

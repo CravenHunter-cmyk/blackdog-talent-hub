@@ -1,4 +1,5 @@
 const STORAGE_KEY = "blackdogRecruitingHelperRoomsStateV1"
+const TALENT_POOL_SUBMIT_ENDPOINT = "http://localhost:3000/api/talent-pool/submit"
 const RECRUITING_PROJECTS = [
   "Native LLM Evaluator Recruitment",
   "Speech Annotation Recruitment",
@@ -47,6 +48,7 @@ const state = {
   talentProfileRoomId: "",
   talentProfileDraft: null,
   talentProfileStatus: "",
+  talentProfileStatusKind: "",
 }
 
 let projectScriptStatusTimer = null
@@ -164,6 +166,160 @@ const PROJECT_SCRIPT_LIBRARY = {
     },
   ],
 }
+
+const TALENT_PROFILE_LANGUAGE_OPTIONS = [
+  "",
+  "English",
+  "English (UK)",
+  "English (US)",
+  "English (EU)",
+  "English (North American accent)",
+  "English (RoW)",
+  "Spanish",
+  "Spanish (Mexico)",
+  "Spanish (Spain)",
+  "Portuguese",
+  "Portuguese (Brazil)",
+  "Portuguese (Portugal)",
+  "Arabic",
+  "Arabic (MENA)",
+  "Arabic (Middle East)",
+  "Arabic (Saudi Arabia)",
+  "Arabic (South Africa)",
+  "Arabic (RoW)",
+  "French",
+  "German",
+  "Italian",
+  "Russian",
+  "Ukrainian",
+  "Polish",
+  "Romanian",
+  "Slovak",
+  "Czech",
+  "Bulgarian",
+  "Greek",
+  "Dutch",
+  "Swedish",
+  "Norwegian",
+  "Danish",
+  "Finnish",
+  "Turkish",
+  "Azerbaijani",
+  "Bengali",
+  "Bengali (Bangladesh)",
+  "Bengali (West Bengal, India)",
+  "Catalan",
+  "Hindi",
+  "Urdu",
+  "Pashto",
+  "Nepali",
+  "Burmese",
+  "Khmer",
+  "Thai",
+  "Vietnamese",
+  "Indonesian",
+  "Malay",
+  "Filipino / Tagalog",
+  "Japanese",
+  "Korean",
+  "Swahili",
+  "Swahili (Tanzania)",
+  "Swahili (Africa)",
+  "Afrikaans",
+  "Hebrew",
+  "Other",
+  "Unknown",
+]
+
+const TALENT_PROFILE_SKILL_OPTIONS = [
+  "",
+  "LLM Response Evaluation",
+  "LLM Response Ranking",
+  "LLM Safety Evaluation",
+  "LLM Helpfulness Evaluation",
+  "LLM Factuality Evaluation",
+  "LLM Hallucination Evaluation",
+  "LLM Red Teaming",
+  "Prompt Evaluation",
+  "Prompt Writing",
+  "SFT Data Annotation",
+  "RLHF Annotation",
+  "Preference Ranking",
+  "Golden Answer Writing",
+  "Rubric Writing",
+  "Search Relevance Evaluation",
+  "Search Quality Evaluation",
+  "Ads Quality Evaluation",
+  "Content Moderation",
+  "Trust & Safety Labeling",
+  "Policy Violation Labeling",
+  "Toxicity Evaluation",
+  "Hate Speech Evaluation",
+  "Sensitive Content Evaluation",
+  "Translation",
+  "Translation Review",
+  "Localization",
+  "Localization QA",
+  "Cultural Adaptation",
+  "Terminology Review",
+  "Linguistic QA",
+  "Transcription",
+  "ASR Transcription",
+  "ASR Validation",
+  "Audio Annotation",
+  "Speech Data Collection",
+  "TTS Evaluation",
+  "Voice Quality Evaluation",
+  "OCR Annotation",
+  "OCR Validation",
+  "Image Annotation",
+  "Image Caption Evaluation",
+  "Video Annotation",
+  "Video Understanding Evaluation",
+  "Multimodal Evaluation",
+  "Data QA",
+  "Data Cleaning",
+  "Data Collection",
+  "Web Research",
+  "Website Collection",
+  "Local Website Evaluation",
+  "Resume Screening",
+  "Interview Evaluation",
+  "Other",
+]
+
+const TALENT_PROFILE_EDUCATION_OPTIONS = [
+  "",
+  "High School",
+  "Associate Degree",
+  "Bachelor’s Degree",
+  "Master’s Degree",
+  "PhD / Doctorate",
+  "Other",
+  "Unknown",
+]
+
+const TALENT_PROFILE_PROFESSIONAL_DOMAIN_OPTIONS = [
+  "",
+  "Linguistics",
+  "Translation / Localization",
+  "Education",
+  "Computer Science / AI",
+  "Data Annotation",
+  "Search Evaluation",
+  "Content Moderation / Trust & Safety",
+  "Marketing / Media",
+  "Finance / Business",
+  "Law / Legal",
+  "Healthcare / Medical",
+  "E-commerce",
+  "Gaming",
+  "Social Media",
+  "Customer Support",
+  "General",
+  "Other",
+  "Unknown",
+]
 
 function el(id) {
   return document.getElementById(id)
@@ -294,7 +450,6 @@ function dedupeCandidateRooms(rooms = {}) {
     ? rooms.map((room, index) => [safeName(room?.roomId || room?.roomUrl || room?.pageUrl || `room-${index}`), room])
     : Object.entries(rooms || {})
 
-  const beforeCount = entries.length
   const removedDuplicates = []
   const removedInvalid = []
   const keyMap = new Map()
@@ -391,15 +546,9 @@ function dedupeCandidateRooms(rooms = {}) {
   }
 
   if (removedInvalid.length) {
-    console.log("[BlackDog] removed invalid candidate rooms", removedInvalid)
     roomsNormalizationNeedsPersist = true
   }
   if (removedDuplicates.length) {
-    console.log("[BlackDog] dedupe candidate rooms", {
-      beforeCount,
-      afterCount: Object.keys(finalRooms).length,
-      removedDuplicates,
-    })
     roomsNormalizationNeedsPersist = true
   }
 
@@ -447,6 +596,22 @@ function getVerifiedTalentProfileAvatar(room = {}, saved = {}) {
   return matches ? safeName(saved?.avatarUrl || "") : ""
 }
 
+function normalizeProfileSubmitStatus(value = "") {
+  const raw = safeName(value || "").toLowerCase()
+  if (raw === "success") return "success"
+  if (raw === "failed") return "failed"
+  return "idle"
+}
+
+function getRoomProfileSubmitStatus(room = {}) {
+  const raw = safeName(room?.profileSubmitStatus || room?.talentProfile?.profileSubmitStatus || "")
+  return normalizeProfileSubmitStatus(raw)
+}
+
+function getRoomProfileSubmitError(room = {}) {
+  return safeName(room?.profileSubmitError || room?.talentProfile?.profileSubmitError || "")
+}
+
 function candidateHeadlineToTaskTags(headline = "") {
   const raw = safeName(headline || "")
   if (!raw) return ""
@@ -469,6 +634,36 @@ function candidateHeadlineToTaskTags(headline = "") {
   return unique.slice(0, 8).join(", ")
 }
 
+function looksLikeJobTitle(value = "") {
+  const normalized = safeName(value)
+  if (!normalized) return false
+  if (normalized.length > 64) return true
+  if (/[|]/.test(normalized)) return true
+  if (/(recruitment|evaluator|evaluator pool|data annotation|annotation pool|screening|moderation|trust & safety|project|job|role|assistant|pool)/i.test(normalized) &&
+    /\s/.test(normalized)) {
+    return true
+  }
+  return false
+}
+
+function normalizeSkillValue(value = "") {
+  const normalized = safeName(value)
+  if (!normalized) return ""
+  const matchedOption = TALENT_PROFILE_SKILL_OPTIONS.find((option) => safeName(option) === normalized)
+  if (matchedOption) return matchedOption
+  if (looksLikeJobTitle(normalized)) return ""
+  if (looksLikeUiChromeText(normalized)) return ""
+  return normalized
+}
+
+function looksLikeUiChromeText(value = "") {
+  const normalized = safeName(value).toLowerCase()
+  if (!normalized) return false
+  return /(^|[\s-])(more options|unread|messages|settings|jobs|search messages|activity timeline|view proposal|proposal received|send offer|offer acceptance|contract starts|favorites|all job posts|skip to content|toggle search)([\s-]|$)/i.test(
+    normalized,
+  )
+}
+
 function prefillTalentProfileFromRoom(profile = {}, room = {}) {
   const next = {
     ...profile,
@@ -479,11 +674,18 @@ function prefillTalentProfileFromRoom(profile = {}, room = {}) {
   const mainSkill = safeName(next.mainSkill || "")
   const taskTags = safeName(next.taskTags || "")
   const headlineMain = headline.split("|")[0].trim()
-  if (!mainSkill && headlineMain) {
+  if (!mainSkill && headlineMain && !looksLikeJobTitle(headlineMain)) {
     next.mainSkill = headlineMain
   }
   if (!taskTags) {
     next.taskTags = candidateHeadlineToTaskTags(headline)
+  }
+  if (!next.experienceSummary && looksLikeJobTitle(headlineMain)) {
+    next.experienceSummary = `Upwork headline: ${headline}`
+  }
+  const headlineSkill = normalizeSkillValue(headlineMain)
+  if (!mainSkill && headlineSkill && TALENT_PROFILE_SKILL_OPTIONS.some((option) => safeName(option) === safeName(headlineSkill))) {
+    next.mainSkill = headlineSkill
   }
   return next
 }
@@ -495,6 +697,8 @@ function createInitialTalentProfile(room = {}) {
     candidateName,
     candidateHeadline: safeName(room.candidateHeadline || ""),
     platform: "Upwork",
+    education: "",
+    professionalDomain: "",
     upworkChatUrl: safeName(room.roomUrl || room.pageUrl || ""),
     profileUrl: "",
     upworkProfileUrl: "",
@@ -534,6 +738,8 @@ function normalizeTalentProfile(profile = {}, room = {}) {
     candidateName,
     candidateHeadline: safeName(profile.candidateHeadline || room.candidateHeadline || fallback.candidateHeadline),
     platform: "Upwork",
+    education: safeName(profile.education || fallback.education || ""),
+    professionalDomain: safeName(profile.professionalDomain || fallback.professionalDomain || ""),
     upworkChatUrl: safeName(profile.upworkChatUrl || room.roomUrl || room.pageUrl || fallback.upworkChatUrl),
     profileUrl: safeName(profile.profileUrl || profile.upworkProfileUrl || fallback.profileUrl || fallback.upworkProfileUrl || ""),
     upworkProfileUrl: safeName(profile.profileUrl || profile.upworkProfileUrl || fallback.profileUrl || fallback.upworkProfileUrl || ""),
@@ -542,9 +748,11 @@ function normalizeTalentProfile(profile = {}, room = {}) {
     secondLanguage: safeName(profile.secondLanguage || profile.otherLanguages || fallback.secondLanguage || ""),
     languageVariant: safeName(profile.languageVariant || fallback.languageVariant || ""),
     otherLanguages: safeName(profile.otherLanguages || profile.secondLanguage || fallback.otherLanguages || ""),
-    mainSkill: safeName(profile.mainSkill || fallback.mainSkill || ""),
+    mainSkill: normalizeSkillValue(profile.mainSkill || fallback.mainSkill || ""),
     taskTags: safeName(profile.taskTags || fallback.taskTags || ""),
-    experienceSummary: safeName(profile.experienceSummary || fallback.experienceSummary || ""),
+    experienceSummary:
+      safeName(profile.experienceSummary || fallback.experienceSummary || "") ||
+      (looksLikeJobTitle(profile.mainSkill || fallback.mainSkill || "") ? safeName(profile.mainSkill || fallback.mainSkill || "") : ""),
     hasLLMEvaluationExperience: ["Unknown", "Yes", "No"].includes(profile.hasLLMEvaluationExperience)
       ? profile.hasLLMEvaluationExperience
       : "Unknown",
@@ -595,7 +803,6 @@ function cleanupInvalidCandidateRooms() {
       state.liveRoomId = ""
     }
     roomsNormalizationNeedsPersist = true
-    console.log("[BlackDog] removed invalid candidate rooms", removedRooms)
     void storageSet({ talentProfiles: state.talentProfiles })
   }
 }
@@ -614,7 +821,6 @@ function avatarInitials(name = "") {
 
 function setDebugAction(action) {
   state.lastAction = action
-  console.log("[BlackDog] Last action:", action)
 }
 
 function setDebugScanStatus(value) {
@@ -658,6 +864,8 @@ function emptyRoom(snapshot = {}) {
     lastSyncedAt: snapshot.capturedAt || nowIso(),
     extractionMode: snapshot.extractionMode || "fallback",
     cachedConversation: Boolean(snapshot.cachedConversation),
+    profileSubmitStatus: "idle",
+    profileSubmitError: "",
   }
 }
 
@@ -737,10 +945,35 @@ function deriveCandidateName(messages = [], meName = "", fallback = "Unknown Can
 }
 
 function serializeState() {
+  const rooms = Object.fromEntries(
+    Object.entries(state.rooms || {}).map(([roomKey, room]) => {
+      if (!room || typeof room !== "object") return [roomKey, room]
+      const normalizedStatus = normalizeProfileSubmitStatus(room.profileSubmitStatus || room.talentProfile?.profileSubmitStatus || "")
+      return [
+        roomKey,
+        {
+          ...room,
+          profileSubmitStatus: normalizedStatus,
+          profileSubmitError: normalizedStatus === "idle" ? "" : safeName(room.profileSubmitError || room.talentProfile?.profileSubmitError || ""),
+          talentProfile:
+            room.talentProfile && typeof room.talentProfile === "object"
+              ? {
+                  ...room.talentProfile,
+                  profileSubmitStatus: normalizedStatus,
+                  profileSubmitError:
+                    normalizedStatus === "idle"
+                      ? ""
+                      : safeName(room.talentProfile.profileSubmitError || room.profileSubmitError || ""),
+                }
+              : room.talentProfile,
+        },
+      ]
+    }),
+  )
   return {
     upworkUserName: state.upworkUserName,
     selectedRecruitingProject: state.selectedRecruitingProject || DEFAULT_RECRUITING_PROJECT,
-    rooms: state.rooms,
+    rooms,
     activeRoomKey: getActiveRoomKey(),
     activeRoomId: state.activeRoomId,
   }
@@ -800,6 +1033,8 @@ function mergeRoomRecord(existing = {}, incoming = {}) {
     candidateName,
     candidateHeadline: mergedCandidateHeadline,
     candidateAvatarUrl: mergedAvatarUrl,
+    profileSubmitStatus: normalizeProfileSubmitStatus(incoming.profileSubmitStatus || existing.profileSubmitStatus || "idle"),
+    profileSubmitError: safeName(incoming.profileSubmitError || existing.profileSubmitError || ""),
     conversationMessages: messageSeed,
     totalMessagesCaptured: messageSeed.length,
     lastMessageText: messageSeed.length ? messageSeed[messageSeed.length - 1].text || "" : safeName(existing.lastMessageText || ""),
@@ -839,6 +1074,17 @@ async function loadState() {
   )
   state.conversationTranslationExpanded = state.conversationTranslationDefaultExpanded
   state.rooms = normalizeRoomCollection(saved.rooms && typeof saved.rooms === "object" ? saved.rooms : {})
+  Object.entries(state.rooms).forEach(([, room]) => {
+    if (!room || typeof room !== "object") return
+    const normalizedStatus = normalizeProfileSubmitStatus(room.profileSubmitStatus || room.talentProfile?.profileSubmitStatus || "")
+    room.profileSubmitStatus = normalizedStatus
+    room.profileSubmitError = normalizedStatus === "idle" ? "" : safeName(room.profileSubmitError || room.talentProfile?.profileSubmitError || "")
+    if (room.talentProfile && typeof room.talentProfile === "object") {
+      room.talentProfile.profileSubmitStatus = normalizedStatus
+      room.talentProfile.profileSubmitError =
+        normalizedStatus === "idle" ? "" : safeName(room.talentProfile.profileSubmitError || room.profileSubmitError || "")
+    }
+  })
   state.talentProfiles = items.talentProfiles && typeof items.talentProfiles === "object" ? items.talentProfiles : {}
   cleanupInvalidCandidateRooms()
   Object.values(state.rooms).forEach((room) => {
@@ -1317,6 +1563,8 @@ function getTalentProfileFieldIds() {
   return {
     avatar: "talent-profile-avatar",
     candidateName: "talent-profile-candidate-name",
+    education: "talent-profile-education",
+    professionalDomain: "talent-profile-professional-domain",
     upworkChatUrl: "talent-profile-upwork-chat-url",
     profileUrl: "talent-profile-profile-url",
     upworkProfileUrl: "talent-profile-profile-url",
@@ -1354,37 +1602,101 @@ function markTalentProfileFieldNoLabel(id = "") {
   return label || null
 }
 
-function moveTalentProfileField(id = "", target = null) {
-  const node = el(id)
-  const label = node?.closest("label.stack")
-  if (!label || !target) return null
-  if (label.parentElement !== target) {
-    target.append(label)
+function ensureTalentProfileOptionList(modal, id, options = []) {
+  if (!modal) return null
+  let list = modal.querySelector(`datalist#${id}`)
+  if (!list) {
+    list = document.createElement("datalist")
+    list.id = id
+    modal.append(list)
   }
-  return label
+  if (list.dataset.bound !== "true") {
+    list.innerHTML = ""
+    options.forEach((value) => {
+      if (value === "") return
+      const option = document.createElement("option")
+      option.value = value
+      list.append(option)
+    })
+    list.dataset.bound = "true"
+  }
+  return list
 }
 
-function setTalentProfileLabelText(fieldId = "", labelText = "") {
-  const node = el(fieldId)
-  if (!node) return
+function ensureTalentProfileField(modal, config = {}) {
+  const {
+    parent,
+    id,
+    labelText,
+    placeholder = "",
+    listId = "",
+    type = "text",
+    full = false,
+    insertAfter = null,
+  } = config
+  if (!modal || !parent || !id) return null
 
-  const label = node.closest("label.stack")
-  if (!label) return
+  let label = el(id)?.closest("label.stack") || null
+  if (!label) {
+    label = document.createElement("label")
+    label.className = "stack"
 
-  const labelNode =
-    label.querySelector(".field-label") ||
-    label.querySelector("span") ||
-    label.querySelector("strong")
+    const title = document.createElement("span")
+    title.className = "group-label"
+    title.textContent = labelText || ""
 
-  if (labelNode) {
-    labelNode.textContent = labelText
-    return
+    const field =
+      type === "textarea"
+        ? document.createElement("textarea")
+        : type === "select"
+          ? document.createElement("select")
+          : document.createElement("input")
+
+    if (field instanceof HTMLInputElement) {
+      field.type = type || "text"
+    }
+    field.id = id
+    field.className = "text-input"
+    if (placeholder && "placeholder" in field) {
+      field.placeholder = placeholder
+    }
+    if (listId && field instanceof HTMLInputElement) {
+      field.setAttribute("list", listId)
+    }
+
+    label.append(title, field)
+  } else {
+    const title = label.querySelector(".group-label")
+    if (title && labelText) title.textContent = labelText
   }
 
-  const firstTextNode = Array.from(label.childNodes).find((child) => child.nodeType === Node.TEXT_NODE)
-  if (firstTextNode) {
-    firstTextNode.textContent = labelText
+  label.classList.toggle("talent-profile-full", Boolean(full))
+  const field = label.querySelector(`#${CSS.escape(id)}`) || label.querySelector("input, select, textarea")
+  if (field) {
+    if (field instanceof HTMLInputElement && type && type !== "select" && type !== "textarea") {
+      field.type = type
+    }
+    if (labelText && !label.querySelector(".group-label")) {
+      const title = document.createElement("span")
+      title.className = "group-label"
+      title.textContent = labelText
+      label.insertBefore(title, label.firstChild)
+    }
+    if (placeholder && "placeholder" in field) {
+      field.placeholder = placeholder
+    }
+    if (listId && field instanceof HTMLInputElement) {
+      field.setAttribute("list", listId)
+    }
   }
+
+  if (insertAfter && insertAfter.parentElement === parent) {
+    parent.insertBefore(label, insertAfter.nextElementSibling)
+  } else if (label.parentElement !== parent) {
+    parent.append(label)
+  }
+
+  return label
 }
 
 function ensureTalentProfileTemplate() {
@@ -1396,11 +1708,12 @@ function ensureTalentProfileTemplate() {
     overlay.hidden = true
     overlay.innerHTML = `
       <div class="talent-profile-overlay"></div>
-      <div class="talent-profile-dialog card" role="dialog" aria-modal="true" aria-labelledby="talent-profile-title">
+          <div class="talent-profile-dialog card" role="dialog" aria-modal="true" aria-labelledby="talent-profile-title">
         <div class="talent-profile-header">
           <h3 id="talent-profile-title">Talent Profile</h3>
           <button id="talent-profile-close" class="secondary compact" type="button">×</button>
         </div>
+        <div id="talent-profile-status" class="talent-profile-status" hidden></div>
 
         <div class="talent-profile-body">
           <section class="talent-profile-section">
@@ -1413,6 +1726,28 @@ function ensureTalentProfileTemplate() {
                 <span class="group-label">Candidate Name</span>
                 <input id="talent-profile-candidate-name" class="text-input" type="text" />
               </label>
+              <div class="talent-profile-grid talent-profile-basic-meta-grid">
+                <label class="stack">
+                  <span class="group-label">Education</span>
+                  <input
+                    id="talent-profile-education"
+                    class="text-input"
+                    type="text"
+                    list="talent-profile-education-options"
+                    placeholder="Type to search education"
+                  />
+                </label>
+                <label class="stack">
+                  <span class="group-label">Professional Domain</span>
+                  <input
+                    id="talent-profile-professional-domain"
+                    class="text-input"
+                    type="text"
+                    list="talent-profile-professional-domain-options"
+                    placeholder="Type to search domain"
+                  />
+                </label>
+              </div>
               <div class="talent-profile-grid talent-profile-url-grid">
                 <label class="stack">
                   <span class="group-label">Upwork Chat URL</span>
@@ -1431,7 +1766,13 @@ function ensureTalentProfileTemplate() {
             <div class="talent-profile-grid">
               <label class="stack">
                 <span class="group-label">Native Language</span>
-                <input id="talent-profile-native-language" class="text-input" type="text" />
+                <input
+                  id="talent-profile-native-language"
+                  class="text-input"
+                  type="text"
+                  list="talent-profile-language-options"
+                  placeholder="Type to search language"
+                />
               </label>
               <label class="stack">
                 <span class="group-label">Language Variant</span>
@@ -1439,7 +1780,13 @@ function ensureTalentProfileTemplate() {
               </label>
               <label class="stack talent-profile-full">
                 <span class="group-label">Other Languages</span>
-                <input id="talent-profile-other-languages" class="text-input" type="text" />
+                <input
+                  id="talent-profile-other-languages"
+                  class="text-input"
+                  type="text"
+                  list="talent-profile-language-options"
+                  placeholder="Type to search language"
+                />
               </label>
             </div>
           </section>
@@ -1449,7 +1796,13 @@ function ensureTalentProfileTemplate() {
             <div class="talent-profile-grid">
               <label class="stack">
                 <span class="group-label">Main Skill</span>
-                <input id="talent-profile-main-skill" class="text-input" type="text" />
+                <input
+                  id="talent-profile-main-skill"
+                  class="text-input"
+                  type="text"
+                  list="talent-profile-skill-options"
+                  placeholder="Select or search task type"
+                />
               </label>
               <label class="stack">
                 <span class="group-label">Task Tags</span>
@@ -1505,40 +1858,32 @@ function ensureTalentProfileTemplate() {
             <button id="talent-profile-save-draft" class="secondary compact" type="button">Save Draft</button>
             <button id="talent-profile-save-pool" class="primary compact" type="button">Save to Talent Pool</button>
           </div>
+          <div class="talent-profile-footer-note">Profile stable check v1</div>
         </div>
       </div>
     `
     const root = document.querySelector(".side-panel") || document.body
     root.append(overlay)
     modal = overlay
-    console.log("[BlackDog] created talent profile modal")
   }
   const body = modal?.querySelector(".talent-profile-body")
   if (!modal || !body) return
 
-  const sections = Array.from(body.querySelectorAll(":scope > .talent-profile-section"))
-  const basicInfoSection = sections[0] || null
-  const languageSection = sections[1] || null
-  const skillsSection = sections[2] || null
-  const availabilitySection = sections[3] || null
-
+    const sections = Array.from(body.querySelectorAll(":scope > .talent-profile-section"))
+    const basicInfoSection = sections[0] || null
+    const languageSection = sections[1] || null
+    const skillsSection = sections[2] || null
+    const availabilitySection = sections[3] || null
+    let statusNode = modal.querySelector("#talent-profile-status")
+    if (!statusNode) {
+      statusNode = document.createElement("div")
+      statusNode.id = "talent-profile-status"
+      statusNode.className = "talent-profile-status"
+      modal.insertBefore(statusNode, body)
+    }
   ;["talent-profile-platform", "talent-profile-country-region", "talent-profile-timezone", "talent-profile-identity"].forEach(
     (id) => hideTalentProfileField(id),
   )
-  const profileUrlNode = el("talent-profile-profile-url") || el("talent-profile-upwork-profile-url")
-  if (profileUrlNode) {
-    if (profileUrlNode.id !== "talent-profile-profile-url") {
-      profileUrlNode.id = "talent-profile-profile-url"
-    }
-    const profileLabel = profileUrlNode.closest("label.stack")
-    if (profileLabel) {
-      profileLabel.classList.remove("talent-profile-hidden-field")
-    }
-  }
-  const basicInfoChatUrlNode = el("talent-profile-upwork-chat-url")
-  if (basicInfoChatUrlNode) {
-    basicInfoChatUrlNode.readOnly = true
-  }
 
   if (basicInfoSection) {
     basicInfoSection.classList.add("talent-profile-basic-section")
@@ -1561,22 +1906,72 @@ function ensureTalentProfileTemplate() {
       hero.append(candidateLabel)
     }
 
+    let metaGrid = basicInfoSection.querySelector(".talent-profile-basic-meta-grid")
+    if (!metaGrid) {
+      metaGrid = document.createElement("div")
+      metaGrid.className = "talent-profile-grid talent-profile-language-grid talent-profile-basic-meta-grid"
+    } else {
+      metaGrid.classList.remove("talent-profile-hidden-field")
+      metaGrid.classList.add("talent-profile-grid", "talent-profile-language-grid", "talent-profile-basic-meta-grid")
+    }
+
     let urlGrid = basicInfoSection.querySelector(".talent-profile-url-grid")
     if (!urlGrid) {
       urlGrid = document.createElement("div")
-      urlGrid.className = "talent-profile-url-grid"
-      hero.after(urlGrid)
+      urlGrid.className = "talent-profile-grid talent-profile-language-grid talent-profile-url-grid"
     } else {
       urlGrid.classList.remove("talent-profile-grid")
-      urlGrid.classList.add("talent-profile-url-grid")
+      urlGrid.classList.add("talent-profile-grid", "talent-profile-language-grid", "talent-profile-url-grid")
     }
     urlGrid.style.display = "grid"
-    moveTalentProfileField("talent-profile-upwork-chat-url", urlGrid)
-    moveTalentProfileField("talent-profile-profile-url", urlGrid)
+
+    const educationLabel = ensureTalentProfileField(modal, {
+      parent: metaGrid,
+      id: "talent-profile-education",
+      labelText: "Education",
+      placeholder: "Type to search education",
+      listId: "talent-profile-education-options",
+      type: "text",
+    })
+    const professionalDomainLabel = ensureTalentProfileField(modal, {
+      parent: metaGrid,
+      id: "talent-profile-professional-domain",
+      labelText: "Professional Domain",
+      placeholder: "Type to search domain",
+      listId: "talent-profile-professional-domain-options",
+      type: "text",
+      insertAfter: educationLabel,
+    })
+    ensureTalentProfileField(modal, {
+      parent: urlGrid,
+      id: "talent-profile-upwork-chat-url",
+      labelText: "Upwork Chat URL",
+      type: "url",
+      insertAfter: professionalDomainLabel,
+    })
+    ensureTalentProfileField(modal, {
+      parent: urlGrid,
+      id: "talent-profile-profile-url",
+      labelText: "Upwork Profile URL",
+      placeholder: "Paste candidate profile URL",
+      type: "url",
+    })
     const urlGridChatUrlNode = el("talent-profile-upwork-chat-url")
     if (urlGridChatUrlNode) urlGridChatUrlNode.readOnly = true
     const urlGridProfileUrlNode = el("talent-profile-profile-url")
     if (urlGridProfileUrlNode) urlGridProfileUrlNode.placeholder = "Paste candidate profile URL"
+
+    const insertAfterTarget = hero
+    if (metaGrid.parentElement !== basicInfoSection) {
+      basicInfoSection.insertBefore(metaGrid, insertAfterTarget.nextElementSibling)
+    } else if (metaGrid.previousElementSibling !== insertAfterTarget) {
+      basicInfoSection.insertBefore(metaGrid, insertAfterTarget.nextElementSibling)
+    }
+    if (urlGrid.parentElement !== basicInfoSection) {
+      basicInfoSection.insertBefore(urlGrid, metaGrid.nextElementSibling)
+    } else if (urlGrid.previousElementSibling !== metaGrid) {
+      basicInfoSection.insertBefore(urlGrid, metaGrid.nextElementSibling)
+    }
   }
 
   if (languageSection) {
@@ -1591,12 +1986,25 @@ function ensureTalentProfileTemplate() {
       languageSection.append(grid)
     }
     grid.classList.add("talent-profile-language-grid")
-    moveTalentProfileField("talent-profile-native-language", grid)
-    const secondLanguageLabel = moveTalentProfileField("talent-profile-other-languages", grid)
+    const nativeLanguageLabel = ensureTalentProfileField(modal, {
+      parent: grid,
+      id: "talent-profile-native-language",
+      labelText: "Native Language",
+      placeholder: "Type to search language",
+      listId: "talent-profile-language-options",
+      type: "text",
+    })
+    const secondLanguageLabel = ensureTalentProfileField(modal, {
+      parent: grid,
+      id: "talent-profile-other-languages",
+      labelText: "Second Language",
+      placeholder: "Type to search language",
+      listId: "talent-profile-language-options",
+      type: "text",
+      insertAfter: nativeLanguageLabel,
+    })
     if (secondLanguageLabel) {
       secondLanguageLabel.classList.remove("talent-profile-full")
-      const labelSpan = secondLanguageLabel.querySelector(".group-label")
-      if (labelSpan) labelSpan.textContent = "Second Language"
     }
     hideTalentProfileField("talent-profile-language-variant")
   }
@@ -1613,10 +2021,17 @@ function ensureTalentProfileTemplate() {
       skillsSection.append(grid)
     }
     grid.classList.add("talent-profile-skills-grid")
-    moveTalentProfileField("talent-profile-main-skill", grid)
+    ensureTalentProfileField(modal, {
+      parent: grid,
+      id: "talent-profile-main-skill",
+      labelText: "Skill",
+      placeholder: "Select or search task type",
+      listId: "talent-profile-skill-options",
+      type: "text",
+    })
     markTalentProfileFieldNoLabel("talent-profile-main-skill")
     const skillNode = el("talent-profile-main-skill")
-    if (skillNode) skillNode.placeholder = "Main skill, e.g. LLM evaluation, transcription, MTPE"
+    if (skillNode) skillNode.placeholder = "Select or search task type"
     hideTalentProfileField("talent-profile-task-tags")
     hideTalentProfileField("talent-profile-has-llm-evaluation-experience")
     hideTalentProfileField("talent-profile-evaluation-types")
@@ -1638,7 +2053,14 @@ function ensureTalentProfileTemplate() {
   const experienceGrid = experienceSection.querySelector(".talent-profile-experience-grid")
   if (experienceGrid) {
     experienceGrid.classList.add("talent-profile-experience-grid")
-    moveTalentProfileField("talent-profile-experience-summary", experienceGrid)
+    ensureTalentProfileField(modal, {
+      parent: experienceGrid,
+      id: "talent-profile-experience-summary",
+      labelText: "Experience",
+      placeholder: "Briefly describe relevant project experience",
+      type: "textarea",
+      full: true,
+    })
     markTalentProfileFieldNoLabel("talent-profile-experience-summary")
     const experienceNode = el("talent-profile-experience-summary")
     if (experienceNode) experienceNode.placeholder = "Briefly describe relevant project experience"
@@ -1733,15 +2155,28 @@ function ensureTalentProfileTemplate() {
     weekendAvailability.dataset.bound = "true"
   }
 
-  setTalentProfileLabelText("talent-profile-native-language", "Native Language")
-  setTalentProfileLabelText("talent-profile-other-languages", "Second Language")
-  setTalentProfileLabelText("talent-profile-main-skill", "Skill")
-  setTalentProfileLabelText("talent-profile-experience-summary", "Experience")
-  setTalentProfileLabelText("talent-profile-daily-availability", "Daily Availability")
-  setTalentProfileLabelText("talent-profile-weekend-availability", "Weekend Availability")
-  setTalentProfileLabelText("talent-profile-email", "Email")
-  setTalentProfileLabelText("talent-profile-online-contact-method", "Contact Method")
-  setTalentProfileLabelText("talent-profile-online-contact-account", "Contact Account")
+  const educationNode = el("talent-profile-education")
+  if (educationNode) educationNode.placeholder = "Type to search education"
+  const domainNode = el("talent-profile-professional-domain")
+  if (domainNode) domainNode.placeholder = "Type to search domain"
+  const nativeLanguageNode = el("talent-profile-native-language")
+  if (nativeLanguageNode) nativeLanguageNode.placeholder = "Type to search language"
+  const secondLanguageNode = el("talent-profile-other-languages")
+  if (secondLanguageNode) secondLanguageNode.placeholder = "Type to search language"
+  const mainSkillNode = el("talent-profile-main-skill")
+  if (mainSkillNode) mainSkillNode.placeholder = "Select or search task type"
+
+  const profileLabelNode = el("talent-profile-profile-url")?.closest("label.stack")?.querySelector(".group-label")
+  if (profileLabelNode) profileLabelNode.textContent = "Upwork Profile URL"
+
+  ensureTalentProfileOptionList(modal, "talent-profile-language-options", TALENT_PROFILE_LANGUAGE_OPTIONS)
+  ensureTalentProfileOptionList(modal, "talent-profile-skill-options", TALENT_PROFILE_SKILL_OPTIONS)
+  ensureTalentProfileOptionList(modal, "talent-profile-education-options", TALENT_PROFILE_EDUCATION_OPTIONS)
+  ensureTalentProfileOptionList(
+    modal,
+    "talent-profile-professional-domain-options",
+    TALENT_PROFILE_PROFESSIONAL_DOMAIN_OPTIONS,
+  )
 }
 
 function readTalentProfileForm() {
@@ -1757,15 +2192,19 @@ function readTalentProfileForm() {
     candidateName: safeName(el(fields.candidateName)?.value || room?.candidateName || "Unknown Candidate"),
     candidateHeadline: safeName(draftMatchesRoom ? state.talentProfileDraft?.candidateHeadline || "" : room?.candidateHeadline || ""),
     platform: "Upwork",
+    education: safeName(el(fields.education)?.value || ""),
+    professionalDomain: safeName(el(fields.professionalDomain)?.value || ""),
     upworkChatUrl: safeName(el(fields.upworkChatUrl)?.value || room?.roomUrl || room?.pageUrl || ""),
     profileUrl: safeName(el(fields.profileUrl)?.value || el(fields.upworkProfileUrl)?.value || ""),
     upworkProfileUrl: safeName(el(fields.upworkProfileUrl)?.value || ""),
     nativeLanguage: safeName(el(fields.nativeLanguage)?.value || ""),
     secondLanguage: safeName(el(fields.secondLanguage)?.value || ""),
     otherLanguages: safeName(el(fields.secondLanguage)?.value || ""),
-    mainSkill: safeName(el(fields.mainSkill)?.value || ""),
+    mainSkill: normalizeSkillValue(el(fields.mainSkill)?.value || ""),
     taskTags: safeName(el(fields.taskTags)?.value || ""),
-    experienceSummary: safeName(el(fields.experienceSummary)?.value || ""),
+    experienceSummary:
+      safeName(el(fields.experienceSummary)?.value || "") ||
+      (looksLikeJobTitle(el(fields.mainSkill)?.value || "") ? safeName(el(fields.mainSkill)?.value || "") : ""),
     hasLLMEvaluationExperience: safeName(el(fields.hasLLMEvaluationExperience)?.value || "Unknown") || "Unknown",
     evaluationTypes: safeName(el(fields.evaluationTypes)?.value || ""),
     platformsCompanies: safeName(el(fields.platformsCompanies)?.value || ""),
@@ -1782,6 +2221,7 @@ function readTalentProfileForm() {
 }
 
 function fillTalentProfileForm(profile = {}) {
+  ensureTalentProfileTemplate()
   const fields = getTalentProfileFieldIds()
   const candidateName = safeName(profile.candidateName || "Unknown Candidate")
   const avatarNode = el(fields.avatar)
@@ -1800,13 +2240,17 @@ function fillTalentProfileForm(profile = {}) {
   }
 
   set(fields.candidateName, candidateName)
+  set(fields.education, profile.education || "")
+  set(fields.professionalDomain, profile.professionalDomain || "")
   set(fields.upworkChatUrl, profile.upworkChatUrl || "")
   set(fields.profileUrl, profile.profileUrl || profile.upworkProfileUrl || "")
   set(fields.nativeLanguage, profile.nativeLanguage || "")
   set(fields.secondLanguage, profile.secondLanguage || profile.otherLanguages || "")
-  set(fields.mainSkill, profile.mainSkill || "")
+  const normalizedMainSkill = normalizeSkillValue(profile.mainSkill || "")
+  set(fields.mainSkill, normalizedMainSkill || "")
   set(fields.taskTags, profile.taskTags || "")
-  set(fields.experienceSummary, profile.experienceSummary || "")
+  const jobTitleFallback = !normalizedMainSkill && looksLikeJobTitle(profile.mainSkill || "") ? safeName(profile.mainSkill || "") : ""
+  set(fields.experienceSummary, profile.experienceSummary || jobTitleFallback || "")
   set(fields.hasLLMEvaluationExperience, profile.hasLLMEvaluationExperience || "Unknown")
   set(fields.evaluationTypes, profile.evaluationTypes || "")
   set(fields.platformsCompanies, profile.platformsCompanies || "")
@@ -1819,8 +2263,6 @@ function fillTalentProfileForm(profile = {}) {
   const chatUrlNode = el(fields.upworkChatUrl)
   if (chatUrlNode) chatUrlNode.readOnly = true
 
-  ensureTalentProfileTemplate()
-
   const statusNode = el("talent-profile-status")
   if (statusNode) {
     statusNode.hidden = true
@@ -1832,7 +2274,6 @@ function renderTalentProfileModal() {
   ensureTalentProfileTemplate()
   const modal = el("talent-profile-modal")
   if (!modal) {
-    console.warn("[BlackDog] talent profile modal missing after ensureTalentProfileTemplate")
     return
   }
   if (!state.talentProfileModalOpen) {
@@ -1845,12 +2286,6 @@ function renderTalentProfileModal() {
       if (!candidateRoom || typeof candidateRoom !== "object") return false
       return getRoomKey(candidateRoom) === state.talentProfileRoomId
     })
-  console.log("[BlackDog] render talent profile modal", {
-    modalOpen: state.talentProfileModalOpen,
-    roomId: state.talentProfileRoomId,
-    roomFound: Boolean(room),
-    modalExists: Boolean(modal),
-  })
   modal.hidden = false
   modal.style.display = "flex"
   modal.style.visibility = "visible"
@@ -1863,16 +2298,6 @@ function renderTalentProfileModal() {
   const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
   const savedAvatarUrl = getVerifiedTalentProfileAvatar(room || {}, saved || {})
   const finalAvatarUrl = draftAvatarUrl || roomCandidateAvatarUrl || savedAvatarUrl || ""
-  console.log("[BlackDog] profile avatar final", {
-    candidateName: room?.candidateName,
-    resolvedRoomKey: state.talentProfileRoomId,
-    draftCandidateName: state.talentProfileDraft?.candidateName,
-    draftRoomId: state.talentProfileDraft?.roomId,
-    draftMatchesRoom: Boolean(draftMatchesRoom),
-    roomAvatar: Boolean(roomCandidateAvatarUrl),
-    savedAvatar: Boolean(savedAvatarUrl),
-    finalAvatarUrl,
-  })
   const merged = prefillTalentProfileFromRoom(
     normalizeTalentProfile(
       {
@@ -1886,6 +2311,24 @@ function renderTalentProfileModal() {
   )
   state.talentProfileDraft = merged
   fillTalentProfileForm(merged)
+
+  const transientStatus = normalizeProfileSubmitStatus(state.talentProfileStatusKind || "")
+  const roomSubmitStatus = getRoomProfileSubmitStatus(room || {})
+  const roomSubmitError = getRoomProfileSubmitError(room || {})
+  if (transientStatus === "submitting" && state.talentProfileStatus) {
+    setTalentProfileStatus("Submitting...", false, "submitting")
+  } else if (transientStatus === "success" && state.talentProfileStatus) {
+    setTalentProfileStatus(state.talentProfileStatus, false, "success")
+  } else if (transientStatus === "failed" && state.talentProfileStatus) {
+    setTalentProfileStatus(state.talentProfileStatus, false, "failed")
+  } else if (roomSubmitStatus === "success") {
+    setTalentProfileStatus(roomSubmitError || "Profile submitted successfully.", false, "success")
+  } else if (roomSubmitStatus === "failed") {
+    setTalentProfileStatus(roomSubmitError || "Profile submission failed. Please try again.", false, "failed")
+  } else {
+    setTalentProfileStatus("", false, "")
+  }
+  updateTalentProfileSubmitButtonState(roomSubmitStatus === "submitting")
 }
 
 function forceHideTalentProfileModal() {
@@ -1967,28 +2410,16 @@ function openTalentProfile(roomId) {
     }
   }
 
-  console.log("[BlackDog] open talent profile clicked", {
-    inputRoomId,
-    resolvedRoomKey,
-    found: Boolean(room),
-    candidateName: room?.candidateName,
-    availableRoomKeys: Object.keys(state.rooms || {}),
-  })
-
   if (!room) {
-    console.warn("[BlackDog] open talent profile room not found", {
-      inputRoomId,
-      availableRoomKeys: Object.keys(state.rooms || {}),
-    })
+    state.talentProfileModalOpen = true
+    state.talentProfileRoomId = ""
+    ensureTalentProfileTemplate()
+    renderTalentProfileModal()
+    setTalentProfileStatus("Candidate profile cannot be opened because the selected chat was not found.", false, "failed")
     return
   }
 
   if (isInvalidCandidateName(room.candidateName || "") && safeName(room.candidateName || "") !== "Unknown Candidate") {
-    console.warn("[BlackDog] blocked invalid candidate profile", {
-      candidateName: room.candidateName,
-      inputRoomId,
-      resolvedRoomKey,
-    })
     return
   }
 
@@ -2003,25 +2434,6 @@ function openTalentProfile(roomId) {
   const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
   const savedAvatarUrl = getVerifiedTalentProfileAvatar(room, saved)
   const finalAvatarUrl = draftAvatarUrl || candidateAvatarUrl || savedAvatarUrl || ""
-  console.log("[BlackDog] profile avatar source", {
-    candidateName: room?.candidateName,
-    resolvedRoomKey,
-    hasMatchingDraft: Boolean(draftMatchesRoom),
-    draftAvatar: Boolean(state.talentProfileDraft?.avatarUrl),
-    roomAvatar: Boolean(candidateAvatarUrl),
-    savedAvatar: Boolean(savedAvatarUrl),
-    finalAvatarUrl,
-  })
-  console.log("[BlackDog] profile avatar final", {
-    candidateName: room?.candidateName,
-    resolvedRoomKey,
-    draftCandidateName: state.talentProfileDraft?.candidateName,
-    draftRoomId: state.talentProfileDraft?.roomId,
-    draftMatchesRoom: Boolean(draftMatchesRoom),
-    roomAvatar: Boolean(candidateAvatarUrl),
-    savedAvatar: Boolean(savedAvatarUrl),
-    finalAvatarUrl,
-  })
   state.talentProfileDraft = prefillTalentProfileFromRoom(
     normalizeTalentProfile(
       {
@@ -2037,14 +2449,11 @@ function openTalentProfile(roomId) {
   state.talentProfileStatus = ""
   state.talentProfileModalOpen = true
   ensureTalentProfileTemplate()
-  renderAll()
-  window.setTimeout(() => {
-    renderTalentProfileModal()
-  }, 0)
+  renderTalentProfileModal()
+  return
 }
 
 function closeTalentProfileModal() {
-  console.log("[BlackDog] close talent profile")
   state.talentProfileModalOpen = false
   state.talentProfileRoomId = ""
   state.talentProfileDraft = state.talentProfileDraft || null
@@ -2053,30 +2462,123 @@ function closeTalentProfileModal() {
   renderAll()
 }
 
-function setTalentProfileStatus(message = "", autoClear = false) {
+function setTalentProfileStatus(message = "", autoClear = false, kind = "") {
   state.talentProfileStatus = message || ""
+  state.talentProfileStatusKind = kind || ""
   const node = el("talent-profile-status")
   if (node) {
     node.hidden = !state.talentProfileStatus
     node.textContent = state.talentProfileStatus
+    node.dataset.state = state.talentProfileStatusKind || ""
+    node.className = "talent-profile-status"
+    if (state.talentProfileStatusKind) {
+      node.classList.add(state.talentProfileStatusKind)
+    }
+    if (kind === "submitting") {
+      node.textContent = message || "Submitting..."
+    }
   }
   if (autoClear && message) {
     window.setTimeout(() => {
       if (state.talentProfileStatus === message) {
         state.talentProfileStatus = ""
+        state.talentProfileStatusKind = ""
         const next = el("talent-profile-status")
         if (next) {
           next.hidden = true
           next.textContent = ""
+          next.dataset.state = ""
         }
       }
     }, 2000)
   }
+  const saveButton = el("talent-profile-save-pool")
+  if (saveButton) {
+    saveButton.disabled = kind === "submitting"
+  }
 }
 
-function submitTalentProfileToPlatform(profile) {
-  // TODO: send profile to BlackDog Talent Hub backend.
-  console.log("[BlackDog] submitTalentProfileToPlatform TODO", profile)
+function setTalentProfileStatusDom(message = "", kind = "") {
+  const statusEl = document.getElementById("talent-profile-status")
+  if (!statusEl) return
+  statusEl.hidden = !message
+  statusEl.textContent = message
+  statusEl.dataset.state = kind || ""
+  statusEl.className = "talent-profile-status"
+  if (kind) {
+    statusEl.classList.add(kind)
+  }
+}
+
+function updateTalentProfileSubmitButtonState(isSubmitting = false) {
+  const saveButton = el("talent-profile-save-pool")
+  if (saveButton) {
+    saveButton.disabled = Boolean(isSubmitting)
+    saveButton.setAttribute("aria-busy", String(Boolean(isSubmitting)))
+  }
+}
+
+function getCurrentHrIdentity() {
+  const hrName = safeName(state.upworkUserName || "Julie Zhu") || "Julie Zhu"
+  return {
+    submittedByHrId: "mock-hr-julie",
+    submittedByHrName: hrName,
+  }
+}
+
+function buildTalentPoolSubmissionPayload(room = {}, profile = {}) {
+  const hrIdentity = getCurrentHrIdentity()
+  const avatarUrl = safeName(profile.avatarUrl || room.candidateAvatarUrl || room.avatarUrl || "")
+  return {
+    source: "upwork",
+    platform: "Upwork",
+    candidateName: safeName(profile.candidateName || room.candidateName || "Unknown Candidate"),
+    avatarUrl,
+    education: safeName(profile.education || ""),
+    professionalDomain: safeName(profile.professionalDomain || ""),
+    upworkChatUrl: safeName(profile.upworkChatUrl || room.roomUrl || room.pageUrl || ""),
+    profileUrl: safeName(profile.profileUrl || profile.upworkProfileUrl || ""),
+    nativeLanguage: safeName(profile.nativeLanguage || ""),
+    secondLanguage: safeName(profile.secondLanguage || profile.otherLanguages || ""),
+    mainSkill: safeName(profile.mainSkill || ""),
+    experienceSummary: safeName(profile.experienceSummary || ""),
+    dailyAvailability: safeName(profile.dailyAvailability || ""),
+    weekendAvailability: safeName(profile.weekendAvailability || ""),
+    email: safeName(profile.email || ""),
+    onlineContactMethod: safeName(profile.onlineContactMethod || "WhatsApp") || "WhatsApp",
+    onlineContactAccount: safeName(profile.onlineContactAccount || ""),
+    submittedAt: safeName(profile.submittedAt || nowIso()) || nowIso(),
+    roomId: safeName(room.roomId || state.talentProfileRoomId || ""),
+    pageUrl: safeName(room.pageUrl || room.roomUrl || ""),
+    submittedByHrId: hrIdentity.submittedByHrId,
+    submittedByHrName: hrIdentity.submittedByHrName,
+  }
+}
+
+async function submitTalentProfileToPlatform(profile, timeoutMs = 15000) {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(TALENT_POOL_SUBMIT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(profile),
+      signal: controller.signal,
+    })
+
+    let data = null
+    try {
+      data = await response.json()
+    } catch {
+      data = null
+    }
+
+    return { response, data }
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 function getSelectedRecruitingProject() {
@@ -2398,6 +2900,11 @@ function renderCandidateChats() {
   }
 
   const renderRoomCard = (roomKey, room) => {
+    const rawProfileSubmitStatus = getRoomProfileSubmitStatus(room)
+    const profileSubmitStatus =
+      rawProfileSubmitStatus === "success" || rawProfileSubmitStatus === "failed"
+        ? rawProfileSubmitStatus
+        : "idle"
     const card = document.createElement("article")
     card.className = `candidate-chat-card ${(room.status || "active") === "closed" ? "closed" : ""} ${
       roomKey === getActiveRoomKey() ? "selected" : ""
@@ -2427,17 +2934,26 @@ function renderCandidateChats() {
       button.dataset.roomAction = action
       if (action === "profile") {
         button.dataset.action = "open-talent-profile"
+        button.classList.add(`profile-status-${profileSubmitStatus}`)
+        button.dataset.profileSubmitStatus = profileSubmitStatus
+        if (profileSubmitStatus === "success") {
+          button.textContent = "Profile ✓"
+        } else if (profileSubmitStatus === "failed") {
+          button.textContent = "Profile !"
+        } else {
+          button.textContent = "Profile"
+        }
       }
-      button.textContent =
-        action === "keep"
-          ? "Keep"
-          : action === "close"
-            ? "Close"
-            : action === "reopen"
-              ? "Reopen"
-              : action === "profile"
-                ? "Profile"
+      if (action !== "profile") {
+        button.textContent =
+          action === "keep"
+            ? "Keep"
+            : action === "close"
+              ? "Close"
+                : action === "reopen"
+                ? "Reopen"
                 : "View"
+      }
       buttons.append(button)
     })
 
@@ -2526,7 +3042,6 @@ function renderDebugScanResults() {
 }
 
 function renderAll() {
-  console.log("[BlackDog] talentProfileModalOpen", state.talentProfileModalOpen)
   const userInput = el("upwork-user-name")
   if (userInput) userInput.value = state.upworkUserName || ""
   renderConnection()
@@ -2582,14 +3097,6 @@ function normalizeIncomingSnapshot(snapshot = {}) {
   const incomingCandidateAvatarUrl = safeName(snapshot.candidateAvatarUrl || "")
   const sameCandidate = !snapshotCandidateName || snapshotCandidateName === "Unknown Candidate" || !existingCandidateName || similarName(snapshotCandidateName, existingCandidateName)
   const sameRoom = !incomingRoomUrl || !normalizeRoomUrl(existing.roomUrl || existing.pageUrl || "") || incomingRoomUrl === normalizeRoomUrl(existing.roomUrl || existing.pageUrl || "")
-  console.log("[BlackDog] merge room", {
-    roomKey: roomId,
-    candidateName: snapshot.candidateName,
-    existingCandidateName: existing?.candidateName,
-    messageCount: snapshot.conversationMessages?.length || 0,
-    avatar: Boolean(snapshot.candidateAvatarUrl),
-    headline: snapshot.candidateHeadline,
-  })
   const room = mergeRoomRecord(existing, {
     ...snapshot,
     roomId,
@@ -2615,14 +3122,6 @@ function normalizeIncomingSnapshot(snapshot = {}) {
     cachedConversation: false,
     status: existing.status || snapshot.status || "active",
   })
-  console.log("[BlackDog] avatar room merge", {
-    roomKey: roomId,
-    candidateName: room.candidateName,
-    incomingAvatar: snapshot.candidateAvatarUrl,
-    storedAvatar: room.candidateAvatarUrl,
-    roomUrl: room.roomUrl,
-  })
-
   if (existingKey && existingKey !== roomId) {
     delete state.rooms[existingKey]
   }
@@ -2680,7 +3179,6 @@ function updateRoomStatus(roomId, nextStatus) {
 }
 
 async function clearClosedRooms() {
-  console.log("[BlackDog] clear closed clicked")
   const removedRooms = []
   const nextRooms = {}
 
@@ -2716,7 +3214,6 @@ async function clearClosedRooms() {
   }
   state.activeRoomId = state.activeRoomKey
 
-  console.log("[BlackDog] removed closed rooms", removedRooms)
   await storageSet({ [STORAGE_KEY]: serializeState() })
   renderAll()
 }
@@ -2726,24 +3223,135 @@ async function saveCurrentTalentProfile(submittedToPool = false) {
   if (!room) return
   if (isInvalidCandidateName(room.candidateName || "") && safeName(room.candidateName || "") !== "Unknown Candidate") return
   const key = getTalentProfileKey(room)
-  const existingProfile = state.talentProfiles[key] || state.talentProfileDraft || {}
+  const existingProfile = state.talentProfiles[key] || (getTalentProfileDraftMatch(room) ? state.talentProfileDraft : {}) || {}
   const profile = normalizeTalentProfile(prefillTalentProfileFromRoom(readTalentProfileForm(), room), room)
-  profile.submittedToTalentPool = Boolean(
-    submittedToPool || existingProfile.submittedToTalentPool || profile.submittedToTalentPool,
-  )
   if (submittedToPool) {
-    profile.submittedToTalentPool = true
-    profile.submittedAt = nowIso()
-  } else {
-    profile.submittedAt = existingProfile.submittedAt || profile.submittedAt || ""
+    let submitSucceeded = false
+    let submitErrorMessage = "Profile submission failed. Please try again."
+    let submitTimeoutId = null
+    setTalentProfileStatus("Submitting...", false, "submitting")
+    setTalentProfileStatusDom("Submitting...", "submitting")
+    updateTalentProfileSubmitButtonState(true)
+    const payload = buildTalentPoolSubmissionPayload(room, {
+      ...profile,
+      submittedAt: nowIso(),
+    })
+    try {
+      const timeoutPromise = new Promise((_, reject) => {
+        submitTimeoutId = window.setTimeout(() => {
+          reject(new Error("Profile submission timed out."))
+        }, 15000)
+      })
+      const submitResult = await Promise.race([submitTalentProfileToPlatform(payload, 15000), timeoutPromise])
+      const response = submitResult?.response
+      const data = submitResult?.data
+      if (!response.ok) {
+        throw new Error(data?.error || `Submit failed: ${response.status}`)
+      }
+      if (!data || data.ok !== true) {
+        throw new Error(data?.error || data?.message || `Submit failed: ${response.status}`)
+      }
+      submitSucceeded = true
+      const returnedProfile = data?.talentProfile || {}
+      state.talentProfileDraft = normalizeTalentProfile(
+        {
+          ...profile,
+          submittedToTalentPool: true,
+          submittedAt: payload.submittedAt,
+          avatarUrl: returnedProfile.avatarUrl || profile.avatarUrl || "",
+        },
+        room,
+      )
+      room.talentProfile = state.talentProfileDraft
+      room.profileSubmitStatus = "success"
+      room.profileSubmitError = ""
+      if (room.talentProfile && typeof room.talentProfile === "object") {
+        room.talentProfile.profileSubmitStatus = "success"
+        room.talentProfile.profileSubmitError = ""
+      }
+      setTalentProfileStatus("Profile submitted successfully.", false, "success")
+      setTalentProfileStatusDom("Profile submitted successfully.", "success")
+      const successStatusEl = document.getElementById("talent-profile-status")
+      if (successStatusEl) {
+        successStatusEl.textContent = "Profile submitted successfully."
+        successStatusEl.dataset.state = "success"
+        successStatusEl.className = "talent-profile-status"
+        successStatusEl.classList.add("success")
+      }
+      renderCandidateChats()
+    } catch {
+      submitSucceeded = false
+      submitErrorMessage = "Profile submission failed. Please try again."
+      room.profileSubmitStatus = "failed"
+      room.profileSubmitError = submitErrorMessage
+      if (room.talentProfile && typeof room.talentProfile === "object") {
+        room.talentProfile.profileSubmitStatus = "failed"
+        room.talentProfile.profileSubmitError = submitErrorMessage
+      }
+      setTalentProfileStatus("Profile submission failed. Please try again.", false, "failed")
+      setTalentProfileStatusDom("Profile submission failed. Please try again.", "failed")
+      const failedStatusEl = document.getElementById("talent-profile-status")
+      if (failedStatusEl) {
+        failedStatusEl.textContent = "Profile submission failed. Please try again."
+        failedStatusEl.dataset.state = "failed"
+        failedStatusEl.className = "talent-profile-status"
+        failedStatusEl.classList.add("failed")
+      }
+      renderCandidateChats()
+    } finally {
+      if (submitTimeoutId !== null) {
+        clearTimeout(submitTimeoutId)
+      }
+      const finalStatusMessage =
+        submitSucceeded
+          ? "Profile submitted successfully."
+          : submitErrorMessage
+      if (submitSucceeded) {
+        room.profileSubmitStatus = "success"
+        room.profileSubmitError = ""
+        if (room.talentProfile && typeof room.talentProfile === "object") {
+          room.talentProfile.profileSubmitStatus = "success"
+          room.talentProfile.profileSubmitError = ""
+        }
+      } else {
+        room.profileSubmitStatus = "failed"
+        room.profileSubmitError = submitErrorMessage
+        if (room.talentProfile && typeof room.talentProfile === "object") {
+          room.talentProfile.profileSubmitStatus = "failed"
+          room.talentProfile.profileSubmitError = submitErrorMessage
+        }
+      }
+      setTalentProfileStatus(finalStatusMessage, false, submitSucceeded ? "success" : "failed")
+      setTalentProfileStatusDom(finalStatusMessage, submitSucceeded ? "success" : "failed")
+      updateTalentProfileSubmitButtonState(false)
+      const saveButton = el("talent-profile-save-pool")
+      if (saveButton) {
+        saveButton.disabled = false
+        saveButton.removeAttribute("aria-busy")
+      }
+      await persistState().catch(() => null)
+      const finalSaveButton = document.getElementById("talent-profile-save-pool")
+      if (finalSaveButton) {
+        finalSaveButton.disabled = false
+        finalSaveButton.removeAttribute("aria-busy")
+      }
+      renderCandidateChats()
+    }
+    return submitSucceeded
   }
+
+  profile.submittedToTalentPool = Boolean(existingProfile.submittedToTalentPool || profile.submittedToTalentPool)
+  profile.submittedAt = existingProfile.submittedAt || profile.submittedAt || ""
   state.talentProfiles[key] = profile
   state.talentProfileDraft = profile
   room.talentProfile = profile
-  submitTalentProfileToPlatform(profile)
+  if (!room.profileSubmitStatus) {
+    room.profileSubmitStatus = "idle"
+    room.profileSubmitError = ""
+  }
   await storageSet({ talentProfiles: state.talentProfiles })
   await storageSet({ [STORAGE_KEY]: serializeState() })
-  setTalentProfileStatus(submittedToPool ? "Saved to Talent Pool." : "Draft saved.", true)
+  setTalentProfileStatus(submittedToPool ? "Saved to Talent Pool." : "Draft saved.", true, submittedToPool ? "success" : "idle")
   renderAll()
 }
 
@@ -2808,12 +3416,10 @@ function isWaitingSnapshotError(message = "") {
 }
 
 async function requestSnapshot(forceRefresh = false) {
-  console.log("[BlackDog] request snapshot start", { forceRefresh })
   setDebugAction(forceRefresh ? "Refresh Visible History clicked" : "Refresh clicked")
   setStatus("connection-status", "Requesting active Upwork snapshot")
   try {
     const response = await sendRuntimeMessage({ type: "BLACKDOG_REQUEST_SNAPSHOT", forceRefresh })
-    console.log("[BlackDog] Refresh response", response)
     if (!response?.ok || !response.snapshot) {
       const error = normalizeSnapshotError(response?.error)
       state.connectionStatus = isWaitingSnapshotError(error) ? "Waiting for active Upwork tab" : error
@@ -2823,7 +3429,6 @@ async function requestSnapshot(forceRefresh = false) {
       return null
     }
 
-    console.log("[BlackDog] snapshot.conversationMessages.length", Array.isArray(response.snapshot.conversationMessages) ? response.snapshot.conversationMessages.length : 0)
     upsertRoomFromSnapshot(response.snapshot)
     state.connectionStatus = `Connected to ${response.snapshot.candidateName || "current room"}`
     renderConnection()
@@ -2843,7 +3448,6 @@ async function requestDebugScan() {
   setDebugScanStatus("scanning")
   try {
     const response = await sendRuntimeMessage({ type: "BLACKDOG_REQUEST_DEBUG_SCAN" })
-    console.log("[BlackDog] Debug DOM Scan response", response)
     const results = Array.isArray(response?.results)
       ? response.results
       : Array.isArray(response?.result?.results)
@@ -2915,11 +3519,9 @@ function bindEvents() {
     })
   }
   bindClick("sync-page", () => {
-    console.log("[BlackDog] Refresh clicked")
     void requestSnapshot(false)
   })
   bindClick("refresh-visible-history", () => {
-    console.log("[BlackDog] Refresh Visible History clicked")
     void requestSnapshot(true)
   })
   bindClick("debug-dom-scan", () => {
@@ -3010,12 +3612,7 @@ function bindEvents() {
         event.stopPropagation()
 
         const roomId = actionTarget.getAttribute("data-room-id") || actionTarget.dataset.roomId || ""
-        console.log("[BlackDog] profile button clicked", { roomId })
-
-        if (!roomId) {
-          console.warn("[BlackDog] open talent profile missing roomId")
-          return
-        }
+        if (!roomId) return
         openTalentProfile(roomId)
         return
       }
