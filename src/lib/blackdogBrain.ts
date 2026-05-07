@@ -6,8 +6,13 @@ export type BrainProjectAnalysis = {
   projectSummary: string;
   projectDifficulty: string;
   requiredCapability: string;
+  requiredCapabilities?: string[];
   deliveryRisk: string;
   resourceStrategy: string;
+  recommendedTalentPersonas?: string[];
+  languagePlan?: string[];
+  risks?: string[];
+  nextSteps?: string[];
   hrAssignmentLogic: string;
   inferredLanguages: string[];
 };

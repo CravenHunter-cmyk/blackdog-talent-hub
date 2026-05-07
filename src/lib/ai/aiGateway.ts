@@ -15,8 +15,13 @@ import type {
   AIGatewayHealthSuccess,
   AIGatewayProvider,
   AIGatewayRequest,
+  AIGatewayTaskResultMap,
+  AIGatewayTaskSuccess,
   AnalyzeProjectInput,
   AnalyzeProjectResult,
+  ChatReplySuggestionInput,
+  ExtractProfileInput,
+  TranslateMessageInput,
 } from "./types";
 
 function normalizeText(value = "") {
@@ -90,6 +95,95 @@ function buildAnalyzeProjectPrompt(input: AnalyzeProjectInput): { system: string
   };
 }
 
+function normalizeConversationMessages(messages: unknown[] = []) {
+  return messages
+    .slice(-30)
+    .map((message) => {
+      if (!message || typeof message !== "object") return null;
+      const record = message as Record<string, unknown>;
+      return {
+        sender: normalizeText(String(record.sender || record.author || "")) || "Unknown",
+        direction: normalizeText(String(record.direction || "")),
+        timestamp: normalizeText(String(record.timestamp || record.time || "")),
+        text: String(record.text || record.content || "").trim(),
+      };
+    })
+    .filter((message) => message?.text);
+}
+
+function buildChatReplySuggestionPrompt(input: ChatReplySuggestionInput): { system: string; user: string } {
+  return {
+    system:
+      "You are BlackDog's recruiting assistant for Upwork candidate conversations. Return JSON only with no markdown or extra text.",
+    user: JSON.stringify(
+      {
+        candidateName: input.candidateName || "",
+        meName: input.meName || "",
+        projectName: input.projectName || "",
+        goal: input.goal || "Auto",
+        tone: input.tone || "Professional and friendly",
+        customInstruction: input.customInstruction || "",
+        conversationMessages: normalizeConversationMessages(input.conversationMessages || []),
+        outputShape: {
+          englishReply: "string",
+          chineseSummary: "string",
+          recommendedNextStep: "string",
+        },
+      },
+      null,
+      2,
+    ),
+  };
+}
+
+function buildExtractProfilePrompt(input: ExtractProfileInput): { system: string; user: string } {
+  return {
+    system:
+      "You extract structured candidate profile fields from recruiting chat history. Return JSON only. Use empty strings when a field is not clearly present.",
+    user: JSON.stringify(
+      {
+        candidateName: input.candidateName || "",
+        existingProfile: input.existingProfile || {},
+        conversationMessages: normalizeConversationMessages(input.conversationMessages || []),
+        outputShape: {
+          nativeLanguage: "string",
+          secondLanguage: "string",
+          mainSkill: "string",
+          experienceSummary: "string",
+          dailyAvailability: "string",
+          weekendAvailability: "string",
+          email: "string",
+          onlineContactMethod: "string",
+          onlineContactAccount: "string",
+          profileUrl: "string",
+        },
+      },
+      null,
+      2,
+    ),
+  };
+}
+
+function buildTranslateMessagePrompt(input: TranslateMessageInput): { system: string; user: string } {
+  return {
+    system:
+      "You translate recruiter messages for Upwork conversations. Preserve intent, keep the wording natural and professional, and return JSON only.",
+    user: JSON.stringify(
+      {
+        sourceLanguage: input.sourceLanguage || "Chinese",
+        targetLanguage: input.targetLanguage || "English",
+        text: input.text || "",
+        context: Array.isArray(input.context) ? normalizeConversationMessages(input.context) : input.context || "",
+        outputShape: {
+          translatedText: "string",
+        },
+      },
+      null,
+      2,
+    ),
+  };
+}
+
 async function callOpenAIAnalyzeProject(input: AnalyzeProjectInput, model?: string) {
   const client = createOpenAIClient();
   if (!client) {
@@ -114,6 +208,45 @@ async function callOpenAIAnalyzeProject(input: AnalyzeProjectInput, model?: stri
 
   const raw = completion.choices[0]?.message?.content || "";
   const parsed = safeJsonParse<AnalyzeProjectResult>(raw);
+  if (!parsed) {
+    return {
+      ok: false as const,
+      error: "Failed to parse AI response as JSON",
+      debugRaw: raw,
+    };
+  }
+
+  return {
+    ok: true as const,
+    model: resolvedModel,
+    text: raw,
+    result: parsed,
+  };
+}
+
+async function callOpenAIJsonTask<TResult>(prompt: { system: string; user: string }, model?: string, temperature = 0.3) {
+  const client = createOpenAIClient();
+  if (!client) {
+    return {
+      ok: false as const,
+      error: "OPENAI_API_KEY is not configured",
+    };
+  }
+
+  const resolvedModel = resolveOpenAIModel(model);
+  const completion = await client.chat.completions.create({
+    model: resolvedModel,
+    temperature,
+    max_tokens: 900,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: prompt.system },
+      { role: "user", content: prompt.user },
+    ] as ChatCompletionMessageParam[],
+  });
+
+  const raw = completion.choices[0]?.message?.content || "";
+  const parsed = safeJsonParse<TResult>(raw);
   if (!parsed) {
     return {
       ok: false as const,
@@ -238,6 +371,94 @@ async function callDeepSeekAnalyzeProject(input: AnalyzeProjectInput, model?: st
     text: completion.text,
     result: parsed,
   };
+}
+
+async function callDeepSeekJsonTask<TResult>(prompt: { system: string; user: string }, model?: string, temperature = 0.3) {
+  const completion = await callDeepSeekChatCompletion({
+    systemPrompt: prompt.system,
+    userPrompt: prompt.user,
+    model,
+    temperature,
+    maxTokens: 900,
+  });
+
+  if (!completion.ok) return completion;
+
+  const parsed = safeJsonParse<TResult>(completion.text);
+  if (!parsed) {
+    return {
+      ok: false as const,
+      provider: "deepseek" as const,
+      error: "Failed to parse AI response as JSON",
+      debugRaw: completion.text,
+    };
+  }
+
+  return {
+    ok: true as const,
+    provider: "deepseek" as const,
+    model: completion.model,
+    text: completion.text,
+    result: parsed,
+  };
+}
+
+async function runJsonGatewayTask<TTask extends keyof AIGatewayTaskResultMap>(
+  task: TTask,
+  input: Record<string, unknown>,
+  options?: { provider?: string; model?: string },
+  buildPrompt?: (input: Record<string, unknown>) => { system: string; user: string },
+) {
+  const provider = resolveAIGatewayProvider(options?.provider);
+  const model = provider === "deepseek" ? resolveDeepSeekModel(options?.model) : resolveOpenAIModel(options?.model);
+  const startedAt = Date.now();
+
+  try {
+    if (!buildPrompt) {
+      return {
+        ok: false,
+        task,
+        provider,
+        error: "Task type not implemented yet",
+      } satisfies AIGatewayError;
+    }
+
+    const prompt = buildPrompt(input);
+    const result =
+      provider === "deepseek"
+        ? await callDeepSeekJsonTask<AIGatewayTaskResultMap[TTask]>(prompt, model)
+        : await callOpenAIJsonTask<AIGatewayTaskResultMap[TTask]>(prompt, model);
+
+    if (!result.ok) {
+      logGateway(task, provider, model, false, Date.now() - startedAt);
+      return {
+        ok: false,
+        task,
+        provider,
+        error: result.error,
+        ...(process.env.NODE_ENV !== "production" && "debugRaw" in result && result.debugRaw ? { debugRaw: result.debugRaw } : {}),
+      } satisfies AIGatewayError;
+    }
+
+    logGateway(task, provider, model, true, Date.now() - startedAt);
+    return {
+      ok: true,
+      task,
+      provider,
+      model: result.model,
+      text: result.text,
+      result: result.result,
+    } satisfies AIGatewayTaskSuccess<TTask>;
+  } catch (error) {
+    const message = getErrorMessage(error, "AI gateway task failed.", process.env.DEEPSEEK_API_KEY);
+    logGateway(task, provider, model, false, Date.now() - startedAt);
+    return {
+      ok: false,
+      task,
+      provider,
+      error: message,
+    } satisfies AIGatewayError;
+  }
 }
 
 async function callOpenAIHealth(model?: string): Promise<AIGatewayHealthSuccess | AIGatewayHealthFailure> {
@@ -365,13 +586,31 @@ export async function runAIGatewayTask(request: AIGatewayRequest) {
       return testOpenAIHealth({ provider, model: request.options?.model });
     case "analyze_project":
       return analyzeProjectWithGateway(request.input as AnalyzeProjectInput, { provider, model: request.options?.model });
+    case "chat_reply_suggestion":
+      return runJsonGatewayTask<"chat_reply_suggestion">(
+        "chat_reply_suggestion",
+        request.input,
+        { provider, model: request.options?.model },
+        (input) => buildChatReplySuggestionPrompt(input as ChatReplySuggestionInput),
+      );
+    case "extract_profile":
+      return runJsonGatewayTask<"extract_profile">(
+        "extract_profile",
+        request.input,
+        { provider, model: request.options?.model },
+        (input) => buildExtractProfilePrompt(input as ExtractProfileInput),
+      );
+    case "translate_message":
+      return runJsonGatewayTask<"translate_message">(
+        "translate_message",
+        request.input,
+        { provider, model: request.options?.model },
+        (input) => buildTranslateMessagePrompt(input as TranslateMessageInput),
+      );
     case "match_talents":
     case "generate_recruiting_task":
     case "generate_script":
-    case "extract_profile":
     case "summarize_chat":
-    case "translate_message":
-    case "chat_reply_suggestion":
       return {
         ok: false,
         task: request.task,

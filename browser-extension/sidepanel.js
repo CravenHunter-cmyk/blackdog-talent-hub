@@ -1,5 +1,7 @@
 const STORAGE_KEY = "blackdogRecruitingHelperRoomsStateV1"
 const TALENT_POOL_SUBMIT_ENDPOINT = "http://localhost:3000/api/talent-pool/submit"
+const BLACKDOG_AI_GATEWAY_ENDPOINT = "https://blackdogone.com/api/ai/gateway"
+const LOCAL_AI_GATEWAY_ENDPOINT = "http://localhost:3000/api/ai/gateway"
 const RECRUITING_PROJECTS = [
   "Native LLM Evaluator Recruitment",
   "Speech Annotation Recruitment",
@@ -1218,21 +1220,14 @@ async function ensureConversationTranslations(room) {
       void persistState()
 
       try {
-        const response = await callRecruitingAi({
-          mode: "translate_to_chinese",
-          candidateName: room.candidateName || "Unknown Candidate",
-          meName: room.meName || state.upworkUserName || "Unknown",
-          goal: "Auto",
-          assistantGoal: "Translate current message into Chinese",
-          tone: "Professional and friendly",
-          customInstruction: "",
-          draftText: message.text || "",
-          latestCandidateMessage: message.text || "",
-          conversationMessages: [message],
-          candidateStatus: room.status || "active",
+        const response = await callBlackDogAIGateway("translate_message", {
+          sourceLanguage: "English",
+          targetLanguage: "Chinese",
+          text: message.text || "",
+          context: [message],
         })
         const result = response?.result || {}
-        const translatedText = blockText(result.chineseTranslation || result.meaningNotes || result.translation || "")
+        const translatedText = blockText(result.translatedText || response?.text || "")
         setConversationTranslationEntry(roomId, message.id, {
           status: translatedText ? "ready" : "error",
           text: translatedText || "中文翻译失败，请稍后重试",
@@ -2630,15 +2625,13 @@ function buildReplyRequestPayload(room = activeRoom()) {
   const meName = room?.meName || state.upworkUserName || "Unknown"
 
   return {
-    mode: "reply",
     candidateName: room?.candidateName || "Unknown Candidate",
     meName,
-    goal: "Auto",
-    assistantGoal: "Auto",
-    tone: "Professional and friendly",
-    customInstruction: "",
+    projectName: state.selectedRecruitingProject || DEFAULT_RECRUITING_PROJECT,
+    goal: state.replyGoal || "Auto",
+    tone: state.replyTone || "Professional and friendly",
+    customInstruction: state.replyCustomInstruction || "",
     conversationMessages,
-    candidateStatus: room?.status || "active",
   }
 }
 
@@ -2682,11 +2675,15 @@ async function copyProjectScript(scriptId = "") {
   }
 }
 
-async function callRecruitingAi(body) {
-  const response = await fetch("http://localhost:3000/api/recruiting-ai", {
+function getAIGatewayEndpoint() {
+  return state.useLocalAIGateway === true ? LOCAL_AI_GATEWAY_ENDPOINT : BLACKDOG_AI_GATEWAY_ENDPOINT
+}
+
+async function callBlackDogAIGateway(task, input = {}) {
+  const response = await fetch(getAIGatewayEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ task, input }),
   })
 
   let json = null
@@ -2697,14 +2694,21 @@ async function callRecruitingAi(body) {
   }
 
   if (!response.ok) {
-    throw new Error(json?.error || `AI request failed with status ${response.status}.`)
+    throw new Error(json?.error || `AI Gateway request failed with status ${response.status}.`)
   }
 
   if (!json?.ok) {
-    throw new Error(json?.error || "AI request failed.")
+    throw new Error(json?.error || "AI Gateway request failed.")
   }
 
   return json
+}
+
+function buildMockReplyFallback(room = activeRoom()) {
+  const candidateName = safeName(room?.candidateName || "there") || "there"
+  const script = getProjectScriptById(state.replyScriptId || "")
+  if (script?.text) return script.text
+  return `Hi ${candidateName}, thank you for sharing the details. Could you please confirm your relevant project experience, your usual daily availability, and the best contact method for next steps?`
 }
 
 async function generateReply() {
@@ -2724,25 +2728,28 @@ async function generateReply() {
   })
 
   try {
-    const response = await callRecruitingAi(payload)
+    const response = await callBlackDogAIGateway("chat_reply_suggestion", payload)
 
     const result = response?.result || {}
-    const englishReply = text(result.englishReply || "")
-    const replyResultType = result.mock === true ? "Mock Fallback" : "Real AI"
+    const englishReply = text(result.englishReply || response?.text || "")
 
     setReplyState({
       replyEnglish: englishReply,
-      replyResultType,
+      replyChineseNotes: text(result.chineseSummary || ""),
+      replyNextStep: text(result.recommendedNextStep || ""),
+      replyResultType: "Real AI",
       replyStatus: "Ready",
       replyError: "",
       replyLoading: false,
     })
   } catch (error) {
     const message = text(error instanceof Error ? error.message : "Failed to generate reply.")
+    const fallbackReply = buildMockReplyFallback(room)
     setReplyState({
-      replyError: message,
-      replyStatus: "Error",
-      replyResultType: "Error",
+      replyEnglish: fallbackReply,
+      replyError: `${message} Mock Fallback shown.`,
+      replyStatus: "Ready",
+      replyResultType: "Mock Fallback",
       replyLoading: false,
     })
   }
@@ -2768,25 +2775,19 @@ async function translateReplyDraftToEnglish() {
   })
 
   try {
-    const response = await callRecruitingAi({
-      mode: "translate_to_english",
-      candidateName: room?.candidateName || "Unknown Candidate",
-      meName: room?.meName || state.upworkUserName || "Unknown",
-      goal: "Auto",
-      assistantGoal: "Translate Chinese HR draft into natural Upwork English reply",
-      tone: "Professional and friendly",
-      customInstruction: "",
-      draftText: chineseDraft,
-      conversationMessages: getConversationMessagesForReply(room),
-      candidateStatus: room?.status || "active",
+    const response = await callBlackDogAIGateway("translate_message", {
+      sourceLanguage: "Chinese",
+      targetLanguage: "English",
+      text: chineseDraft,
+      context: getConversationMessagesForReply(room).slice(-8),
     })
 
     const result = response?.result || {}
-    const englishReply = text(result.englishReply || result.polishedVersion || "")
+    const englishReply = text(result.translatedText || response?.text || "")
 
     setReplyState({
       replyEnglish: englishReply,
-      replyResultType: result.mock === true ? "Mock Fallback" : "Real AI",
+      replyResultType: "Real AI",
       replyError: "",
       replyTranslateLoading: false,
       replyStatus: "Ready",
@@ -2799,6 +2800,58 @@ async function translateReplyDraftToEnglish() {
       replyStatus: "Error",
       replyResultType: "",
     })
+  }
+}
+
+async function fillTalentProfileFromChat() {
+  const room = state.rooms[state.talentProfileRoomId] || activeRoom()
+  if (!room) {
+    setTalentProfileStatus("AI fill failed.", false, "failed")
+    return
+  }
+
+  const existingProfile = readTalentProfileForm()
+  setTalentProfileStatus("AI filling...", false, "submitting")
+
+  try {
+    const response = await callBlackDogAIGateway("extract_profile", {
+      candidateName: room.candidateName || existingProfile.candidateName || "Unknown Candidate",
+      conversationMessages: getConversationMessagesForReply(room),
+      existingProfile,
+    })
+    const result = response?.result || {}
+    const currentProfileUrl = safeName(existingProfile.profileUrl || existingProfile.upworkProfileUrl || "")
+    const extractedProfileUrl = safeName(result.profileUrl || "")
+    const merged = normalizeTalentProfile(
+      prefillTalentProfileFromRoom(
+        {
+          ...existingProfile,
+          nativeLanguage: safeName(result.nativeLanguage || existingProfile.nativeLanguage || ""),
+          secondLanguage: safeName(result.secondLanguage || existingProfile.secondLanguage || ""),
+          otherLanguages: safeName(result.secondLanguage || existingProfile.otherLanguages || ""),
+          mainSkill: normalizeSkillValue(result.mainSkill || existingProfile.mainSkill || ""),
+          experienceSummary: blockText(result.experienceSummary || existingProfile.experienceSummary || ""),
+          dailyAvailability: safeName(result.dailyAvailability || existingProfile.dailyAvailability || ""),
+          weekendAvailability: safeName(result.weekendAvailability || existingProfile.weekendAvailability || ""),
+          email: safeName(result.email || existingProfile.email || ""),
+          onlineContactMethod: safeName(result.onlineContactMethod || existingProfile.onlineContactMethod || "WhatsApp") || "WhatsApp",
+          onlineContactAccount: safeName(result.onlineContactAccount || existingProfile.onlineContactAccount || ""),
+          upworkChatUrl: existingProfile.upworkChatUrl || room.roomUrl || room.pageUrl || "",
+          profileUrl: currentProfileUrl || extractedProfileUrl,
+          upworkProfileUrl: currentProfileUrl || extractedProfileUrl,
+          avatarUrl: existingProfile.avatarUrl || room.candidateAvatarUrl || room.avatarUrl || "",
+        },
+        room,
+      ),
+      room,
+    )
+
+    state.talentProfileDraft = merged
+    fillTalentProfileForm(merged)
+    setTalentProfileStatus("AI fill completed.", true, "success")
+  } catch (error) {
+    console.error("[BlackDog] AI fill failed", error)
+    setTalentProfileStatus("AI fill failed.", false, "failed")
   }
 }
 
@@ -3534,7 +3587,7 @@ function bindEvents() {
     void clearClosedRooms()
   })
   bindClick("talent-profile-ai-fill", () => {
-    setTalentProfileStatus("AI Fill will be added later.", true)
+    void fillTalentProfileFromChat()
   })
   bindClick("talent-profile-save-draft", () => {
     void saveCurrentTalentProfile(false)

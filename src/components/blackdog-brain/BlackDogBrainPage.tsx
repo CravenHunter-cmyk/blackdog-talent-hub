@@ -120,6 +120,26 @@ type ProjectRowView = {
 
 type ProjectFormMode = "create" | "edit";
 
+type AIGatewayAnalyzeResponse = {
+  ok?: boolean;
+  provider?: string;
+  model?: string;
+  text?: string;
+  error?: string;
+  debugRaw?: string;
+  result?: {
+    projectSummary?: string;
+    projectDifficulty?: string;
+    requiredCapabilities?: string[];
+    recommendedTalentPersonas?: string[];
+    languagePlan?: string[];
+    matchingConsiderations?: string[];
+    recruitingGapLogic?: string[];
+    risks?: string[];
+    nextSteps?: string[];
+  };
+};
+
 const PROJECT_TYPE_OPTIONS = [
   "LLM Evaluation",
   "VLM Evaluation",
@@ -162,6 +182,10 @@ function splitListInput(value = "") {
         .filter(Boolean),
     ),
   );
+}
+
+function joinList(values: string[] = [], fallback = "") {
+  return values.map((value) => normalizeText(value)).filter(Boolean).join("; ") || fallback;
 }
 
 function formatDateValue(value = "") {
@@ -998,6 +1022,8 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
   );
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState("");
+  const [analyzingProjectId, setAnalyzingProjectId] = useState<string | null>(null);
+  const [isProjectFormAnalyzing, setIsProjectFormAnalyzing] = useState(false);
   const [taskMessage, setTaskMessage] = useState("");
   const [aiGatewayTest, setAiGatewayTest] = useState({
     provider: "openai",
@@ -1116,9 +1142,71 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
     ].some((value) => !normalizeText(value));
   }
 
-  function saveProjectRecord(draft: ProjectDraft, shouldAnalyze: boolean, existingRecord?: BrainProjectRecord) {
+  function buildAIGatewayProjectInput(draft: ProjectDraft) {
+    return {
+      clientName: draft.clientName,
+      projectName: draft.projectName,
+      projectType: draft.projectType,
+      targetMarket: draft.targetMarketRegion,
+      description: [draft.projectDescription, draft.requiredSkills ? `Required skills: ${draft.requiredSkills}` : "", draft.notes ? `Notes: ${draft.notes}` : ""]
+        .filter(Boolean)
+        .join("\n\n"),
+      priority: draft.deliveryPriority,
+      budgetLevel: draft.budgetLevel,
+    };
+  }
+
+  function mapGatewayAnalysisToBrainAnalysis(draft: ProjectDraft, result: NonNullable<AIGatewayAnalyzeResponse["result"]>): BrainProjectAnalysis {
+    const fallback = buildAnalysis(draft, currentHrName, hrAccounts);
+    const requiredCapabilities = result.requiredCapabilities?.map((item) => normalizeText(item)).filter(Boolean) || [];
+    const recommendedTalentPersonas = result.recommendedTalentPersonas?.map((item) => normalizeText(item)).filter(Boolean) || [];
+    const languagePlan = result.languagePlan?.map((item) => normalizeText(item)).filter(Boolean) || [];
+    const risks = result.risks?.map((item) => normalizeText(item)).filter(Boolean) || [];
+    const nextSteps = result.nextSteps?.map((item) => normalizeText(item)).filter(Boolean) || [];
+
+    return {
+      projectSummary: normalizeText(result.projectSummary || "") || fallback.projectSummary,
+      projectDifficulty: normalizeText(result.projectDifficulty || "") || fallback.projectDifficulty,
+      requiredCapability: joinList(requiredCapabilities, fallback.requiredCapability),
+      requiredCapabilities,
+      deliveryRisk: joinList(risks, fallback.deliveryRisk),
+      resourceStrategy: joinList(recommendedTalentPersonas, fallback.resourceStrategy),
+      recommendedTalentPersonas,
+      languagePlan,
+      risks,
+      nextSteps,
+      hrAssignmentLogic:
+        joinList([...(result.matchingConsiderations || []), ...(result.recruitingGapLogic || [])], fallback.hrAssignmentLogic),
+      inferredLanguages: languagePlan.length ? languagePlan.map((item) => inferDisplayLanguageLabel(item, item)) : fallback.inferredLanguages,
+    };
+  }
+
+  async function analyzeProjectWithGateway(draft: ProjectDraft) {
+    const response = await fetch("/api/ai/gateway", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        task: "analyze_project",
+        input: buildAIGatewayProjectInput(draft),
+      }),
+    });
+    const payload = (await response.json().catch(() => null)) as AIGatewayAnalyzeResponse | null;
+    if (!response.ok || !payload?.ok || !payload.result) {
+      throw new Error(payload?.error || `AI analysis failed with status ${response.status}.`);
+    }
+    return mapGatewayAnalysisToBrainAnalysis(draft, payload.result);
+  }
+
+  function saveProjectRecord(
+    draft: ProjectDraft,
+    shouldAnalyze: boolean,
+    existingRecord?: BrainProjectRecord,
+    analysisOverride?: BrainProjectAnalysis,
+  ) {
     const now = new Date().toISOString();
-    const nextAnalysis = shouldAnalyze ? buildAnalysis(draft, currentHrName, hrAccounts) : existingRecord?.analysis;
+    const nextAnalysis = shouldAnalyze ? analysisOverride || buildAnalysis(draft, currentHrName, hrAccounts) : existingRecord?.analysis;
     const projectDraftRecord = {
       clientName: normalizeText(draft.clientName),
       projectName: normalizeText(draft.projectName),
@@ -1169,13 +1257,25 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
     return projectAfterSave;
   }
 
-  function handleAnalyzeStoredProject(projectId: string) {
+  async function handleAnalyzeStoredProject(projectId: string) {
     const existingRecord = brainProjects.find((item) => item.brainProjectId === projectId);
     if (!existingRecord) return;
     const draft = mapBrainProjectRecordToDraft(existingRecord);
-    const record = saveProjectRecord(draft, true, existingRecord);
-    setActiveProjectId(projectId);
-    setTaskMessage(`Project analysis saved locally for ${record.projectName}.`);
+    setAnalyzingProjectId(projectId);
+    setAnalysisError("");
+    setTaskMessage("Analyzing project with AI Gateway...");
+    try {
+      const analysis = await analyzeProjectWithGateway(draft);
+      const record = saveProjectRecord(draft, true, existingRecord, analysis);
+      setActiveProjectId(projectId);
+      setTaskMessage(`AI analysis saved for ${record.projectName}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI analysis failed.";
+      setAnalysisError(message);
+      setTaskMessage("AI analysis failed.");
+    } finally {
+      setAnalyzingProjectId(null);
+    }
   }
 
   function closeProjectDetail() {
@@ -1204,21 +1304,34 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
     setProjectModalOpen(true);
   }
 
-  function handleSaveProjectFromModal(shouldAnalyze: boolean) {
+  async function handleSaveProjectFromModal(shouldAnalyze: boolean) {
     if (hasRequiredProjectFields(projectDraft)) {
       setAnalysisError("Please complete the required project intake fields before saving.");
       return;
     }
 
     const existingRecord = projectFormMode === "edit" && projectEditingId ? brainProjects.find((item) => item.brainProjectId === projectEditingId) : undefined;
-    const nextRecord = saveProjectRecord(projectDraft, shouldAnalyze, existingRecord);
-    setTaskMessage(shouldAnalyze ? "Project saved and analyzed locally." : "Project saved locally.");
-    setProjectModalOpen(false);
-    setProjectEditingId(null);
-    setProjectFormMode("create");
-    setProjectDraft(createDefaultProjectDraft());
-    if (shouldAnalyze) {
-      setActiveProjectId(nextRecord.brainProjectId);
+    setAnalysisError("");
+    setIsProjectFormAnalyzing(shouldAnalyze);
+    setTaskMessage(shouldAnalyze ? "Analyzing project with AI Gateway..." : "");
+
+    try {
+      const analysis = shouldAnalyze ? await analyzeProjectWithGateway(projectDraft) : undefined;
+      const nextRecord = saveProjectRecord(projectDraft, shouldAnalyze, existingRecord, analysis);
+      setTaskMessage(shouldAnalyze ? "Project saved with AI analysis." : "Project saved locally.");
+      setProjectModalOpen(false);
+      setProjectEditingId(null);
+      setProjectFormMode("create");
+      setProjectDraft(createDefaultProjectDraft());
+      if (shouldAnalyze) {
+        setActiveProjectId(nextRecord.brainProjectId);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI analysis failed.";
+      setAnalysisError(message);
+      setTaskMessage("AI analysis failed.");
+    } finally {
+      setIsProjectFormAnalyzing(false);
     }
   }
 
@@ -1569,8 +1682,8 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
           title={projectFormMode === "edit" ? "Edit Project" : "Create Project"}
           description={
             projectFormMode === "edit"
-              ? "Update the client project and optionally refresh the mock analysis."
-              : "Create a client project and optionally save an initial mock analysis."
+              ? "Update the client project and optionally refresh the AI analysis."
+              : "Create a client project and optionally save an initial AI analysis."
           }
           onClose={() => {
             setProjectModalOpen(false);
@@ -1585,7 +1698,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
             description={
               projectFormMode === "edit"
                 ? "Update the project intake details. Save Changes updates the existing project record."
-                : "Enter the project intake details. Save & Analyze will generate a local mock analysis and store it for the project."
+                : "Enter the project intake details. Save & Analyze will call the AI Gateway and store the result for the project."
             }
           >
             <div className="grid gap-4 lg:grid-cols-3">
@@ -1722,17 +1835,19 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => handleSaveProjectFromModal(false)}
+                onClick={() => void handleSaveProjectFromModal(false)}
+                disabled={isProjectFormAnalyzing}
                 className="inline-flex items-center justify-center rounded-xl border border-[#d7dccf] bg-[#fffdf8] px-5 py-3 text-sm font-semibold text-[#111827] transition hover:bg-[#f4efe2]"
               >
                 {projectFormMode === "edit" ? "Save Changes" : "Save Project"}
               </button>
               <button
                 type="button"
-                onClick={() => handleSaveProjectFromModal(true)}
+                onClick={() => void handleSaveProjectFromModal(true)}
+                disabled={isProjectFormAnalyzing}
                 className="inline-flex items-center justify-center rounded-xl bg-[#1f5c43] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(31,92,67,0.18)] transition hover:bg-[#164d38]"
               >
-                {projectFormMode === "edit" ? "Save & Analyze" : "Save & Analyze"}
+                {isProjectFormAnalyzing ? "Analyzing..." : projectFormMode === "edit" ? "Save & Analyze" : "Save & Analyze"}
               </button>
             </div>
           </SectionCard>
@@ -1742,16 +1857,21 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
       {selectedProjectRow ? (
         <ModalFrame
           title={selectedProjectRow.record.projectName || "Project Detail"}
-          description="Project overview, mock AI analysis, talent matching, gap planning, and recruiting task generation."
+          description="Project overview, AI analysis, talent matching, gap planning, and recruiting task generation."
           onClose={closeProjectDetail}
           actions={
             <>
               <button
                 type="button"
-                onClick={() => handleAnalyzeStoredProject(selectedProjectRow.record.brainProjectId)}
+                onClick={() => void handleAnalyzeStoredProject(selectedProjectRow.record.brainProjectId)}
+                disabled={analyzingProjectId === selectedProjectRow.record.brainProjectId}
                 className="inline-flex items-center justify-center rounded-xl bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#164d38]"
               >
-                {selectedProjectRow.record.analysis ? "Re-analyze" : "Analyze & Save"}
+                {analyzingProjectId === selectedProjectRow.record.brainProjectId
+                  ? "Analyzing..."
+                  : selectedProjectRow.record.analysis
+                    ? "Re-analyze"
+                    : "Analyze & Save"}
               </button>
               {selectedProjectGapRows.length > 0 ? (
                 <button
@@ -1802,14 +1922,19 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
               </div>
               {!selectedProjectRow.record.analysis ? (
                 <div className="mt-4 rounded-2xl border border-[#f3ddb0] bg-[#fff8e6] px-4 py-3 text-sm text-[#8a5a00]">
-                  This project is using mock analysis preview data. Click Analyze & Save to persist the current analysis to local storage.
+                  This project is using preview analysis data. Click Analyze & Save to persist an AI Gateway analysis.
+                </div>
+              ) : null}
+              {analysisError ? (
+                <div className="mt-4 rounded-2xl border border-[#f0c9c9] bg-[#fff2f2] px-4 py-3 text-sm font-medium text-[#b91c1c]">
+                  {analysisError}
                 </div>
               ) : null}
             </SectionCard>
 
             <SectionCard
               title="AI Requirement Analysis"
-              description="Deterministic mock analysis based on the project detail. This stays local for now."
+              description="Gateway analysis based on the project detail, with local preview data shown until analysis is saved."
             >
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <MetricCard label="Project Difficulty" value={selectedProjectAnalysis?.projectDifficulty || "—"} tone="text-[#111827]" />
@@ -1843,16 +1968,30 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                   <div className="mt-2 text-sm leading-6 text-[#111827]">{selectedProjectAnalysis?.requiredCapability || "—"}</div>
                 </div>
                 <div className="rounded-2xl border border-[#e7ddd0] bg-[#fefdfa] p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Recommended Resource Strategy</div>
-                  <div className="mt-2 text-sm leading-6 text-[#111827]">{selectedProjectAnalysis?.resourceStrategy || "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Recommended Talent Personas</div>
+                  <div className="mt-2 text-sm leading-6 text-[#111827]">
+                    {selectedProjectAnalysis?.recommendedTalentPersonas?.length
+                      ? selectedProjectAnalysis.recommendedTalentPersonas.join("; ")
+                      : selectedProjectAnalysis?.resourceStrategy || "—"}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[#e7ddd0] bg-[#fefdfa] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Language Plan</div>
+                  <div className="mt-2 text-sm leading-6 text-[#111827]">
+                    {selectedProjectAnalysis?.languagePlan?.length ? selectedProjectAnalysis.languagePlan.join("; ") : selectedProjectAnalysis?.inferredLanguages.join("; ") || "—"}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[#e7ddd0] bg-[#fefdfa] p-4 sm:col-span-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Suggested HR Assignment Logic</div>
-                  <div className="mt-2 text-sm leading-6 text-[#111827]">{selectedProjectAnalysis?.hrAssignmentLogic || "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Next Steps</div>
+                  <div className="mt-2 text-sm leading-6 text-[#111827]">
+                    {selectedProjectAnalysis?.nextSteps?.length ? selectedProjectAnalysis.nextSteps.join("; ") : selectedProjectAnalysis?.hrAssignmentLogic || "—"}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[#e7ddd0] bg-[#fefdfa] p-4 sm:col-span-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Delivery Risk Notes</div>
-                  <div className="mt-2 text-sm leading-6 text-[#111827]">{selectedProjectAnalysis?.deliveryRisk || "—"}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Risks</div>
+                  <div className="mt-2 text-sm leading-6 text-[#111827]">
+                    {selectedProjectAnalysis?.risks?.length ? selectedProjectAnalysis.risks.join("; ") : selectedProjectAnalysis?.deliveryRisk || "—"}
+                  </div>
                 </div>
               </div>
             </SectionCard>
