@@ -126,6 +126,7 @@ function buildChatReplySuggestionPrompt(input: ChatReplySuggestionInput): { syst
         conversationMessages: normalizeConversationMessages(input.conversationMessages || []),
         outputShape: {
           englishReply: "string",
+          chineseReply: "string",
           chineseSummary: "string",
           recommendedNextStep: "string",
         },
@@ -167,13 +168,13 @@ function buildExtractProfilePrompt(input: ExtractProfileInput): { system: string
 function buildTranslateMessagePrompt(input: TranslateMessageInput): { system: string; user: string } {
   return {
     system:
-      "You translate recruiter messages for Upwork conversations. Preserve intent, keep the wording natural and professional, and return JSON only.",
+      "You translate recruiter messages. Preserve intent, keep the wording natural and professional, and return JSON only.",
     user: JSON.stringify(
       {
         sourceLanguage: input.sourceLanguage || "Chinese",
         targetLanguage: input.targetLanguage || "English",
         text: input.text || "",
-        context: Array.isArray(input.context) ? normalizeConversationMessages(input.context) : input.context || "",
+        instruction: "Return only the translated message in translatedText. Do not explain.",
         outputShape: {
           translatedText: "string",
         },
@@ -373,13 +374,13 @@ async function callDeepSeekAnalyzeProject(input: AnalyzeProjectInput, model?: st
   };
 }
 
-async function callDeepSeekJsonTask<TResult>(prompt: { system: string; user: string }, model?: string, temperature = 0.3) {
+async function callDeepSeekJsonTask<TResult>(prompt: { system: string; user: string }, model?: string, temperature = 0.3, maxTokens = 900) {
   const completion = await callDeepSeekChatCompletion({
     systemPrompt: prompt.system,
     userPrompt: prompt.user,
     model,
     temperature,
-    maxTokens: 900,
+    maxTokens,
   });
 
   if (!completion.ok) return completion;
@@ -401,6 +402,52 @@ async function callDeepSeekJsonTask<TResult>(prompt: { system: string; user: str
     text: completion.text,
     result: parsed,
   };
+}
+
+async function translateWithDeepSeek(input: TranslateMessageInput) {
+  const provider = "deepseek" as const;
+  const model = resolveDeepSeekModel();
+  const prompt = buildTranslateMessagePrompt({ ...input, context: [] });
+  const result = await callDeepSeekJsonTask<AIGatewayTaskResultMap["translate_message"]>(prompt, model, 0, 300);
+
+  if (!result.ok) {
+    return {
+      ok: false as const,
+      task: "translate_message" as const,
+      provider,
+      error: result.error,
+      ...(process.env.NODE_ENV !== "production" && "debugRaw" in result && result.debugRaw ? { debugRaw: result.debugRaw } : {}),
+    } satisfies AIGatewayError;
+  }
+
+  return {
+    ok: true as const,
+    task: "translate_message" as const,
+    provider,
+    model: result.model,
+    text: result.text,
+    result: result.result,
+  } satisfies AIGatewayTaskSuccess<"translate_message">;
+}
+
+async function translateMessageWithGateway(input: TranslateMessageInput) {
+  const startedAt = Date.now();
+
+  try {
+    const result = await translateWithDeepSeek(input);
+    logGateway("translate_message", "deepseek", result.ok ? result.model : resolveDeepSeekModel(), result.ok, Date.now() - startedAt);
+    return result;
+  } catch (error) {
+    const model = resolveDeepSeekModel();
+    const message = getErrorMessage(error, "Translation failed.", process.env.DEEPSEEK_API_KEY);
+    logGateway("translate_message", "deepseek", model, false, Date.now() - startedAt);
+    return {
+      ok: false,
+      task: "translate_message",
+      provider: "deepseek",
+      error: message,
+    } satisfies AIGatewayError;
+  }
 }
 
 async function runJsonGatewayTask<TTask extends keyof AIGatewayTaskResultMap>(
@@ -601,12 +648,7 @@ export async function runAIGatewayTask(request: AIGatewayRequest) {
         (input) => buildExtractProfilePrompt(input as ExtractProfileInput),
       );
     case "translate_message":
-      return runJsonGatewayTask<"translate_message">(
-        "translate_message",
-        request.input,
-        { provider, model: request.options?.model },
-        (input) => buildTranslateMessagePrompt(input as TranslateMessageInput),
-      );
+      return translateMessageWithGateway(request.input as TranslateMessageInput);
     case "match_talents":
     case "generate_recruiting_task":
     case "generate_script":

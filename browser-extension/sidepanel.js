@@ -1,6 +1,6 @@
 const STORAGE_KEY = "blackdogRecruitingHelperRoomsStateV1"
 const TALENT_POOL_SUBMIT_ENDPOINT = "http://localhost:3000/api/talent-pool/submit"
-const BLACKDOG_AI_GATEWAY_ENDPOINT = "https://blackdogone.com/api/ai/gateway"
+const BLACKDOG_AI_GATEWAY_ENDPOINT = "https://www.blackdogone.com/api/ai/gateway"
 const LOCAL_AI_GATEWAY_ENDPOINT = "http://localhost:3000/api/ai/gateway"
 const RECRUITING_PROJECTS = [
   "Native LLM Evaluator Recruitment",
@@ -2683,11 +2683,19 @@ function getAIGatewayEndpoint() {
 }
 
 async function callBlackDogAIGateway(task, input = {}) {
-  const response = await fetch(getAIGatewayEndpoint(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ task, input }),
-  })
+  let response
+  try {
+    response = await fetch(getAIGatewayEndpoint(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task, input }),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch"
+    throw new Error(
+      `AI Gateway request failed: ${message}. Please reload the extension and check host permissions.`,
+    )
+  }
 
   let json = null
   try {
@@ -2733,6 +2741,28 @@ function getTranslatedTextFromGatewayResponse(response = {}) {
   }
 }
 
+function getReplyChinesePreview(result = {}, currentDraft = "") {
+  const chineseReply = text(result.chineseReply || "")
+  if (chineseReply) return chineseReply
+
+  const chineseSummary = text(result.chineseSummary || "")
+  if (chineseSummary) return chineseSummary
+
+  const recommendedNextStep = text(result.recommendedNextStep || "")
+  if (recommendedNextStep) return `下一步：${recommendedNextStep}`
+
+  return currentDraft
+}
+
+async function callTranslateMessage(sourceLanguage, targetLanguage, draftText) {
+  return callBlackDogAIGateway("translate_message", {
+    sourceLanguage,
+    targetLanguage,
+    text: draftText,
+    context: "Short message translation",
+  })
+}
+
 async function generateReply() {
   const room = activeRoom()
   if (!room) {
@@ -2753,10 +2783,12 @@ async function generateReply() {
     const response = await callBlackDogAIGateway("chat_reply_suggestion", payload)
 
     const result = response?.result || {}
-    const englishReply = text(result.englishReply || response?.text || "")
+    const englishReply = text(result.englishReply || result.text || response?.text || "")
+    const chinesePreview = getReplyChinesePreview(result, state.replyChineseDraft || "")
 
     setReplyState({
       replyEnglish: englishReply,
+      replyChineseDraft: chinesePreview,
       replyChineseNotes: text(result.chineseSummary || ""),
       replyNextStep: text(result.recommendedNextStep || ""),
       replyResultType: "Real AI",
@@ -2778,7 +2810,6 @@ async function generateReply() {
 }
 
 async function translateReplyDraftToEnglish() {
-  const room = activeRoom()
   const draftText = text(el("reply-chinese")?.value || state.replyChineseDraft || "")
   if (!draftText) {
     setReplyState({ replyError: "Please enter text to translate." })
@@ -2796,13 +2827,7 @@ async function translateReplyDraftToEnglish() {
   })
 
   try {
-    const response = await callBlackDogAIGateway("translate_message", {
-      sourceLanguage,
-      targetLanguage,
-      text: draftText,
-      context: room ? getConversationMessagesForReply(room).slice(-8) : [],
-    })
-
+    const response = await callTranslateMessage(sourceLanguage, targetLanguage, draftText)
     const translatedText = getTranslatedTextFromGatewayResponse(response)
 
     setReplyState({

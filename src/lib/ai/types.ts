@@ -54,6 +54,7 @@ export type ChatReplySuggestionInput = {
 
 export type ChatReplySuggestionResult = {
   englishReply: string;
+  chineseReply?: string;
   chineseSummary: string;
   recommendedNextStep: string;
 };
