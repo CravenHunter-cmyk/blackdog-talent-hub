@@ -11,6 +11,7 @@
     "https://www.upwork.com/*",
     "https://upwork.com/*",
     "https://blackdogone.com/*",
+    "https://www.blackdogone.com/*",
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*"
   ],
