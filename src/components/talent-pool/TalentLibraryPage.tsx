@@ -56,6 +56,37 @@ function TalentField({ label, value, wide = false }: { label: string; value: str
   )
 }
 
+function TalentAvatar({
+  avatarUrl,
+  candidateName,
+  className,
+  imageClassName = "h-full w-full object-cover",
+}: {
+  avatarUrl: string
+  candidateName: string
+  className: string
+  imageClassName?: string
+}) {
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState("")
+  const avatar = String(avatarUrl || "").trim()
+  const failed = Boolean(avatar && failedAvatarUrl === avatar)
+
+  return (
+    <div className={className}>
+      {avatar && !failed ? (
+        <img
+          src={avatar}
+          alt={candidateName || "Talent avatar"}
+          className={imageClassName}
+          onError={() => setFailedAvatarUrl(avatar)}
+        />
+      ) : (
+        initials(candidateName)
+      )}
+    </div>
+  )
+}
+
 function TalentOptionField({
   label,
   value,
@@ -119,6 +150,8 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
   const [actionStatus, setActionStatus] = useState("")
   const [editDraft, setEditDraft] = useState<TalentProfileRecord | null>(null)
   const [editError, setEditError] = useState("")
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([])
+  const [isDeleting, setIsDeleting] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "card"
     return (window.localStorage.getItem("blackdogTalentLibraryViewMode") as ViewMode) || "card"
@@ -187,21 +220,28 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
   const someVisibleSelected = selectedVisibleIds.length > 0 && !allVisibleSelected
 
   useEffect(() => {
-    console.log(
-      "[BlackDog] Talent Library displayed avatarUrl",
-      filteredProfiles.map((profile) => ({
-        talentId: profile.talentId,
-        candidateName: profile.candidateName,
-        avatarUrl: profile.avatarUrl || "",
-      })),
-    )
-  }, [filteredProfiles])
-
-  useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("blackdogTalentLibraryViewMode", viewMode)
     }
   }, [viewMode])
+
+  useEffect(() => {
+    if (!pendingDeleteIds.length) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isDeleting) {
+        setPendingDeleteIds([])
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isDeleting, pendingDeleteIds.length])
 
   function toggleRowSelection(talentId: string) {
     setSelectedIds((current) =>
@@ -216,11 +256,20 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
     })
   }
 
-  async function deleteTalentIds(talentIds: string[]) {
-    if (!canManage || !talentIds.length) return
-    const confirmed = window.confirm(`Delete ${talentIds.length} selected talent profile${talentIds.length > 1 ? "s" : ""}?`)
-    if (!confirmed) return
+  function requestDeleteTalentIds(talentIds: string[]) {
+    if (!canManage) return
+    const ids = Array.from(new Set(talentIds.filter(Boolean)))
+    if (!ids.length) {
+      setActionStatus("Please select at least one talent profile.")
+      return
+    }
+    setPendingDeleteIds(ids)
+  }
 
+  async function confirmDeleteTalentIds() {
+    if (!canManage || !pendingDeleteIds.length) return
+    const talentIds = pendingDeleteIds
+    setIsDeleting(true)
     setActionStatus("Deleting...")
     try {
       const response = await fetch("/api/talent-pool/delete", {
@@ -241,11 +290,14 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
       }
 
       setProfiles((current) => current.filter((profile) => !talentIds.includes(profile.talentId)))
-      setSelectedIds([])
+      setSelectedIds((current) => current.filter((id) => !talentIds.includes(id)))
+      setPendingDeleteIds([])
       setActionStatus(`Deleted ${data.deletedCount || talentIds.length} profile${(data.deletedCount || talentIds.length) > 1 ? "s" : ""}.`)
     } catch (error) {
       console.error("[BlackDog] talent library delete failed", error)
       setActionStatus("Delete failed.")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -406,7 +458,7 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                 type="button"
                 className="rounded-md border border-[#b7791f] bg-[#fbf4e7] px-3 py-2 text-sm font-semibold text-[#b7791f] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!selectedVisibleIds.length}
-                onClick={() => void deleteTalentIds(selectedVisibleIds)}
+                onClick={() => requestDeleteTalentIds(selectedVisibleIds)}
               >
                 Delete Selected
               </button>
@@ -476,13 +528,11 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                       </div>
 
                       <div className="mt-4 flex items-start gap-3">
-                        <div className="flex h-14 w-14 flex-none items-center justify-center overflow-hidden rounded-full bg-[#eef4ee] text-base font-black text-[#1f5c43]">
-                          {avatarUrl ? (
-                            <img src={avatarUrl} alt={profile.candidateName} className="h-full w-full object-cover" />
-                          ) : (
-                            initials(profile.candidateName)
-                          )}
-                        </div>
+                        <TalentAvatar
+                          avatarUrl={avatarUrl}
+                          candidateName={profile.candidateName}
+                          className="flex h-14 w-14 flex-none items-center justify-center overflow-hidden rounded-full bg-[#eef4ee] text-base font-black text-[#1f5c43]"
+                        />
                         <div className="min-w-0 flex-1">
                           <h3 className="overflow-hidden text-lg font-bold leading-6 text-[#111827]" style={clampTwoLinesStyle}>
                             {profile.candidateName}
@@ -541,7 +591,7 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                             <button
                               type="button"
                               className="inline-flex items-center rounded-md border border-[#b7791f] bg-[#fbf4e7] px-3 py-2 text-xs font-semibold text-[#b7791f] hover:bg-[#f9edd5]"
-                              onClick={() => void deleteTalentIds([profile.talentId])}
+                              onClick={() => requestDeleteTalentIds([profile.talentId])}
                             >
                               Delete
                             </button>
@@ -611,13 +661,11 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                             <td className="px-4 py-4 font-semibold tabular-nums">{index + 1}</td>
                             <td className="px-4 py-4">
                               <div className="flex min-w-0 items-center gap-3">
-                                <div className="flex h-10 w-10 flex-none items-center justify-center overflow-hidden rounded-full bg-[#eef4ee] text-sm font-black text-[#1f5c43]">
-                                  {avatarUrl ? (
-                                    <img src={avatarUrl} alt={profile.candidateName} className="h-full w-full object-cover" />
-                                  ) : (
-                                    initials(profile.candidateName)
-                                  )}
-                                </div>
+                                <TalentAvatar
+                                  avatarUrl={avatarUrl}
+                                  candidateName={profile.candidateName}
+                                  className="flex h-10 w-10 flex-none items-center justify-center overflow-hidden rounded-full bg-[#eef4ee] text-sm font-black text-[#1f5c43]"
+                                />
                                 <div className="min-w-0">
                                   <div className="line-clamp-2 font-semibold leading-5 text-[#111827]">{profile.candidateName}</div>
                                 </div>
@@ -661,7 +709,7 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                                   <button
                                     type="button"
                                     className="rounded-md border border-[#b7791f] bg-[#fbf4e7] px-3 py-1.5 text-xs font-semibold text-[#b7791f] hover:bg-[#f9edd5]"
-                                    onClick={() => void deleteTalentIds([profile.talentId])}
+                                    onClick={() => requestDeleteTalentIds([profile.talentId])}
                                   >
                                     Delete
                                   </button>
@@ -715,10 +763,10 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                 <div className="rounded-xl border border-[#e4dbc9] bg-white p-4 shadow-[0_10px_24px_rgba(17,24,39,0.06)]">
                   <div className="flex items-start gap-4">
                     <div className="shrink-0 rounded-2xl border border-[#e1d5c6] bg-[#f8f5ec] p-2">
-                      <img
-                        src={editDraft.avatarUrl || "/blackdog-mascot.jpg"}
-                        alt={editDraft.candidateName || "Talent avatar"}
-                        className="h-20 w-20 rounded-xl object-cover"
+                      <TalentAvatar
+                        avatarUrl={editDraft.avatarUrl}
+                        candidateName={editDraft.candidateName}
+                        className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl bg-[#eef4ee] text-2xl font-black text-[#1f5c43]"
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -769,7 +817,7 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                         className="mt-1 w-full rounded-lg border border-[#d7dde2] bg-[#fffdf8] px-3 py-2.5 text-sm outline-none"
                         value={editDraft.avatarUrl}
                         onChange={(event) => updateEditDraft("avatarUrl", event.target.value)}
-                        placeholder="/blackdog-mascot.jpg"
+                        placeholder="https://..."
                       />
                     </label>
                     <TalentOptionField
@@ -875,6 +923,68 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
               </div>
             </div>
           </aside>
+        </div>
+      ) : null}
+      {pendingDeleteIds.length ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/45 px-4 py-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isDeleting) {
+              setPendingDeleteIds([])
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={pendingDeleteIds.length > 1 ? "Delete selected talent profiles?" : "Delete talent profile?"}
+            className="w-full max-w-lg rounded-3xl border border-[#eadfcd] bg-[#fbfaf6] p-6 shadow-[0_24px_70px_rgba(17,24,39,0.28)]"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xl font-black text-[#111827]">
+                  {pendingDeleteIds.length > 1 ? "Delete selected talent profiles?" : "Delete talent profile?"}
+                </div>
+                <p className="mt-3 text-sm leading-6 text-[#6f6256]">
+                  {pendingDeleteIds.length > 1
+                    ? `Are you sure you want to delete ${pendingDeleteIds.length} selected talent profiles? This action cannot be undone.`
+                    : "Are you sure you want to delete this talent profile? This action cannot be undone."}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close modal"
+                disabled={isDeleting}
+                onClick={() => setPendingDeleteIds([])}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d7cec0] bg-white text-lg font-semibold text-[#4b5563] transition hover:bg-[#f4efe2] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setPendingDeleteIds([])}
+                className="inline-flex h-10 items-center justify-center rounded-md border border-[#d7cec0] bg-white px-4 text-sm font-semibold text-[#4b5563] transition hover:bg-[#f4efe2] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => void confirmDeleteTalentIds()}
+                className="inline-flex h-10 items-center justify-center rounded-md border border-[#b42318] bg-[#b42318] px-4 text-sm font-semibold text-white transition hover:bg-[#981f14] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting
+                  ? "Deleting..."
+                  : pendingDeleteIds.length > 1
+                    ? `Delete ${pendingDeleteIds.length} profiles`
+                    : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </main>

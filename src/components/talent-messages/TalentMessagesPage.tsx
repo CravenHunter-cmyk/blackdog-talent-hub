@@ -9,6 +9,12 @@ type ConversationFilter = "All" | "Management" | "HR" | "Talent Pool" | "Groups"
 type MessageKind = "text" | "system" | "attachment" | "image" | "video";
 type TalentProfileStatus = "Submitted" | "In Review" | "Drafted" | "New";
 type GroupType = "Project Group" | "Language Group" | "Custom Group";
+type WorkbenchTab = "task-center" | "personal-center" | "communication-hub";
+type WorkbenchView = "manager" | "talent";
+type TaskPanelMode = "applicants" | "manage" | "details" | "brief";
+type WorkbenchNoticeTone = "success" | "error" | "info";
+type WorkbenchTaskStatus = "Open" | "Screening" | "Draft";
+type ApplicantStatus = "Applied" | "Under Review" | "Approved" | "Rejected";
 
 type PermissionConfig = {
   allowHrOnlyAssignedTalents: boolean;
@@ -100,6 +106,221 @@ type GroupDraft = {
   allowFileSharing: boolean;
   allowVideoSharing: boolean;
 };
+
+type WorkbenchTask = {
+  id: string;
+  taskName: string;
+  status: WorkbenchTaskStatus;
+  language: string;
+  skillRequirement: string;
+  targetTalent: string;
+  applicants: number;
+  approved: number;
+  owner: string;
+  deadline: string;
+  description?: string;
+  projectBackground: string;
+  workScope: string;
+  languageRequirement: string;
+  workload: string;
+  timeline: string;
+  paymentNote: string;
+  applicationRequirement: string;
+  materialsToSubmit: string;
+  notes: string;
+  ownerContact: string;
+};
+
+type WorkbenchApplicant = {
+  id: string;
+  name: string;
+  language: string;
+  skill: string;
+  status: ApplicantStatus;
+  taskId: string;
+};
+
+type TalentApplicationForm = {
+  selfIntroduction: string;
+  relevantExperience: string;
+  availability: string;
+  portfolioNote: string;
+  additionalNotes: string;
+};
+
+type CreateTaskForm = {
+  taskName: string;
+  language: string;
+  targetTalent: string;
+  deadline: string;
+  owner: string;
+  description: string;
+};
+
+type WorkbenchNotice = {
+  tone: WorkbenchNoticeTone;
+  message: string;
+};
+
+type ProjectGroupPreview = {
+  groupName: string;
+  members: number;
+  activity: string;
+};
+
+type TalentMessagesPageProps = {
+  initialTab?: string;
+  initialTaskId?: string;
+  initialTaskName?: string;
+};
+
+function normalizeTaskParam(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+const initialWorkbenchTasks: WorkbenchTask[] = [
+  {
+    id: "korean-llm-evaluation",
+    taskName: "Korean LLM Evaluation",
+    status: "Open" as const,
+    language: "Korean",
+    skillRequirement: "LLM Evaluation",
+    targetTalent: "30 native Korean evaluators",
+    applicants: 9,
+    approved: 8,
+    owner: "Julie Zhu",
+    deadline: "May 17",
+    projectBackground: "We are building a Korean evaluator pool for LLM response quality evaluation and ranking tasks.",
+    workScope: "Evaluate AI-generated responses, compare multiple answers, score quality, and provide concise remarks based on project guidelines.",
+    languageRequirement: "Native Korean; strong English reading ability is preferred because guidelines may be in English.",
+    workload: "Pilot tasks may take 2-3 hours. Official batches will be assigned based on quality and availability.",
+    timeline: "Urgent pilot recruitment is in progress. Official task schedule will be confirmed after qualification.",
+    paymentNote: "Payment will be confirmed based on task type, difficulty, and accepted workload.",
+    applicationRequirement: "Applicants should briefly describe Korean language background, AI evaluation experience, daily availability, and similar projects.",
+    materialsToSubmit: "Short self-introduction, relevant project experience, availability, and optional resume or profile link.",
+    notes: "High-quality evaluators will be prioritized for future Korean AI evaluation projects.",
+    ownerContact: "Julie Zhu",
+  },
+  {
+    id: "japanese-llm-evaluation",
+    taskName: "Japanese LLM Evaluation Recruiting",
+    status: "Open" as const,
+    language: "Japanese",
+    skillRequirement: "LLM Evaluation",
+    targetTalent: "20 native Japanese evaluators",
+    applicants: 12,
+    approved: 5,
+    owner: "Julie Zhu",
+    deadline: "May 20",
+    projectBackground: "We are building a native Japanese evaluator pool for LLM response quality evaluation and ranking tasks.",
+    workScope: "Evaluate AI-generated responses, compare multiple answers, score quality, and provide concise remarks based on project guidelines.",
+    languageRequirement: "Native Japanese; strong English reading ability is preferred because guidelines may be in English.",
+    workload: "Pilot tasks may take 2-3 hours. Official batches will be assigned based on quality and availability.",
+    timeline: "Pilot recruitment this week. Official task schedule will be confirmed after qualification.",
+    paymentNote: "Payment will be confirmed based on task type, difficulty, and accepted workload.",
+    applicationRequirement: "Applicants should briefly describe Japanese language background, AI evaluation experience, daily availability, and similar projects.",
+    materialsToSubmit: "Short self-introduction, relevant project experience, availability, and optional resume or profile link.",
+    notes: "High-quality evaluators will be prioritized for future Japanese AI evaluation projects.",
+    ownerContact: "Julie Zhu",
+  },
+  {
+    id: "japanese-evaluator-pool",
+    taskName: "Japanese Evaluator Pool",
+    status: "Open" as const,
+    language: "Japanese",
+    skillRequirement: "LLM Evaluation",
+    targetTalent: "100 Japanese evaluators",
+    applicants: 90,
+    approved: 80,
+    owner: "Maya Chen",
+    deadline: "June 2",
+    projectBackground: "We are expanding the Japanese evaluator pool for recurring LLM evaluation and quality ranking work.",
+    workScope: "Evaluate AI-generated responses, rank alternatives, and provide concise issue notes against client guidelines.",
+    languageRequirement: "Native Japanese; English reading ability is preferred for guideline review.",
+    workload: "Ongoing batches will be assigned based on quality, availability, and project demand.",
+    timeline: "Recruiting remains open while the pool expands toward the target headcount.",
+    paymentNote: "Payment will be confirmed based on accepted workload and task complexity.",
+    applicationRequirement: "Applicants should describe Japanese language background, evaluation experience, and weekly availability.",
+    materialsToSubmit: "Self-introduction, relevant AI evaluation or localization experience, availability, and optional profile link.",
+    notes: "Backup evaluators are useful for peak delivery windows.",
+    ownerContact: "Maya Chen",
+  },
+  {
+    id: "arabic-ocr-expert-pool",
+    taskName: "Arabic OCR Expert Pool",
+    status: "Screening" as const,
+    language: "Arabic",
+    skillRequirement: "OCR Review",
+    targetTalent: "15 Arabic OCR reviewers",
+    applicants: 9,
+    approved: 3,
+    owner: "Maya Chen",
+    deadline: "May 22",
+    projectBackground: "We are preparing an Arabic OCR expert pool for document/image text recognition quality review.",
+    workScope: "Review OCR outputs, identify text recognition errors, check Arabic script accuracy, and annotate issues based on rules.",
+    languageRequirement: "Native or professional Arabic proficiency. Regional Arabic background can be noted in the application.",
+    workload: "Initial pilot may include a small number of cases. Larger batches depend on client schedule.",
+    timeline: "Screening stage now. Qualified reviewers may be invited to pilot tasks.",
+    paymentNote: "Payment will be confirmed by case volume, task difficulty, and quality requirements.",
+    applicationRequirement: "Applicants should provide Arabic background, OCR/VLM experience, and daily availability.",
+    materialsToSubmit: "Self-introduction, Arabic market/region background, OCR or annotation experience, optional resume.",
+    notes: "Candidates with OCR or VLM labeling experience will be prioritized.",
+    ownerContact: "Maya Chen",
+  },
+  {
+    id: "portuguese-br-localization",
+    taskName: "Portuguese-BR Localization Review",
+    status: "Draft" as const,
+    language: "Portuguese-BR",
+    skillRequirement: "Localization Review",
+    targetTalent: "10 Portuguese-BR reviewers",
+    applicants: 4,
+    approved: 0,
+    owner: "Daniel Kim",
+    deadline: "May 25",
+    projectBackground: "We are preparing Portuguese-BR reviewers for localization and language quality review tasks.",
+    workScope: "Review localized content, check fluency and cultural naturalness, identify translation issues, and provide improvement suggestions.",
+    languageRequirement: "Native Portuguese-BR; English reading ability preferred.",
+    workload: "Small pilot first. Follow-up workload depends on client confirmation.",
+    timeline: "Draft stage. Recruitment will start after task details are confirmed.",
+    paymentNote: "Payment will be confirmed after official scope and workload are finalized.",
+    applicationRequirement: "Applicants should describe localization/translation experience, domain background, and availability.",
+    materialsToSubmit: "Self-introduction, relevant localization experience, availability, optional resume/profile link.",
+    notes: "Candidates with AI data, localization, or evaluation project experience will be prioritized.",
+    ownerContact: "Daniel Kim",
+  },
+];
+
+const initialWorkbenchApplicants: WorkbenchApplicant[] = [
+  {
+    id: "yamane-risa",
+    name: "Yamane Risa",
+    language: "Japanese",
+    skill: "LLM Evaluation",
+    status: "Applied",
+    taskId: "japanese-llm-evaluation",
+  },
+  {
+    id: "tanchanok-pearl",
+    name: "Tanchanok Pearl",
+    language: "Thai",
+    skill: "OCR Review",
+    status: "Under Review",
+    taskId: "arabic-ocr-expert-pool",
+  },
+  {
+    id: "nayara-ribeiro",
+    name: "Nayara Ribeiro",
+    language: "Portuguese-BR",
+    skill: "Localization Review",
+    status: "Applied",
+    taskId: "portuguese-br-localization",
+  },
+];
 
 const ROLE_DEFAULTS: Record<PlatformRole, PermissionConfig> = {
   "Super Admin": {
@@ -720,7 +941,57 @@ function canViewChatHistory(currentUser: { name: string; role: PlatformRole }, c
   return true;
 }
 
-export function TalentMessagesPage() {
+export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initialTaskName = "" }: TalentMessagesPageProps) {
+  const initialRequestedTask = initialTaskId || initialTaskName;
+  const initialTargetTask = initialRequestedTask
+    ? initialWorkbenchTasks.find((task) => {
+        const normalizedId = normalizeTaskParam(initialTaskId);
+        const normalizedName = normalizeTaskParam(initialTaskName);
+        return normalizeTaskParam(task.id) === normalizedId || normalizeTaskParam(task.taskName) === normalizedName;
+      })
+    : undefined;
+  const initialNotice = initialRequestedTask
+    ? initialTargetTask
+      ? { tone: "info" as const, message: `Opened Task Center for ${initialTargetTask.taskName}.` }
+      : { tone: "info" as const, message: "Requested task was not found. Showing the default task." }
+    : null;
+  const initialWorkbenchTab: WorkbenchTab =
+    initialTab === "personal-center" ? "personal-center" : initialTab === "communication-hub" ? "communication-hub" : "task-center";
+
+  const [activeTab, setActiveTab] = useState<WorkbenchTab>(initialWorkbenchTab);
+  const [activeView, setActiveView] = useState<WorkbenchView>("manager");
+  const [workbenchTasks, setWorkbenchTasks] = useState<WorkbenchTask[]>(initialWorkbenchTasks);
+  const [workbenchApplicants, setWorkbenchApplicants] = useState<WorkbenchApplicant[]>(initialWorkbenchApplicants);
+  const [selectedApplicantsTaskId, setSelectedApplicantsTaskId] = useState(initialTargetTask?.id ?? initialWorkbenchTasks[0]?.id ?? "");
+  const [taskPanelMode, setTaskPanelMode] = useState<TaskPanelMode>("applicants");
+  const [workbenchNotice, setWorkbenchNotice] = useState<WorkbenchNotice | null>(initialNotice);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [createTaskForm, setCreateTaskForm] = useState<CreateTaskForm>({
+    taskName: "",
+    language: "",
+    targetTalent: "",
+    deadline: "",
+    owner: "",
+    description: "",
+  });
+  const [profileApplicantId, setProfileApplicantId] = useState("");
+  const [applyingTaskId, setApplyingTaskId] = useState("");
+  const [talentApplications, setTalentApplications] = useState<Record<string, ApplicantStatus>>({});
+  const [approvedProjectIds, setApprovedProjectIds] = useState<string[]>([]);
+  const [projectGroups, setProjectGroups] = useState<Record<string, ProjectGroupPreview>>({
+    "japanese-llm-evaluation": {
+      groupName: "Japanese LLM Evaluation Recruiting Group",
+      members: 14,
+      activity: "Japanese LLM Evaluation Recruiting Group is ready for approved evaluators.",
+    },
+  });
+  const [applicationForm, setApplicationForm] = useState<TalentApplicationForm>({
+    selfIntroduction: "",
+    relevantExperience: "",
+    availability: "",
+    portfolioNote: "",
+    additionalNotes: "",
+  });
   const [currentUserId, setCurrentUserId] = useState("daniel");
   const currentUser = useMemo(
     () => PLATFORM_USERS.find((item) => item.id === currentUserId) ?? PLATFORM_USERS[2],
@@ -911,7 +1182,7 @@ export function TalentMessagesPage() {
       allowFileSharing: groupDraft.allowFileSharing,
       allowVideoSharing: groupDraft.allowVideoSharing,
       members,
-      permissionsSummary: `${groupDraft.groupType} created from the Talent Messages preview.`,
+      permissionsSummary: `${groupDraft.groupType} created from the Talent Workbench preview.`,
       lastMessage: `${currentUser.name} created the group ${groupName}.`,
       lastMessageTime: "Just now",
       messages: [
@@ -934,6 +1205,140 @@ export function TalentMessagesPage() {
   function toggleFilter(next: ConversationFilter) {
     setFilter(next);
   }
+
+  function selectedApplicantsTask() {
+    return workbenchTasks.find((task) => task.id === selectedApplicantsTaskId) ?? workbenchTasks[0];
+  }
+
+  function showWorkbenchNotice(tone: WorkbenchNoticeTone, message: string) {
+    setWorkbenchNotice({ tone, message });
+  }
+
+  function selectTask(taskId: string, mode: TaskPanelMode) {
+    setSelectedApplicantsTaskId(taskId);
+    setTaskPanelMode(mode);
+  }
+
+  function handleCreateMockTask() {
+    const taskName = createTaskForm.taskName.trim();
+    if (!taskName) {
+      showWorkbenchNotice("error", "Please enter a task name.");
+      return;
+    }
+
+    const nextTask: WorkbenchTask = {
+      id: `mock-task-${Date.now()}`,
+      taskName,
+      status: "Draft",
+      language: createTaskForm.language.trim() || "TBD",
+      skillRequirement: createTaskForm.description.trim() || "Recruiting support",
+      targetTalent: createTaskForm.targetTalent.trim() || "Target talent TBD",
+      applicants: 0,
+      approved: 0,
+      owner: createTaskForm.owner.trim() || "Julie Zhu",
+      deadline: createTaskForm.deadline.trim() || "TBD",
+      description: createTaskForm.description.trim(),
+      projectBackground: createTaskForm.description.trim() || "Mock recruiting task created from Talent Workbench.",
+      workScope: "Review task requirements, confirm fit, and coordinate with the project owner after approval.",
+      languageRequirement: createTaskForm.language.trim() || "Language requirement TBD.",
+      workload: "Workload will be confirmed after the mock task is reviewed.",
+      timeline: createTaskForm.deadline.trim() ? `Target deadline is ${createTaskForm.deadline.trim()}.` : "Timeline TBD.",
+      paymentNote: "Payment will be confirmed after official scope and workload are finalized.",
+      applicationRequirement: "Applicants should provide relevant background, experience, and availability.",
+      materialsToSubmit: "Self-introduction, relevant experience, availability, and optional resume/profile link.",
+      notes: "This is a local mock task and is not saved to a database.",
+      ownerContact: createTaskForm.owner.trim() || "Julie Zhu",
+    };
+
+    setWorkbenchTasks((current) => [nextTask, ...current]);
+    setSelectedApplicantsTaskId(nextTask.id);
+    setTaskPanelMode("manage");
+    setIsCreateTaskOpen(false);
+    setCreateTaskForm({
+      taskName: "",
+      language: "",
+      targetTalent: "",
+      deadline: "",
+      owner: "",
+      description: "",
+    });
+    showWorkbenchNotice("success", `Task created: ${nextTask.taskName}.`);
+  }
+
+  function openApplicantMessage(applicant: WorkbenchApplicant) {
+    const targetConversation = conversations.find((conversation) => conversation.name === applicant.name);
+    if (targetConversation) {
+      setSelectedConversationId(targetConversation.id);
+      setFilter("All");
+      setSearch("");
+    }
+    setActiveTab("communication-hub");
+    showWorkbenchNotice("info", `Opened direct message with ${applicant.name}.`);
+  }
+
+  function handleApplicantDecision(applicantId: string, nextStatus: ApplicantStatus) {
+    const applicant = workbenchApplicants.find((item) => item.id === applicantId);
+    if (!applicant) return;
+    const wasApproved = applicant.status === "Approved";
+    const taskId = selectedApplicantsTaskId;
+    const task = workbenchTasks.find((item) => item.id === taskId);
+
+    setWorkbenchApplicants((current) =>
+      current.map((item) => (item.id === applicantId ? { ...item, status: nextStatus } : item)),
+    );
+
+    if (nextStatus === "Approved" && !wasApproved) {
+      setWorkbenchTasks((current) =>
+        current.map((task) => (task.id === taskId ? { ...task, approved: task.approved + 1 } : task)),
+      );
+      setApprovedProjectIds((current) => (current.includes(taskId) ? current : [...current, taskId]));
+      setProjectGroups((current) => {
+        const groupName = `${task?.taskName ?? "Selected Task"} Group`;
+        const currentGroup = current[taskId];
+        return {
+          ...current,
+          [taskId]: {
+            groupName: currentGroup?.groupName ?? groupName,
+            members: currentGroup ? currentGroup.members + 1 : 1,
+            activity: `${applicant.name} joined ${groupName}.`,
+          },
+        };
+      });
+      showWorkbenchNotice("success", `${applicant.name} approved and added to project group.`);
+      return;
+    }
+
+    if (nextStatus === "Rejected") {
+      showWorkbenchNotice("error", `${applicant.name} rejected for this task.`);
+    }
+  }
+
+  function handleSubmitApplication(taskId: string) {
+    const task = workbenchTasks.find((item) => item.id === taskId);
+    if (!applicationForm.selfIntroduction.trim()) {
+      showWorkbenchNotice("error", "Please enter a short introduction.");
+      return;
+    }
+
+    setTalentApplications((current) => ({ ...current, [taskId]: "Applied" }));
+    setApplyingTaskId("");
+    setApplicationForm({
+      selfIntroduction: "",
+      relevantExperience: "",
+      availability: "",
+      portfolioNote: "",
+      additionalNotes: "",
+    });
+    showWorkbenchNotice("success", `Application submitted for ${task?.taskName ?? "this task"}.`);
+  }
+
+  const selectedTask = selectedApplicantsTask();
+  const applicantsForSelectedTask = workbenchApplicants.filter((applicant) => applicant.taskId === selectedTask?.id);
+  const profileApplicant = workbenchApplicants.find((applicant) => applicant.id === profileApplicantId);
+  const projectGroupCards = Object.values(projectGroups);
+  const pendingApplicants = workbenchApplicants.filter((applicant) => applicant.status === "Applied" || applicant.status === "Under Review");
+  const talentAppliedTasks = workbenchTasks.filter((task) => talentApplications[task.id]);
+  const talentApprovedTasks = workbenchTasks.filter((task) => approvedProjectIds.includes(task.id));
 
   const headerMeta = useMemo(() => {
     if (!selectedConversation) return "";
@@ -1010,27 +1415,606 @@ export function TalentMessagesPage() {
         className="hidden"
       />
       <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-6 px-6 py-6">
-        <section className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] px-6 py-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
-          <div className="flex flex-col gap-3">
+        <section className="rounded-xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <div className="text-2xl font-semibold tracking-tight text-[#111827]">Talent Messages</div>
-              <div className="mt-1 max-w-3xl text-sm text-[#6b7280]">
-                Communicate with Talent Library profiles through direct messages, project groups, and language groups.
-              </div>
+              <h1 className="text-4xl font-black tracking-tight text-[#111827]">Talent Workbench</h1>
+              <p className="mt-3 max-w-3xl text-base font-medium leading-7 text-[#6f6256]">
+                Manage recruiting tasks, talent applications, approvals, and project communication in one workspace.
+              </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#6f6256]">
-              <Badge className="border-[#1f5c43] bg-[#edf8f1] text-[#1f5c43]">Unified conversation list</Badge>
-              <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">Mock local data</Badge>
-              <Badge className="border-[#1f5c43] bg-[#1f5c43] text-white">{currentUser.role}</Badge>
-              <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{currentUser.name}</Badge>
+
+            <div className="flex flex-col items-start gap-3 md:items-end">
+              <div className="inline-flex rounded-lg border border-[#d7dccf] bg-white p-1 shadow-[0_8px_18px_rgba(31,41,51,0.06)]">
+                {[
+                  { id: "task-center", label: "Task Center" },
+                  { id: "personal-center", label: "Personal Center" },
+                  { id: "communication-hub", label: "Communication Hub" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as WorkbenchTab)}
+                    className={`rounded-md px-3 py-2 text-sm font-semibold whitespace-nowrap transition ${
+                      activeTab === tab.id
+                        ? "bg-[#1f5c43] text-white shadow-[0_8px_18px_rgba(31,92,67,0.18)]"
+                        : "text-[#6f6256] hover:bg-[#f4efe2] hover:text-[#111827]"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-semibold text-[#6f6256]">View as:</span>
+                <div className="inline-flex rounded-lg border border-[#d7dccf] bg-white p-1">
+                  {[
+                    { id: "manager", label: "Manager" },
+                    { id: "talent", label: "Talent" },
+                  ].map((view) => (
+                    <button
+                      key={view.id}
+                      type="button"
+                      onClick={() => {
+                        const nextView = view.id as WorkbenchView;
+                        setActiveView(nextView);
+                        setTaskPanelMode(nextView === "manager" ? "applicants" : "details");
+                      }}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                        activeView === view.id ? "bg-[#1f5c43] text-white" : "text-[#6f6256] hover:bg-[#f4efe2] hover:text-[#111827]"
+                      }`}
+                    >
+                      {view.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
+        {workbenchNotice ? (
+              <div
+                className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                  workbenchNotice.tone === "success"
+                    ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]"
+                    : workbenchNotice.tone === "error"
+                      ? "border-[#f5c2c7] bg-[#fff5f5] text-[#b42318]"
+                      : "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]"
+                }`}
+              >
+                {workbenchNotice.message}
+              </div>
+            ) : null}
+
+        {activeTab === "task-center" ? (
+        <section className="grid min-h-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <SectionHeading
+                label="Task List"
+                subtitle={activeView === "manager" ? "Select a task to review applicants and manage delivery." : "Select a task to view details and apply."}
+              />
+              {activeView === "manager" ? (
+                <button
+                  type="button"
+                  onClick={() => setIsCreateTaskOpen(true)}
+                  className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(31,92,67,0.18)]"
+                >
+                  Create Task
+                </button>
+              ) : null}
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {workbenchTasks.map((task) => {
+                const selected = selectedTask?.id === task.id;
+                const applicationStatus = talentApplications[task.id];
+                return (
+                  <article
+                    key={task.id}
+                    onClick={() => selectTask(task.id, activeView === "manager" ? "applicants" : "details")}
+                    className={`cursor-pointer rounded-2xl border bg-white p-4 transition ${
+                      selected
+                        ? "border-[#b7dfca] border-l-4 border-l-[#1f5c43] bg-[#f2fbf5] shadow-[0_10px_22px_rgba(31,92,67,0.10)]"
+                        : "border-[#e4d7c6] hover:border-[#cfe8d9] hover:bg-[#fffdf8]"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-lg font-semibold leading-6 text-[#111827]">{task.taskName}</div>
+                        <div className="mt-2 text-sm leading-6 text-[#6b7280]">
+                          {task.language} · {task.targetTalent} · Deadline {task.deadline}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#4b5563]">
+                          <span>Applicants: <strong className="text-[#111827]">{task.applicants}</strong></span>
+                          <span>Approved: <strong className="text-[#111827]">{task.approved}</strong></span>
+                          <span>Owner: <strong className="text-[#111827]">{task.owner}</strong></span>
+                        </div>
+                      </div>
+                      <Badge className="border-[#1f5c43] bg-[#edf8f1] text-[#1f5c43]">{task.status}</Badge>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {activeView === "manager" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              selectTask(task.id, "applicants");
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              selected && taskPanelMode === "applicants"
+                                ? "border-[#1f5c43] bg-[#1f5c43] text-white"
+                                : "border-[#d7cec0] bg-[#f8f4ea] text-[#4b5563]"
+                            }`}
+                          >
+                            View Applicants
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              selectTask(task.id, "manage");
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              selected && taskPanelMode === "manage"
+                                ? "border-[#1f5c43] bg-[#1f5c43] text-white"
+                                : "border-[#d7cec0] bg-[#f8f4ea] text-[#4b5563]"
+                            }`}
+                          >
+                            Manage Task
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              selectTask(task.id, "brief");
+                              showWorkbenchNotice("info", `Viewing full task brief for ${task.taskName}.`);
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              selected && taskPanelMode === "brief"
+                                ? "border-[#1f5c43] bg-[#1f5c43] text-white"
+                                : "border-[#d7cec0] bg-[#f8f4ea] text-[#4b5563]"
+                            }`}
+                          >
+                            View Details
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              selectTask(task.id, "details");
+                              if (applicationStatus === "Approved") {
+                                setActiveTab("communication-hub");
+                                showWorkbenchNotice("info", `Project group opened for ${task.taskName}.`);
+                                return;
+                              }
+                              if (applicationStatus) return;
+                              setApplyingTaskId(task.id);
+                            }}
+                            className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-3 py-1.5 text-xs font-semibold text-white"
+                          >
+                            {applicationStatus === "Approved" ? "Go to Project Group" : applicationStatus ? "Applied / View Application" : "Apply"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          <aside className="min-w-0 overflow-y-auto rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.24em] text-[#1f5c43]">
+                  {activeView === "manager" && taskPanelMode === "applicants"
+                    ? "Applicant Review Queue"
+                    : activeView === "manager" && taskPanelMode === "manage"
+                      ? "Manage Task"
+                      : "Task Details"}
+                </div>
+                <div className="mt-2 text-lg font-semibold leading-6 text-[#111827] break-words">
+                  {activeView === "manager" && taskPanelMode === "applicants" ? `Applicant Review Queue for ${selectedTask?.taskName}` : selectedTask?.taskName}
+                </div>
+              </div>
+              {selectedTask ? <Badge className="border-[#1f5c43] bg-[#edf8f1] text-[#1f5c43]">{selectedTask.status}</Badge> : null}
+            </div>
+
+            {selectedTask ? (
+              <>
+                <div className="mt-5 space-y-2 border-t border-[#eadfcd] pt-4 text-sm">
+                  {[
+                    ["Language", selectedTask.language],
+                    ["Target", selectedTask.targetTalent],
+                    ["Deadline", selectedTask.deadline],
+                    ["Owner", selectedTask.owner],
+                    ["Applicants", String(selectedTask.applicants)],
+                    ["Approved", String(selectedTask.approved)],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-start justify-between gap-4">
+                      <span className="font-semibold text-[#6f6256]">{label}</span>
+                      <span className="min-w-0 max-w-[64%] break-words text-right font-medium text-[#111827]">{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {activeView === "manager" && taskPanelMode === "manage" ? (
+                  <div className="mt-6 space-y-4">
+                    <SectionHeading label="Task Overview" subtitle="Mock management panel for task setup and delivery readiness." />
+                    <div className="rounded-2xl border border-[#eadfcd] bg-white p-4 text-sm leading-6 text-[#4b5563]">
+                      <div className="font-semibold text-[#111827]">{selectedTask.taskName}</div>
+                      <div className="mt-2">{selectedTask.status} · {selectedTask.language} · {selectedTask.targetTalent}</div>
+                      <div>Deadline {selectedTask.deadline} · Owner {selectedTask.owner}</div>
+                    </div>
+                    <div className="rounded-2xl border border-[#eadfcd] bg-white p-4">
+                      <div className="text-sm font-semibold text-[#111827]">Delivery Notes</div>
+                      <p className="mt-2 text-sm leading-6 text-[#6b7280]">
+                        Use this panel to review task setup, applicant progress, and delivery readiness.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => showWorkbenchNotice("info", "Task editing will be connected after database setup.")}
+                        className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-3 py-1.5 text-xs font-semibold text-white"
+                      >
+                        Edit Task
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTaskPanelMode("applicants")}
+                        className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-3 py-1.5 text-xs font-semibold text-[#4b5563]"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : activeView === "manager" ? (
+                  <div className="mt-6">
+                    <SectionHeading label="Applicant Review Queue" subtitle="Review applicants for the selected task and update mock application status." />
+                    <div className="space-y-3">
+                      {applicantsForSelectedTask.length ? applicantsForSelectedTask.map((applicant) => (
+                        <div key={applicant.id} className="rounded-2xl border border-[#eadfcd] bg-white p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="font-semibold text-[#111827]">{applicant.name}</div>
+                              <div className="mt-1 text-sm text-[#6b7280]">{applicant.language} · {applicant.skill}</div>
+                            </div>
+                            <Badge className={applicant.status === "Approved" ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : applicant.status === "Rejected" ? "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]" : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
+                              {applicant.status}
+                            </Badge>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            <button type="button" onClick={() => setProfileApplicantId(applicant.id)} className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-2.5 py-1 text-[11px] font-semibold text-[#4b5563]">View Profile</button>
+                            <button type="button" onClick={() => openApplicantMessage(applicant)} className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-2.5 py-1 text-[11px] font-semibold text-[#4b5563]">Message</button>
+                            <button type="button" onClick={() => handleApplicantDecision(applicant.id, "Approved")} className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-2.5 py-1 text-[11px] font-semibold text-white">Approve</button>
+                            <button type="button" onClick={() => handleApplicantDecision(applicant.id, "Rejected")} className="rounded-full border border-[#f5c2c7] bg-[#fff5f5] px-2.5 py-1 text-[11px] font-semibold text-[#b42318]">Reject</button>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#6b7280]">
+                          No applicants for this task yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-6">
+                    {applyingTaskId === selectedTask.id ? (
+                      <div>
+                        <SectionHeading label="Application Form" subtitle="Submit a local mock application for this task." />
+                        <div className="space-y-3">
+                          {[
+                            ["selfIntroduction", "Self Introduction"],
+                            ["relevantExperience", "Relevant Experience"],
+                            ["availability", "Availability"],
+                            ["portfolioNote", "Resume / Portfolio note"],
+                            ["additionalNotes", "Additional Notes"],
+                          ].map(([key, label]) => (
+                            <label key={key} className="block">
+                              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">{label}</div>
+                              <textarea
+                                value={applicationForm[key as keyof TalentApplicationForm]}
+                                onChange={(event) => setApplicationForm((current) => ({ ...current, [key]: event.target.value }))}
+                                rows={key === "additionalNotes" ? 3 : 2}
+                                className="mt-2 w-full rounded-2xl border border-[#d9d2c7] bg-white px-4 py-3 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
+                              />
+                            </label>
+                          ))}
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setApplyingTaskId("");
+                                setApplicationForm({
+                                  selfIntroduction: "",
+                                  relevantExperience: "",
+                                  availability: "",
+                                  portfolioNote: "",
+                                  additionalNotes: "",
+                                });
+                              }}
+                              className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-4 py-2 text-sm font-semibold text-[#4b5563]"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSubmitApplication(selectedTask.id)}
+                              className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              Submit Application
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : taskPanelMode === "brief" ? (
+                      <div className="space-y-5">
+                        <SectionHeading label="Task Brief" subtitle="Review the full business context before applying." />
+                        <div className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm font-semibold text-[#111827]">
+                          Application Status: {talentApplications[selectedTask.id] || "Not Applied"}
+                        </div>
+                        <div className="space-y-4">
+                          {[
+                            ["Project Background", selectedTask.projectBackground],
+                            ["Work Scope", selectedTask.workScope],
+                            ["Language Requirement", selectedTask.languageRequirement],
+                            ["Skill Requirement", selectedTask.skillRequirement],
+                            ["Workload", selectedTask.workload],
+                            ["Timeline", selectedTask.timeline],
+                            ["Payment Note", selectedTask.paymentNote],
+                            ["Application Requirement", selectedTask.applicationRequirement],
+                            ["Materials to Submit", selectedTask.materialsToSubmit],
+                            ["Notes", selectedTask.notes],
+                            ["Owner Contact", selectedTask.ownerContact],
+                          ].map(([label, value]) => (
+                            <section key={label} className="rounded-2xl border border-[#eadfcd] bg-white p-4">
+                              <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#1f5c43]">{label}</div>
+                              <p className="mt-2 text-sm leading-6 text-[#4b5563]">{value}</p>
+                            </section>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {talentApplications[selectedTask.id] === "Approved" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveTab("communication-hub");
+                                showWorkbenchNotice("info", `Project group opened for ${selectedTask.taskName}.`);
+                              }}
+                              className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              Go to Project Group
+                            </button>
+                          ) : talentApplications[selectedTask.id] ? (
+                            <button
+                              type="button"
+                              className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              View Application
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setApplyingTaskId(selectedTask.id)}
+                              className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              Apply
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setTaskPanelMode("details")}
+                            className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-4 py-2 text-sm font-semibold text-[#4b5563]"
+                          >
+                            Back to Summary
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <SectionHeading label="Application Status" subtitle="Open the full brief or submit a local mock application." />
+                        <div className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm font-semibold text-[#111827]">
+                          {talentApplications[selectedTask.id] || "Not Applied"}
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTaskPanelMode("brief");
+                              showWorkbenchNotice("info", `Viewing full task brief for ${selectedTask.taskName}.`);
+                            }}
+                            className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-4 py-2 text-sm font-semibold text-[#4b5563]"
+                          >
+                            View Full Brief
+                          </button>
+                          {talentApplications[selectedTask.id] === "Approved" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveTab("communication-hub");
+                                showWorkbenchNotice("info", `Project group opened for ${selectedTask.taskName}.`);
+                              }}
+                              className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              Go to Project Group
+                            </button>
+                          ) : talentApplications[selectedTask.id] ? (
+                            <button
+                              type="button"
+                              className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              View Application
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setApplyingTaskId(selectedTask.id)}
+                              className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              Apply
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : null}
+          </aside>
+        </section>
+        ) : null}
+
+        {activeTab === "personal-center" ? (
+        <section className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+            <SectionHeading label="Profile Summary" subtitle="Mock personal workspace profile for the current user." />
+            <div className="mt-4 space-y-2 text-sm">
+              {activeView === "manager" ? (
+                <>
+                  <InfoRow label="Name" value="Julie Zhu" />
+                  <InfoRow label="Role" value="Super Admin / Manager" />
+                  <InfoRow label="Department" value="Platform Ops" />
+                  <InfoRow label="Status" value="Active" />
+                </>
+              ) : (
+                <>
+                  <InfoRow label="Name" value="Yamane Risa" />
+                  <InfoRow label="Role" value="Talent" />
+                  <InfoRow label="Native Language" value="Japanese" />
+                  <InfoRow label="Skills" value="LLM Evaluation, Translation, Localization" />
+                  <InfoRow label="Status" value="Available" />
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+            {activeView === "manager" ? (
+              <>
+                <SectionHeading label="My Managed Tasks" subtitle="Manager-owned mock recruiting tasks." />
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {workbenchTasks.map((task) => (
+                    <div key={task.id} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm font-semibold text-[#111827]">
+                      {task.taskName}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <SectionHeading label="My Applications" subtitle="Mock applications submitted from Talent View." />
+                <div className="mt-4 space-y-2">
+                  {talentAppliedTasks.length ? (
+                    talentAppliedTasks.map((task) => (
+                      <div key={task.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm">
+                        <span className="font-semibold text-[#111827]">{task.taskName}</span>
+                        <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">{talentApplications[task.id]}</Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#6b7280]">No applications submitted yet.</div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+            <SectionHeading label={activeView === "manager" ? "Pending Applicants" : "My Active Projects"} subtitle={activeView === "manager" ? "Applicants waiting for review." : "Approved tasks appear here."} />
+            <div className="mt-4 space-y-2">
+              {activeView === "manager" ? (
+                pendingApplicants.map((applicant) => (
+                  <div key={applicant.id} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#4b5563]">
+                    {applicant.name} — {applicant.status}
+                  </div>
+                ))
+              ) : talentApprovedTasks.length ? (
+                talentApprovedTasks.map((task) => (
+                  <div key={task.id} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm font-semibold text-[#111827]">
+                    {task.taskName}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#6b7280]">No approved active projects yet.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+            {activeView === "manager" ? (
+              <>
+                <SectionHeading label="Recent Actions" subtitle="Manager follow-ups for task execution." />
+                <div className="mt-4 space-y-2">
+                  {["Review new Japanese applicants", "Confirm Arabic OCR shortlist", "Sync project scripts"].map((action) => (
+                    <div key={action} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#4b5563]">{action}</div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <SectionHeading label="My To-do" subtitle="Talent-side task readiness checklist." />
+                <div className="mt-4 space-y-2">
+                  {["Complete profile", "Check task guideline", "Reply to project owner"].map((todo) => (
+                    <div key={todo} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#4b5563]">{todo}</div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+        ) : null}
+
+        {activeTab === "communication-hub" ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-5">
+          <section className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+            <SectionHeading
+              label="Communication Hub"
+              subtitle="Coordinate task-related conversations with talents, project groups, and language groups."
+            />
+            <div className="grid gap-3 lg:grid-cols-3">
+              <div className="rounded-2xl border border-[#eadfcd] bg-white p-4">
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#1f5c43]">Project Groups</div>
+                <div className="mt-3 space-y-3">
+                  {projectGroupCards.map((group) => (
+                    <div key={group.groupName} className="border-b border-[#f0e7d8] pb-3 last:border-0 last:pb-0">
+                      <div className="text-sm font-semibold text-[#111827]">{group.groupName}</div>
+                      <div className="mt-1 text-sm text-[#6b7280]">Members: {group.members}</div>
+                      <div className="mt-1 text-sm text-[#4b5563]">{group.activity}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[#eadfcd] bg-white p-4">
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#1f5c43]">Direct Messages</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {["Julie Zhu", "Maya Chen", "Daniel Kim"].map((name) => (
+                    <Badge key={name} className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{name}</Badge>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[#eadfcd] bg-white p-4">
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#1f5c43]">Language Groups</div>
+                <div className="mt-3 space-y-2 text-sm text-[#4b5563]">
+                  <div>Japanese Talent Pool</div>
+                  <div>Arabic OCR Reviewers</div>
+                  <div>Portuguese-BR Localization Pool</div>
+                </div>
+              </div>
+            </div>
+          </section>
         <section className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[330px_minmax(0,1fr)_360px]">
           <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
             <div className="border-b border-[#eadfcd] p-4">
-              <SectionHeading label="Conversations" subtitle="All people and groups in one unified chat list." />
+              <SectionHeading label="Task-related Conversations" subtitle="Communication Hub for task, project group, language group, and personal coordination." />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -1585,7 +2569,110 @@ export function TalentMessagesPage() {
             </div>
           </aside>
         </section>
+        </div>
+        ) : null}
       </div>
+
+      {isCreateTaskOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 px-4 py-8">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_60px_rgba(17,24,39,0.25)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xl font-semibold text-[#111827]">Create Recruiting Task</div>
+                <div className="mt-1 text-sm text-[#6b7280]">Create a local mock task for the current workbench preview.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateTaskOpen(false)}
+                className="rounded-full border border-[#d7cec0] bg-white px-3 py-1.5 text-sm font-semibold text-[#4b5563]"
+              >
+                Close
+              </button>
+            </div>
+
+            {workbenchNotice?.message === "Please enter a task name." ? (
+              <div className="mt-4 rounded-2xl border border-[#f5c2c7] bg-[#fff5f5] px-4 py-3 text-sm font-semibold text-[#b42318]">
+                {workbenchNotice.message}
+              </div>
+            ) : null}
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {[
+                ["taskName", "Task Name"],
+                ["language", "Language"],
+                ["targetTalent", "Target Talent"],
+                ["deadline", "Deadline"],
+                ["owner", "Owner"],
+              ].map(([key, label]) => (
+                <label key={key} className="block">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">{label}</div>
+                  <input
+                    value={createTaskForm[key as keyof CreateTaskForm]}
+                    onChange={(event) => setCreateTaskForm((current) => ({ ...current, [key]: event.target.value }))}
+                    className="mt-2 w-full rounded-2xl border border-[#d9d2c7] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
+                  />
+                </label>
+              ))}
+              <label className="block md:col-span-2">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Description</div>
+                <textarea
+                  value={createTaskForm.description}
+                  onChange={(event) => setCreateTaskForm((current) => ({ ...current, description: event.target.value }))}
+                  rows={4}
+                  className="mt-2 w-full rounded-2xl border border-[#d9d2c7] bg-white px-4 py-3 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
+                />
+              </label>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCreateTaskOpen(false)}
+                className="rounded-full border border-[#d7cec0] bg-white px-4 py-2.5 text-sm font-semibold text-[#4b5563]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateMockTask}
+                className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(31,92,67,0.18)]"
+              >
+                Create Mock Task
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {profileApplicant ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 px-4 py-8">
+          <div className="w-full max-w-xl rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_60px_rgba(17,24,39,0.25)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xl font-semibold text-[#111827]">Applicant Profile</div>
+                <div className="mt-1 text-sm text-[#6b7280]">Local mock applicant details for Task Center review.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProfileApplicantId("")}
+                className="rounded-full border border-[#d7cec0] bg-white px-3 py-1.5 text-sm font-semibold text-[#4b5563]"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-3 text-sm">
+              <InfoRow label="Name" value={profileApplicant.name} />
+              <InfoRow label="Language" value={profileApplicant.language} />
+              <InfoRow label="Skill" value={profileApplicant.skill} />
+              <InfoRow label="Status" value={profileApplicant.status} />
+              <InfoRow label="Application Summary" value="Candidate is interested in task-based AI data evaluation work." />
+              <InfoRow label="Availability" value="3-4 hours/day" />
+              <InfoRow label="Resume / Portfolio Note" value="Resume upload will be enabled after storage setup." />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isCreateGroupOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 px-4 py-8">
@@ -1593,7 +2680,7 @@ export function TalentMessagesPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xl font-semibold text-[#111827]">Create Group</div>
-                <div className="mt-1 text-sm text-[#6b7280]">Mock local-only group creation for Talent Messages.</div>
+                <div className="mt-1 text-sm text-[#6b7280]">Mock local-only group creation for Talent Workbench.</div>
               </div>
               <button
                 type="button"

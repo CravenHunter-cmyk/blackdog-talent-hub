@@ -9,6 +9,7 @@ export type AIGatewayTask =
   | "extract_profile"
   | "summarize_chat"
   | "translate_message"
+  | "analyze_management_focus"
   | "chat_reply_suggestion";
 
 export type AIGatewayRequest = {
@@ -89,6 +90,41 @@ export type TranslateMessageResult = {
   translatedText: string;
 };
 
+export type ManagementFocusAlertResult = {
+  focusAlerts: {
+    language?: {
+      id: string;
+      focusItem: string;
+      focusType: "Language";
+      riskLevel: "Critical" | "High" | "Medium" | "Low" | "Healthy";
+      riskAlert: string;
+      reason: string;
+      businessImpact: string;
+      recommendedActions: string[];
+    };
+    project?: {
+      id: string;
+      focusItem: string;
+      focusType: "Project";
+      riskLevel: "Critical" | "High" | "Medium" | "Low" | "Healthy";
+      riskAlert: string;
+      reason: string;
+      businessImpact: string;
+      recommendedActions: string[];
+    };
+    hr?: {
+      id: string;
+      focusItem: string;
+      focusType: "HR";
+      riskLevel: "Critical" | "High" | "Medium" | "Low" | "Healthy";
+      riskAlert: string;
+      reason: string;
+      businessImpact: string;
+      recommendedActions: string[];
+    };
+  };
+};
+
 export type AIGatewayHealthSuccess = {
   ok: true;
   provider: AIGatewayProvider;
@@ -115,6 +151,7 @@ export type AIGatewayTaskResultMap = {
   chat_reply_suggestion: ChatReplySuggestionResult;
   extract_profile: ExtractProfileResult;
   translate_message: TranslateMessageResult;
+  analyze_management_focus: ManagementFocusAlertResult;
 };
 
 export type AIGatewayTaskSuccess<TTask extends keyof AIGatewayTaskResultMap = keyof AIGatewayTaskResultMap> = {

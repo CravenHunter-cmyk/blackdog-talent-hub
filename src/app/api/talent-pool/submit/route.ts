@@ -18,6 +18,21 @@ function normalizeText(value = "") {
   return String(value || "").replace(/\s+/g, " ").trim()
 }
 
+function readAvatarUrl(body: Record<string, unknown>) {
+  return normalizeText(
+    String(
+      body.avatarUrl ||
+        body.avatar ||
+        body.profileImage ||
+        body.imageUrl ||
+        body.photoUrl ||
+        body.candidateAvatar ||
+        body.candidateAvatarUrl ||
+        "",
+    ),
+  )
+}
+
 function hasRequiredFields(payload: TalentPoolSubmissionPayload) {
   return Boolean(normalizeText(payload?.candidateName || "") && normalizeText(payload?.upworkChatUrl || ""))
 }
@@ -33,7 +48,7 @@ export async function POST(request: Request) {
       source: "upwork",
       platform: "Upwork",
       candidateName: normalizeText(body.candidateName || ""),
-      avatarUrl: normalizeText(body.avatarUrl || ""),
+      avatarUrl: readAvatarUrl(body as Record<string, unknown>),
       education: normalizeText(body.education || ""),
       professionalDomain: normalizeText(body.professionalDomain || ""),
       upworkChatUrl: normalizeText(body.upworkChatUrl || ""),

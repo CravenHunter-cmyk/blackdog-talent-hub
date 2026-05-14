@@ -128,7 +128,7 @@ const PERMISSION_MODULES: PermissionModule[] = [
       { key: "assignHrsToProjects", label: "Assign HRs to Projects" },
       { key: "manageProjectScripts", label: "Manage Project Scripts" },
       { key: "viewHrWorkProgress", label: "View HR Work Progress" },
-      { key: "viewCandidateQueue", label: "View Candidate Queue" },
+      { key: "viewCandidateQueue", label: "View Applicant Reviews" },
     ],
   },
   {
@@ -136,7 +136,7 @@ const PERMISSION_MODULES: PermissionModule[] = [
     label: "My Workspace",
     permissions: [
       { key: "viewMyWorkspace", label: "View My Workspace" },
-      { key: "manageOwnCandidateQueue", label: "Manage Own Candidate Queue" },
+      { key: "manageOwnCandidateQueue", label: "Manage Own Applicant Reviews" },
       { key: "viewOwnAssignedProjects", label: "View Own Assigned Projects" },
       { key: "viewOwnSubmissionProgress", label: "View Own Submission Progress" },
     ],

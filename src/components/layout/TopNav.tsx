@@ -9,7 +9,7 @@ const navItems = [
   { label: "Talent Map", href: "/" },
   { label: "Recruiting Workbench", href: "/recruiting" },
   { label: "BlackDog Talent Library", href: "/talent-library" },
-  { label: "Talent Messages", href: "/talent-messages" },
+  { label: "Talent Workbench", href: "/talent-messages" },
   { label: "BlackDog Brain", href: "/blackdog-brain" },
   { label: "Users", href: "/users-permissions" },
 ];

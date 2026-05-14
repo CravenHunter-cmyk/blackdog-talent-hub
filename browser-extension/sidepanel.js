@@ -46,6 +46,7 @@ const state = {
   replyTranslateLoading: false,
   replyChineseDraft: "",
   talentProfiles: {},
+  avatarByCandidateKey: {},
   talentProfileModalOpen: false,
   talentProfileRoomId: "",
   talentProfileDraft: null,
@@ -571,6 +572,48 @@ function getTalentProfileKey(room = {}) {
   return candidate ? `${candidate}:${platform}` : ""
 }
 
+function getCandidateKeyFromValues({ upworkChatUrl = "", upworkProfileUrl = "", profileUrl = "", candidateName = "" } = {}) {
+  return (
+    normalizeRoomUrl(upworkChatUrl || "") ||
+    normalizeRoomUrl(upworkProfileUrl || profileUrl || "") ||
+    safeName(candidateName || "")
+  )
+}
+
+function getCandidateKey(room = {}, profile = {}) {
+  return getCandidateKeyFromValues({
+    upworkChatUrl: profile.upworkChatUrl || room.roomUrl || room.pageUrl || "",
+    upworkProfileUrl: profile.upworkProfileUrl || profile.profileUrl || "",
+    profileUrl: profile.profileUrl || profile.upworkProfileUrl || "",
+    candidateName: profile.candidateName || room.candidateName || "",
+  })
+}
+
+function rememberCandidateAvatar(room = {}, profile = {}, avatarUrl = "") {
+  const candidateKey = getCandidateKey(room, profile)
+  const nextAvatarUrl = safeName(avatarUrl || "")
+  if (!candidateKey || !nextAvatarUrl) return ""
+  state.avatarByCandidateKey = state.avatarByCandidateKey && typeof state.avatarByCandidateKey === "object" ? state.avatarByCandidateKey : {}
+  state.avatarByCandidateKey[candidateKey] = nextAvatarUrl
+  return nextAvatarUrl
+}
+
+function getCandidateAvatarForCurrentKey(room = {}, profile = {}) {
+  const candidateKey = getCandidateKey(room, profile)
+  state.avatarByCandidateKey = state.avatarByCandidateKey && typeof state.avatarByCandidateKey === "object" ? state.avatarByCandidateKey : {}
+  if (!candidateKey) return ""
+
+  const cachedAvatarUrl = safeName(state.avatarByCandidateKey[candidateKey] || "")
+  if (cachedAvatarUrl) return cachedAvatarUrl
+
+  const currentCandidateAvatarFromHeader = safeName(room.candidateAvatarUrl || room.avatarUrl || "")
+  if (currentCandidateAvatarFromHeader) {
+    return rememberCandidateAvatar(room, profile, currentCandidateAvatarFromHeader)
+  }
+
+  return ""
+}
+
 function getTalentProfileDraftMatch(room = {}, draft = state.talentProfileDraft) {
   if (!draft || typeof draft !== "object") return false
 
@@ -694,6 +737,7 @@ function prefillTalentProfileFromRoom(profile = {}, room = {}) {
 
 function createInitialTalentProfile(room = {}) {
   const candidateName = isInvalidCandidateName(room.candidateName || "") ? "Unknown Candidate" : safeName(room.candidateName || "Unknown Candidate")
+  const avatarUrl = getCandidateAvatarForCurrentKey(room, { candidateName })
   return {
     roomId: safeName(room.roomId || ""),
     candidateName,
@@ -719,7 +763,7 @@ function createInitialTalentProfile(room = {}) {
     email: "",
     onlineContactMethod: "WhatsApp",
     onlineContactAccount: "",
-    avatarUrl: safeName(room.candidateAvatarUrl || room.avatarUrl || ""),
+    avatarUrl,
     submittedToTalentPool: false,
     submittedAt: "",
     updatedAt: nowIso(),
@@ -766,7 +810,7 @@ function normalizeTalentProfile(profile = {}, room = {}) {
     email: safeName(profile.email || fallback.email || ""),
     onlineContactMethod: safeName(profile.onlineContactMethod || fallback.onlineContactMethod || "WhatsApp") || "WhatsApp",
     onlineContactAccount: safeName(profile.onlineContactAccount || fallback.onlineContactAccount || ""),
-    avatarUrl: profile.avatarUrl || room.candidateAvatarUrl || room.avatarUrl || "",
+    avatarUrl: safeName(profile.avatarUrl || getCandidateAvatarForCurrentKey(room, { ...profile, candidateName }) || ""),
     submittedToTalentPool: Boolean(profile.submittedToTalentPool),
     submittedAt: profile.submittedAt || "",
     updatedAt: profile.updatedAt || nowIso(),
@@ -976,6 +1020,7 @@ function serializeState() {
     upworkUserName: state.upworkUserName,
     selectedRecruitingProject: state.selectedRecruitingProject || DEFAULT_RECRUITING_PROJECT,
     rooms,
+    avatarByCandidateKey: state.avatarByCandidateKey || {},
     activeRoomKey: getActiveRoomKey(),
     activeRoomId: state.activeRoomId,
   }
@@ -1019,11 +1064,16 @@ function mergeRoomRecord(existing = {}, incoming = {}) {
       : existingStatus
 
   const mergedCandidateHeadline = safeName(incoming.candidateHeadline || existing.candidateHeadline || "")
-  const mergedAvatarUrl =
-    safeName(incoming.candidateAvatarUrl || "") &&
+  const incomingHasCandidateAvatarUrl = Object.prototype.hasOwnProperty.call(incoming, "candidateAvatarUrl")
+  const incomingCandidateAvatarUrl = safeName(incoming.candidateAvatarUrl || "")
+  const canUseIncomingCandidateAvatar =
+    incomingCandidateAvatarUrl &&
     sameRoomUrl &&
     (incomingIsKnownCandidate ? !existingIsKnownCandidate || similarName(incomingCandidateName, existingCandidateName) : true)
-      ? safeName(incoming.candidateAvatarUrl || "")
+  const mergedAvatarUrl = canUseIncomingCandidateAvatar
+    ? incomingCandidateAvatarUrl
+    : incomingHasCandidateAvatarUrl
+      ? ""
       : safeName(existing.candidateAvatarUrl || existing.avatarUrl || "")
 
   const merged = {
@@ -1076,8 +1126,11 @@ async function loadState() {
   )
   state.conversationTranslationExpanded = state.conversationTranslationDefaultExpanded
   state.rooms = normalizeRoomCollection(saved.rooms && typeof saved.rooms === "object" ? saved.rooms : {})
+  state.avatarByCandidateKey =
+    saved.avatarByCandidateKey && typeof saved.avatarByCandidateKey === "object" ? saved.avatarByCandidateKey : {}
   Object.entries(state.rooms).forEach(([, room]) => {
     if (!room || typeof room !== "object") return
+    rememberCandidateAvatar(room, room.talentProfile || {}, room.candidateAvatarUrl || room.avatarUrl || room.talentProfile?.avatarUrl || "")
     const normalizedStatus = normalizeProfileSubmitStatus(room.profileSubmitStatus || room.talentProfile?.profileSubmitStatus || "")
     room.profileSubmitStatus = normalizedStatus
     room.profileSubmitError = normalizedStatus === "idle" ? "" : safeName(room.profileSubmitError || room.talentProfile?.profileSubmitError || "")
@@ -2178,14 +2231,14 @@ function ensureTalentProfileTemplate() {
 }
 
 function readTalentProfileForm() {
-  const room = activeRoom()
+  const room = state.rooms[state.talentProfileRoomId] || activeRoom()
   const fields = getTalentProfileFieldIds()
   const draftMatchesRoom = getTalentProfileDraftMatch(room)
   const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
   const draftSubmittedToTalentPool = draftMatchesRoom ? Boolean(state.talentProfileDraft?.submittedToTalentPool) : false
   const draftSubmittedAt = draftMatchesRoom ? state.talentProfileDraft?.submittedAt || "" : ""
   const savedAvatarUrl = getVerifiedTalentProfileAvatar(room || {}, state.talentProfiles[getTalentProfileKey(room || {})] || {})
-  return {
+  const formProfile = {
     roomId: state.talentProfileRoomId || room?.roomId || "",
     candidateName: safeName(el(fields.candidateName)?.value || room?.candidateName || "Unknown Candidate"),
     candidateHeadline: safeName(draftMatchesRoom ? state.talentProfileDraft?.candidateHeadline || "" : room?.candidateHeadline || ""),
@@ -2211,10 +2264,14 @@ function readTalentProfileForm() {
     email: safeName(el(fields.email)?.value || ""),
     onlineContactMethod: safeName(el(fields.onlineContactMethod)?.value || "WhatsApp") || "WhatsApp",
     onlineContactAccount: safeName(el(fields.onlineContactAccount)?.value || ""),
-    avatarUrl: draftAvatarUrl || safeName(room?.candidateAvatarUrl || room?.avatarUrl || "") || savedAvatarUrl || "",
     submittedToTalentPool: draftSubmittedToTalentPool,
     submittedAt: draftSubmittedAt,
     updatedAt: nowIso(),
+  }
+  rememberCandidateAvatar(room || {}, formProfile, draftAvatarUrl || savedAvatarUrl || "")
+  return {
+    ...formProfile,
+    avatarUrl: getCandidateAvatarForCurrentKey(room || {}, formProfile),
   }
 }
 
@@ -2291,11 +2348,14 @@ function renderTalentProfileModal() {
   modal.setAttribute("aria-hidden", "false")
   const key = getTalentProfileKey(room || {})
   const saved = state.talentProfiles[key] || createInitialTalentProfile(room || {})
-  const roomCandidateAvatarUrl = safeName(room?.candidateAvatarUrl || room?.avatarUrl || "")
   const draftMatchesRoom = getTalentProfileDraftMatch(room || {})
   const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
   const savedAvatarUrl = getVerifiedTalentProfileAvatar(room || {}, saved || {})
-  const finalAvatarUrl = draftAvatarUrl || roomCandidateAvatarUrl || savedAvatarUrl || ""
+  rememberCandidateAvatar(room || {}, saved || {}, draftAvatarUrl || savedAvatarUrl || "")
+  const finalAvatarUrl = getCandidateAvatarForCurrentKey(room || {}, {
+    ...saved,
+    ...(draftMatchesRoom ? state.talentProfileDraft : {}),
+  })
   const merged = prefillTalentProfileFromRoom(
     normalizeTalentProfile(
       {
@@ -2431,7 +2491,11 @@ function openTalentProfile(roomId) {
   const candidateAvatarUrl = safeName(room.candidateAvatarUrl || room.avatarUrl || "")
   const draftAvatarUrl = draftMatchesRoom ? safeName(state.talentProfileDraft?.avatarUrl || "") : ""
   const savedAvatarUrl = getVerifiedTalentProfileAvatar(room, saved)
-  const finalAvatarUrl = draftAvatarUrl || candidateAvatarUrl || savedAvatarUrl || ""
+  rememberCandidateAvatar(room, saved, draftAvatarUrl || savedAvatarUrl || candidateAvatarUrl || "")
+  const finalAvatarUrl = getCandidateAvatarForCurrentKey(room, {
+    ...saved,
+    ...(draftMatchesRoom ? state.talentProfileDraft : {}),
+  })
   state.talentProfileDraft = prefillTalentProfileFromRoom(
     normalizeTalentProfile(
       {
@@ -2526,15 +2590,37 @@ function getCurrentHrIdentity() {
 
 function buildTalentPoolSubmissionPayload(room = {}, profile = {}) {
   const hrIdentity = getCurrentHrIdentity()
-  const avatarUrl = safeName(profile.avatarUrl || room.candidateAvatarUrl || room.avatarUrl || "")
+  const candidateName = safeName(profile.candidateName || room.candidateName || "Unknown Candidate")
+  const upworkChatUrl = safeName(profile.upworkChatUrl || room.roomUrl || room.pageUrl || "")
+  const upworkProfileUrl = safeName(profile.upworkProfileUrl || profile.profileUrl || "")
+  const candidateKey = getCandidateKeyFromValues({
+    upworkChatUrl,
+    upworkProfileUrl,
+    profileUrl: profile.profileUrl || profile.upworkProfileUrl || "",
+    candidateName,
+  })
+  const avatarUrl = getCandidateAvatarForCurrentKey(room, {
+    ...profile,
+    candidateName,
+    upworkChatUrl,
+    upworkProfileUrl,
+    profileUrl: profile.profileUrl || profile.upworkProfileUrl || "",
+  })
+  console.log("[BlackDog avatar submit]", {
+    candidateName,
+    candidateKey,
+    avatarUrl,
+    upworkChatUrl,
+    upworkProfileUrl,
+  })
   return {
     source: "upwork",
     platform: "Upwork",
-    candidateName: safeName(profile.candidateName || room.candidateName || "Unknown Candidate"),
+    candidateName,
     avatarUrl,
     education: safeName(profile.education || ""),
     professionalDomain: safeName(profile.professionalDomain || ""),
-    upworkChatUrl: safeName(profile.upworkChatUrl || room.roomUrl || room.pageUrl || ""),
+    upworkChatUrl,
     profileUrl: safeName(profile.profileUrl || profile.upworkProfileUrl || ""),
     nativeLanguage: safeName(profile.nativeLanguage || ""),
     secondLanguage: safeName(profile.secondLanguage || profile.otherLanguages || ""),
@@ -3196,6 +3282,12 @@ function normalizeIncomingSnapshot(snapshot = {}) {
   const incomingCandidateAvatarUrl = safeName(snapshot.candidateAvatarUrl || "")
   const sameCandidate = !snapshotCandidateName || snapshotCandidateName === "Unknown Candidate" || !existingCandidateName || similarName(snapshotCandidateName, existingCandidateName)
   const sameRoom = !incomingRoomUrl || !normalizeRoomUrl(existing.roomUrl || existing.pageUrl || "") || incomingRoomUrl === normalizeRoomUrl(existing.roomUrl || existing.pageUrl || "")
+  const currentCandidateAvatarUrl =
+    incomingCandidateAvatarUrl && sameCandidate && sameRoom
+      ? incomingCandidateAvatarUrl
+      : sameCandidate && sameRoom
+        ? safeName(existing.candidateAvatarUrl || existing.avatarUrl || "")
+        : ""
   const room = mergeRoomRecord(existing, {
     ...snapshot,
     roomId,
@@ -3205,10 +3297,7 @@ function normalizeIncomingSnapshot(snapshot = {}) {
     meName: meName || "Unknown",
     candidateName,
     candidateHeadline: safeName(snapshot.candidateHeadline || existing.candidateHeadline || ""),
-    candidateAvatarUrl:
-      incomingCandidateAvatarUrl && sameCandidate && sameRoom
-        ? incomingCandidateAvatarUrl
-        : existing.candidateAvatarUrl || "",
+    candidateAvatarUrl: currentCandidateAvatarUrl,
     conversationTitle: snapshot.conversationTitle || existing.conversationTitle || "Upwork Conversation",
     conversationMessages: reliableMessages,
     totalMessagesCaptured: reliableMessages.length,
@@ -3225,6 +3314,7 @@ function normalizeIncomingSnapshot(snapshot = {}) {
     delete state.rooms[existingKey]
   }
   state.rooms[roomId] = room
+  rememberCandidateAvatar(room, {}, currentCandidateAvatarUrl)
   state.rooms = dedupeCandidateRooms(state.rooms || {})
   state.liveRoomId = roomId
   state.activeRoomKey = roomId

@@ -9,22 +9,62 @@ export function MetricCards({ resources }: MetricCardsProps) {
     {
       label: "Total Resources",
       value: resources.reduce((sum, item) => sum + item.totalResources, 0).toLocaleString(),
+      tone: {
+        accent: "bg-[#1f4d3a]",
+        border: "border-[#cdd9cf]",
+        iconBg: "bg-[#e9f1ec]",
+        iconText: "text-[#1f4d3a]",
+        valueText: "text-[#14261f]",
+        glow: "shadow-[0_10px_22px_rgba(31,77,58,0.10)]",
+      },
     },
     {
       label: "Active Talents",
       value: resources.reduce((sum, item) => sum + item.activeTalents, 0).toLocaleString(),
+      tone: {
+        accent: "bg-[#2f7d57]",
+        border: "border-[#c9dfd0]",
+        iconBg: "bg-[#edf8f1]",
+        iconText: "text-[#2f7d57]",
+        valueText: "text-[#1f3f2f]",
+        glow: "shadow-[0_10px_22px_rgba(47,125,87,0.10)]",
+      },
     },
     {
-      label: "Language Pools Covered",
+      label: "Language Pools",
       value: resources.length.toString(),
+      tone: {
+        accent: "bg-[#2f6f73]",
+        border: "border-[#c8dcdd]",
+        iconBg: "bg-[#edf7f7]",
+        iconText: "text-[#2f6f73]",
+        valueText: "text-[#1f3f46]",
+        glow: "shadow-[0_10px_22px_rgba(47,111,115,0.10)]",
+      },
     },
     {
       label: "Managed Pools",
       value: resources.length.toString(),
+      tone: {
+        accent: "bg-[#9a6a35]",
+        border: "border-[#e2cfb4]",
+        iconBg: "bg-[#fbf1e2]",
+        iconText: "text-[#9a6a35]",
+        valueText: "text-[#3f2f22]",
+        glow: "shadow-[0_10px_22px_rgba(154,106,53,0.10)]",
+      },
     },
     {
       label: "Online Now",
       value: resources.reduce((sum, item) => sum + item.onlineNow, 0).toLocaleString(),
+      tone: {
+        accent: "bg-[#16a34a]",
+        border: "border-[#bfe4cc]",
+        iconBg: "bg-[#eaf8ef]",
+        iconText: "text-[#168a42]",
+        valueText: "text-[#14532d]",
+        glow: "shadow-[0_10px_22px_rgba(22,163,74,0.10)]",
+      },
     },
   ];
 
@@ -33,21 +73,21 @@ export function MetricCards({ resources }: MetricCardsProps) {
       {metrics.map((metric) => (
         <div
           key={metric.label}
-          className="relative overflow-hidden rounded-xl border border-[#e2d8c8] bg-[#fbfaf6] p-4 shadow-[0_10px_22px_rgba(31,41,51,0.08)]"
+          className={`relative overflow-hidden rounded-xl border bg-[#fbfaf6] p-4 ${metric.tone.border} ${metric.tone.glow}`}
         >
-          <div className="absolute inset-x-0 top-0 h-1 bg-[#1f5c43]" />
+          <div className={`absolute inset-x-0 top-0 h-1 ${metric.tone.accent}`} />
           <div className="mb-2 flex items-center gap-2">
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center text-[#1f5c43]">
+            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${metric.tone.iconBg} ${metric.tone.iconText}`}>
               <MetricIcon label={metric.label} />
             </div>
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#6f6256]">
+            <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold leading-5 text-[#5f665c] xl:text-sm">
               {metric.label === "Online Now" ? (
-                <span className="h-2 w-2 rounded-full bg-[#1f5c43]" />
+                <span className="h-2 w-2 shrink-0 rounded-full bg-[#16a34a] shadow-[0_0_0_3px_rgba(22,163,74,0.14)]" />
               ) : null}
-              {metric.label}
+              <span className="min-w-0 whitespace-nowrap">{metric.label}</span>
             </div>
           </div>
-          <div className="mt-2 font-mono text-2xl font-black tabular-nums text-[#111827]">
+          <div className={`mt-2 font-mono text-2xl font-black tabular-nums ${metric.tone.valueText}`}>
             {metric.value}
           </div>
         </div>
@@ -85,7 +125,7 @@ function MetricIcon({ label }: { label: string }) {
           <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8" />
         </svg>
       );
-    case "Language Pools Covered":
+    case "Language Pools":
       return (
         <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />

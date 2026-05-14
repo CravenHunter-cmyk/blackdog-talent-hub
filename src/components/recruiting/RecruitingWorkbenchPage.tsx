@@ -10,7 +10,6 @@ import {
   findRecruitingLanguageOption,
   rankRecruitingLanguageOption,
 } from "@/lib/languageOptions";
-import { recruitingCandidates } from "@/data/recruitingCandidates";
 import { readLoggedInSession } from "@/lib/currentUser";
 import { DEFAULT_LOCAL_ACCOUNTS, getStoredAccounts, updateStoredAccount, type LocalAccount } from "@/lib/localAccounts";
 import {
@@ -23,6 +22,8 @@ import {
 } from "@/lib/recruitingTasks";
 
 type PageTab = "Overview" | "Recruiting Tasks" | "Personal Center" | "Plugin Workspace";
+type ManagementAlertsTab = "summary" | "language" | "project" | "hr";
+type DemoRiskScenario = "Normal" | "Urgent Gap" | "HR Overload";
 
 type LanguageRecruitmentRow = {
   language: string;
@@ -79,7 +80,81 @@ type HrProgressRow = {
   submittedProfiles: number;
   acceptedProfiles: number;
   todayAdded: number;
-  status: "Active" | "Needs Review" | "Idle";
+  status: "Active" | "Needs Review" | "Overloaded" | "Stable" | "Idle";
+};
+
+type ManagementRiskLevel = "Critical" | "High" | "Medium" | "Low" | "Healthy";
+type ManagementFocusType = "Project" | "Language" | "HR";
+
+type ManagementRiskCandidate = {
+  id: string;
+  focusItem: string;
+  focusType: ManagementFocusType;
+  riskLevel: ManagementRiskLevel;
+  riskScore: number;
+  required?: number;
+  inPool?: number;
+  approved?: number;
+  needed?: number;
+  coveragePercent?: number;
+  daysLeft?: number | null;
+  dailyGap?: number;
+  taskStatus?: string;
+  language?: string;
+  applicants?: number;
+  owner?: string;
+  hrName?: string;
+  assignedTasks?: number;
+  pendingReviews?: number;
+  acceptanceRate?: number;
+  today?: number;
+  riskFactors: string[];
+};
+
+type ManagementAlert = ManagementRiskCandidate & {
+  riskAlert: string;
+  reason: string;
+  businessImpact: string;
+  recommendedActions: string[];
+};
+type ManagementAlertModal = { type: "task" | "hr"; risk: ManagementRiskCandidate } | null;
+
+type ManagementLanguageRiskInput = {
+  language: string;
+  region: string;
+  required: number;
+  inPool: number;
+  owner?: string;
+  daysLeft?: number | null;
+  relatedTaskStatus?: string;
+};
+
+type ManagementProjectRiskInput = {
+  taskName: string;
+  language: string;
+  required: number;
+  approved: number;
+  applicants: number;
+  status: string;
+  owner?: string;
+  daysLeft?: number | null;
+};
+
+type DemoScenarioData = {
+  languageRows: Omit<LanguageRecruitmentRow, "progress" | "status" | "remainingNeeded">[];
+  projectRows: ManagementProjectRiskInput[];
+  hrRows: HrProgressRow[];
+};
+
+type ManagementFocusResult = {
+  topLanguageRisks: ManagementRiskCandidate[];
+  topProjectRisks: ManagementRiskCandidate[];
+  topHrRisks: ManagementRiskCandidate[];
+  topFocus: {
+    language: ManagementRiskCandidate | null;
+    project: ManagementRiskCandidate | null;
+    hr: ManagementRiskCandidate | null;
+  };
 };
 
 type ProjectScriptDraft = {
@@ -171,17 +246,6 @@ function projectLanguageToRecruitingLabel(language: RecruitmentProjectLanguage) 
   return candidates[0] || "Unknown";
 }
 
-const languageRecruitmentProgressSeed: Omit<LanguageRecruitmentRow, "progress" | "status" | "remainingNeeded">[] = [
-  { language: "English", region: "UK + North America", requiredTalents: 12, currentTalentPool: 8 },
-  { language: "Spanish", region: "Mexico + Latin America", requiredTalents: 8, currentTalentPool: 6 },
-  { language: "Portuguese", region: "Brazil", requiredTalents: 6, currentTalentPool: 4 },
-  { language: "French", region: "France + Canada", requiredTalents: 5, currentTalentPool: 5 },
-  { language: "German", region: "DACH", requiredTalents: 4, currentTalentPool: 2 },
-  { language: "Japanese", region: "Japan", requiredTalents: 4, currentTalentPool: 3 },
-  { language: "Korean", region: "South Korea", requiredTalents: 3, currentTalentPool: 1 },
-  { language: "Vietnamese", region: "Vietnam", requiredTalents: 3, currentTalentPool: 2 },
-];
-
 const MIN_TASK_SCRIPT_ROWS = 5;
 
 const taskActionButtonBase =
@@ -242,6 +306,68 @@ const initialHrProgressRows: HrProgressRow[] = [
   },
 ];
 
+const baseManagementProjectRows: ManagementProjectRiskInput[] = [
+  { taskName: "Korean LLM Evaluation", language: "Korean", required: 30, approved: 8, applicants: 9, status: "Open", owner: "Julie Zhu", daysLeft: 4 },
+  { taskName: "Japanese Evaluator Pool", language: "Japanese", required: 100, approved: 80, applicants: 90, status: "Open", owner: "Maya Chen", daysLeft: 20 },
+  { taskName: "Portuguese-BR Localization Review", language: "Portuguese-BR", required: 20, approved: 16, applicants: 4, status: "Draft", owner: "Daniel Kim", daysLeft: 10 },
+  { taskName: "Arabic OCR Expert Pool", language: "Arabic", required: 40, approved: 18, applicants: 30, status: "Screening", owner: "Olivia Chen", daysLeft: 14 },
+  { taskName: "French Localization Backup", language: "French", required: 5, approved: 5, applicants: 6, status: "Completed", owner: "Sofia Rodriguez", daysLeft: 30 },
+];
+
+function getDemoScenarioData(scenario: DemoRiskScenario): DemoScenarioData {
+  if (scenario === "Normal") {
+    return {
+      projectRows: baseManagementProjectRows.map((task) =>
+        task.taskName === "Korean LLM Evaluation"
+          ? { ...task, approved: 27, applicants: 31, daysLeft: 18 }
+          : task.taskName === "Arabic OCR Expert Pool"
+            ? { ...task, approved: 36, daysLeft: 24 }
+            : task,
+      ),
+      languageRows: [
+        { language: "Korean", region: "South Korea", requiredTalents: 30, currentTalentPool: 27 },
+        { language: "Japanese", region: "Japan", requiredTalents: 100, currentTalentPool: 92 },
+        { language: "Portuguese-BR", region: "Brazil", requiredTalents: 20, currentTalentPool: 18 },
+        { language: "Arabic", region: "MENA", requiredTalents: 40, currentTalentPool: 36 },
+        { language: "French", region: "France + Canada", requiredTalents: 5, currentTalentPool: 5 },
+      ],
+      hrRows: initialHrProgressRows.map((row) => ({ ...row, status: row.hrName === "Julie Zhu" ? "Active" : row.status })),
+    };
+  }
+
+  if (scenario === "HR Overload") {
+    return {
+      projectRows: baseManagementProjectRows.map((task) =>
+        task.taskName === "Korean LLM Evaluation" ? { ...task, approved: 18, daysLeft: 10 } : task,
+      ),
+      languageRows: [
+        { language: "Korean", region: "South Korea", requiredTalents: 30, currentTalentPool: 18 },
+        { language: "Japanese", region: "Japan", requiredTalents: 100, currentTalentPool: 84 },
+        { language: "Portuguese-BR", region: "Brazil", requiredTalents: 20, currentTalentPool: 16 },
+        { language: "Arabic", region: "MENA", requiredTalents: 40, currentTalentPool: 25 },
+        { language: "French", region: "France + Canada", requiredTalents: 5, currentTalentPool: 5 },
+      ],
+      hrRows: [
+        { hrName: "Julie Zhu", assignedProjects: ["Korean LLM Evaluation", "Japanese Evaluator Pool", "Arabic OCR Expert Pool", "Portuguese-BR Localization Review"], assignedLanguages: ["Korean", "Japanese", "Arabic", "Portuguese-BR"], submittedProfiles: 34, acceptedProfiles: 16, todayAdded: 11, status: "Needs Review" },
+        { hrName: "Olivia Chen", assignedProjects: ["Arabic OCR Expert Pool", "Korean LLM Evaluation", "Japanese Evaluator Pool", "Portuguese-BR Localization Review", "French Localization Backup"], assignedLanguages: ["Arabic", "Korean"], submittedProfiles: 30, acceptedProfiles: 14, todayAdded: 8, status: "Overloaded" },
+        ...initialHrProgressRows.filter((row) => row.hrName !== "Julie Zhu"),
+      ],
+    };
+  }
+
+  return {
+    projectRows: baseManagementProjectRows,
+    languageRows: [
+      { language: "Korean", region: "South Korea", requiredTalents: 30, currentTalentPool: 8 },
+      { language: "Japanese", region: "Japan", requiredTalents: 100, currentTalentPool: 80 },
+      { language: "Portuguese-BR", region: "Brazil", requiredTalents: 20, currentTalentPool: 16 },
+      { language: "Arabic", region: "MENA", requiredTalents: 40, currentTalentPool: 18 },
+      { language: "French", region: "France + Canada", requiredTalents: 5, currentTalentPool: 5 },
+    ],
+    hrRows: initialHrProgressRows.map((row) => (row.hrName === "Julie Zhu" ? { ...row, status: "Needs Review" } : row)),
+  };
+}
+
 const createEmptyProjectFormDraft = (): ProjectFormDraft => ({
   taskName: "",
   description: "",
@@ -274,6 +400,229 @@ function createTaskScriptDraftsFromScripts(scripts: ProjectScript[] = []) {
 function formatPercent(value = 0) {
   if (!Number.isFinite(value)) return "0%"
   return `${Math.max(0, Math.min(100, Math.round(value)))}%`
+}
+
+function riskLevelFromScore(score: number): ManagementRiskLevel {
+  if (score >= 14) return "Critical";
+  if (score >= 10) return "High";
+  if (score >= 6) return "Medium";
+  if (score >= 1) return "Low";
+  return "Healthy";
+}
+
+function gapScore(needed: number) {
+  if (needed >= 20) return 4;
+  if (needed >= 10) return 3;
+  if (needed >= 5) return 2;
+  if (needed >= 1) return 1;
+  return 0;
+}
+
+function coverageScore(coverageRate: number) {
+  if (coverageRate < 0.3) return 4;
+  if (coverageRate < 0.5) return 3;
+  if (coverageRate < 0.8) return 2;
+  if (coverageRate < 1) return 1;
+  return 0;
+}
+
+function urgencyScore(needed: number, daysLeft?: number | null) {
+  if (needed <= 0) return 0;
+  if (daysLeft === null || daysLeft === undefined) return 2;
+  if (daysLeft <= 0) return 4;
+  if (daysLeft <= 3) return 4;
+  if (daysLeft <= 7) return 3;
+  if (daysLeft <= 14) return 2;
+  if (daysLeft <= 30) return 1;
+  return 0;
+}
+
+function dailyPressureScore(needed: number, dailyGap: number) {
+  if (needed <= 0) return 0;
+  if (dailyGap >= 5) return 4;
+  if (dailyGap >= 2) return 3;
+  if (dailyGap >= 1) return 2;
+  if (dailyGap > 0) return 1;
+  return 0;
+}
+
+function calculateDailyGap(needed: number, daysLeft?: number | null) {
+  if (needed <= 0) return 0;
+  if (daysLeft && daysLeft > 0) return Number((needed / daysLeft).toFixed(1));
+  return needed;
+}
+
+function makeFallbackAlert(risk: ManagementRiskCandidate): ManagementAlert {
+  if (risk.focusType === "HR") {
+    return {
+      ...risk,
+      riskAlert: `${risk.focusItem} may need workload attention.`,
+      reason: `This HR has ${risk.assignedTasks ?? 0} assigned tasks and ${risk.pendingReviews ?? 0} pending reviews.`,
+      businessImpact: "Applicant review speed may become a bottleneck.",
+      recommendedActions: ["Review pending applicants.", "Redistribute part of the workload if necessary.", "Prioritize high-risk tasks first."],
+    };
+  }
+
+  if (risk.focusType === "Language") {
+    return {
+      ...risk,
+      riskAlert: `${risk.focusItem} has a ${risk.riskLevel.toLowerCase()} language coverage risk.`,
+      reason: `Required headcount is ${risk.required ?? 0}, current pool is ${risk.inPool ?? 0}, and ${risk.needed ?? 0} talents are still needed.`,
+      businessImpact: "The language pool may not be ready for upcoming delivery if the gap remains unresolved.",
+      recommendedActions: ["Consider creating or expanding a sourcing task for this language.", "Check backup candidates in the Talent Library.", "Assign an HR owner if the language is not covered."],
+    };
+  }
+
+  return {
+    ...risk,
+    riskAlert: `${risk.focusItem} is at ${risk.riskLevel.toLowerCase()} delivery risk.`,
+    reason: `${risk.needed ?? 0} talents are still missing, coverage is ${risk.coveragePercent ?? 0}%, and ${risk.daysLeft ?? "not set"} days remain before the deadline.`,
+    businessImpact: "If the recruiting pace does not improve, the task may miss its target headcount.",
+    recommendedActions: ["Review existing applicants before opening new sourcing.", "Increase review frequency until the approved count improves.", "Escalate timeline risk to the project owner if the daily gap remains high."],
+  };
+}
+
+function sortedRisks(risks: ManagementRiskCandidate[]) {
+  return risks
+    .sort((left, right) => {
+      if (right.riskScore !== left.riskScore) return right.riskScore - left.riskScore;
+      const order = { Critical: 4, High: 3, Medium: 2, Low: 1, Healthy: 0 };
+      if (order[right.riskLevel] !== order[left.riskLevel]) return order[right.riskLevel] - order[left.riskLevel];
+      const leftDays = left.daysLeft ?? Number.POSITIVE_INFINITY;
+      const rightDays = right.daysLeft ?? Number.POSITIVE_INFINITY;
+      if (leftDays !== rightDays) return leftDays - rightDays;
+      if ((right.needed ?? 0) !== (left.needed ?? 0)) return (right.needed ?? 0) - (left.needed ?? 0);
+      return (right.pendingReviews ?? 0) - (left.pendingReviews ?? 0);
+    });
+}
+
+function computeManagementFocusAlerts({
+  languageRows,
+  recruitingTasks,
+  hrProgressRows,
+}: {
+  languageRows: ManagementLanguageRiskInput[];
+  recruitingTasks: ManagementProjectRiskInput[];
+  hrProgressRows: Array<HrProgressRow & { successRate?: number }>;
+}): ManagementFocusResult {
+  const languageRisks: ManagementRiskCandidate[] = languageRows.map((row) => {
+    const needed = Math.max(row.required - row.inPool, 0);
+    const coverageRate = row.required > 0 ? row.inPool / row.required : 1;
+    const coveragePercent = Math.round(coverageRate * 100);
+    const dailyGap = calculateDailyGap(needed, row.daysLeft);
+    const factors: string[] = [];
+    if (needed >= 10) factors.push("large_absolute_gap");
+    if (coverageRate < 0.8) factors.push("low_coverage");
+    if (row.daysLeft === null || row.daysLeft === undefined) factors.push("deadline_missing");
+    if (row.daysLeft !== null && row.daysLeft !== undefined && row.daysLeft <= 7 && needed > 0) factors.push("urgent_deadline");
+    if (dailyGap >= 1) factors.push("high_daily_recruiting_pressure");
+    if (!row.owner) factors.push("no_hr_owner");
+    if (needed > 0 && !row.relatedTaskStatus) factors.push("no_active_recruiting_task");
+    if (needed > 0 && row.relatedTaskStatus === "Draft") factors.push("task_not_launched");
+    if (needed === 0) factors.push("healthy_coverage");
+    const taskCoverageScore = needed <= 0 ? 0 : !row.relatedTaskStatus ? 4 : row.relatedTaskStatus === "Draft" ? 3 : row.relatedTaskStatus === "Paused" ? 3 : 1;
+    const riskScore = gapScore(needed) + coverageScore(coverageRate) + urgencyScore(needed, row.daysLeft) + dailyPressureScore(needed, dailyGap) + (!row.owner ? 3 : 0) + taskCoverageScore;
+    return {
+      id: `language-${row.language.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      focusItem: `${row.language} Evaluator Pool`,
+      focusType: "Language",
+      riskLevel: riskLevelFromScore(riskScore),
+      riskScore,
+      required: row.required,
+      inPool: row.inPool,
+      needed,
+      coveragePercent,
+      daysLeft: row.daysLeft ?? null,
+      dailyGap,
+      owner: row.owner,
+      riskFactors: factors,
+    };
+  });
+
+  const projectRisks: ManagementRiskCandidate[] = recruitingTasks.map((task) => {
+    const needed = Math.max(task.required - task.approved, 0);
+    const coverageRate = task.required > 0 ? task.approved / task.required : 1;
+    const coveragePercent = Math.round(coverageRate * 100);
+    const dailyGap = calculateDailyGap(needed, task.daysLeft);
+    const conversionRate = task.applicants > 0 ? task.approved / task.applicants : 1;
+    const factors: string[] = [];
+    if (needed >= 10) factors.push("large_project_gap");
+    if (coverageRate < 0.8) factors.push("low_approved_coverage");
+    if (task.daysLeft === null || task.daysLeft === undefined) factors.push("deadline_missing");
+    if (task.daysLeft !== null && task.daysLeft !== undefined && task.daysLeft <= 7 && needed > 0) factors.push("urgent_deadline");
+    if (dailyGap >= 1) factors.push("high_daily_recruiting_pressure");
+    if (task.status === "Draft") factors.push("task_draft");
+    if (task.status === "Paused") factors.push("task_paused");
+    if (task.applicants === 0 && needed > 0) factors.push("no_applicants");
+    if (task.applicants > 0 && conversionRate < 0.5) factors.push("low_approval_conversion");
+    if (!task.owner) factors.push("no_owner");
+    const statusScore = needed <= 0 ? 0 : task.status === "Paused" ? 4 : task.status === "Draft" ? 3 : task.status === "Open" || task.status === "Screening" ? 1 : 0;
+    const applicantConversionScore = task.applicants === 0 && needed > 0 ? 3 : conversionRate < 0.25 ? 3 : conversionRate < 0.5 ? 2 : 0;
+    const riskScore = gapScore(needed) + coverageScore(coverageRate) + statusScore + urgencyScore(needed, task.daysLeft) + dailyPressureScore(needed, dailyGap) + applicantConversionScore + (!task.owner ? 3 : 0);
+    return {
+      id: `project-${task.taskName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      focusItem: task.taskName,
+      focusType: "Project",
+      riskLevel: riskLevelFromScore(riskScore),
+      riskScore,
+      required: task.required,
+      approved: task.approved,
+      needed,
+      coveragePercent,
+      daysLeft: task.daysLeft ?? null,
+      dailyGap,
+      taskStatus: task.status,
+      language: task.language,
+      applicants: task.applicants,
+      owner: task.owner,
+      riskFactors: factors,
+    };
+  });
+
+  const hrRisks: ManagementRiskCandidate[] = hrProgressRows.map((row) => {
+    const assignedTasks = row.hrName === "Julie Zhu" ? Math.max(row.assignedProjects.length, 4) : row.assignedProjects.length;
+    const pendingReviews = Math.max(row.submittedProfiles - row.acceptedProfiles, 0);
+    const acceptanceRate = row.submittedProfiles > 0 ? Math.round((row.acceptedProfiles / row.submittedProfiles) * 100) : 100;
+    const factors: string[] = [];
+    if (assignedTasks >= 3) factors.push("many_assigned_tasks");
+    if (pendingReviews >= 5) factors.push("review_backlog");
+    if (row.submittedProfiles >= 5 && acceptanceRate < 75) factors.push("low_acceptance_rate");
+    if (row.status === "Needs Review" || row.status === "Overloaded") factors.push("hr_overloaded");
+    if (row.todayAdded >= 5) factors.push("high_daily_activity");
+    const workloadScore = assignedTasks >= 5 ? 4 : assignedTasks >= 4 ? 3 : assignedTasks >= 3 ? 2 : assignedTasks >= 1 ? 1 : 0;
+    const pendingScore = pendingReviews >= 20 ? 4 : pendingReviews >= 10 ? 3 : pendingReviews >= 5 ? 2 : pendingReviews >= 1 ? 1 : 0;
+    const acceptanceScore = row.submittedProfiles < 5 ? 0 : acceptanceRate < 40 ? 4 : acceptanceRate < 60 ? 3 : acceptanceRate < 75 ? 2 : 0;
+    const statusScore = row.status === "Overloaded" ? 4 : row.status === "Needs Review" ? 3 : 0;
+    const todayScore = row.todayAdded >= 10 ? 2 : row.todayAdded >= 5 ? 1 : 0;
+    const riskScore = workloadScore + pendingScore + acceptanceScore + statusScore + todayScore;
+    return {
+      id: `hr-${row.hrName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      focusItem: row.hrName,
+      focusType: "HR",
+      riskLevel: riskLevelFromScore(riskScore),
+      riskScore,
+      hrName: row.hrName,
+      assignedTasks,
+      pendingReviews,
+      acceptanceRate,
+      today: row.todayAdded,
+      riskFactors: factors,
+    };
+  });
+
+  const topLanguageRisks = sortedRisks(languageRisks).slice(0, 3);
+  const topProjectRisks = sortedRisks(projectRisks).slice(0, 3);
+  const topHrRisks = sortedRisks(hrRisks).slice(0, 3);
+  return {
+    topLanguageRisks,
+    topProjectRisks,
+    topHrRisks,
+    topFocus: {
+      language: topLanguageRisks[0] ?? null,
+      project: topProjectRisks[0] ?? null,
+      hr: topHrRisks[0] ?? null,
+    },
+  };
 }
 
 function mapProjectScriptToTaskScript(project: RecruitmentProject, script: ProjectScript): RecruitingTaskScript {
@@ -377,7 +726,7 @@ function dashboardStatusClass(status = "") {
   if (normalized.includes("in progress") || normalized.includes("active")) {
     return "border-[#1d4ed8] bg-[#eef4ff] text-[#1d4ed8]"
   }
-  if (normalized.includes("review") || normalized.includes("attention")) {
+  if (normalized.includes("review") || normalized.includes("attention") || normalized.includes("overloaded")) {
     return "border-[#b91c1c] bg-[#fdecec] text-[#b91c1c]"
   }
   return "border-[#7a7f86] bg-[#f5f6f7] text-[#5f665c]"
@@ -425,41 +774,195 @@ function getProjectStatus(languages: RecruitmentProjectLanguage[]): RecruitmentP
 
 function getHrStatusFromRow(row: HrProgressRow): HrProgressRow["status"] {
   const successRate = row.submittedProfiles > 0 ? row.acceptedProfiles / row.submittedProfiles : 0
+  if (row.status === "Overloaded") return "Overloaded"
+  if (row.status === "Stable") return "Stable"
   if (row.submittedProfiles <= 0) return "Idle"
   if (successRate >= 0.7) return "Active"
   if (successRate >= 0.35) return "Needs Review"
   return "Idle"
 }
 
-function statusBadgeClass(status = "") {
-  switch (status) {
-    case "Reply Ready":
-    case "Screening Invited":
-      return "border-[#1f5c43] bg-[#eef4ee] text-[#1f5c43]";
-    case "Added to Talent Pool":
-      return "border-[#5f6f3a] bg-[#f4f7ef] text-[#5f6f3a]";
-    case "Needs Follow-up":
-      return "border-[#b7791f] bg-[#fbf4e7] text-[#b7791f]";
-    case "Replied":
-      return "border-[#214d3a] bg-[#edf5f1] text-[#214d3a]";
-    default:
-      return "border-[#d7dde2] bg-[#fafbfc] text-[#5f665c]";
-  }
-}
-
 function MetricTile({
   label,
   value,
+  subtitle,
+  tone = "slate",
 }: {
   label: string;
   value: string | number;
+  subtitle?: string;
+  tone?: "slate" | "green" | "amber" | "steel" | "plum";
 }) {
+  const toneClass = {
+    slate: {
+      border: "border-l-[#263238]",
+      dot: "bg-[#263238]",
+      value: "text-[#111827]",
+      surface: "bg-[#fbfaf6]",
+    },
+    green: {
+      border: "border-l-[#1f5c43]",
+      dot: "bg-[#1f5c43]",
+      value: "text-[#1f5c43]",
+      surface: "bg-[#fbfaf6]",
+    },
+    amber: {
+      border: "border-l-[#c85f19]",
+      dot: "bg-[#c85f19]",
+      value: "text-[#c85f19]",
+      surface: "bg-[#fffaf2]",
+    },
+    steel: {
+      border: "border-l-[#3f6478]",
+      dot: "bg-[#3f6478]",
+      value: "text-[#3f6478]",
+      surface: "bg-[#f8faf9]",
+    },
+    plum: {
+      border: "border-l-[#6f5267]",
+      dot: "bg-[#6f5267]",
+      value: "text-[#6f5267]",
+      surface: "bg-[#fbf8f6]",
+    },
+  }[tone];
+
+  if (subtitle) {
+    return (
+      <div className={`rounded-xl border border-[#e2d8c8] border-l-4 ${toneClass.border} ${toneClass.surface} p-4 shadow-[0_12px_26px_rgba(31,41,51,0.07)]`}>
+        <div className="flex items-center gap-2">
+          <span className={`h-2.5 w-2.5 rounded-full ${toneClass.dot}`} />
+          <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#5f665c]">{label}</div>
+        </div>
+        <div className={`mt-3 text-3xl font-black tabular-nums ${toneClass.value}`}>{value}</div>
+        <div className="mt-1 text-sm font-medium text-[#6f6256]">{subtitle}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-[#d7dde2] bg-[#f5f7f8] p-4 shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
       <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[#5f665c]">{label}</div>
       <div className="mt-2 text-3xl font-black tabular-nums text-[#111827]">{value}</div>
     </div>
   );
+}
+
+function managementRiskTone(level: ManagementRiskLevel) {
+  switch (level) {
+    case "Critical":
+      return {
+        card: "border-[#e7b7ad] bg-[#fff7f5]",
+        badge: "border-[#9f2d20] bg-[#9f2d20] text-white",
+        accent: "bg-[#9f2d20]",
+      };
+    case "High":
+      return {
+        card: "border-[#efc0b8] bg-[#fff8f6]",
+        badge: "border-[#b42318] bg-[#b42318] text-white",
+        accent: "bg-[#b42318]",
+      };
+    case "Medium":
+      return {
+        card: "border-[#e8bf7a] bg-[#fff9ec]",
+        badge: "border-[#c85f19] bg-[#c85f19] text-white",
+        accent: "bg-[#c85f19]",
+      };
+    default:
+      return {
+        card: "border-[#b7dfca] bg-[#f4fbf6]",
+        badge: "border-[#1f5c43] bg-[#1f5c43] text-white",
+        accent: "bg-[#1f5c43]",
+      };
+  }
+}
+
+function formatSummaryValue(value: number | string | null | undefined, suffix = "") {
+  if (value === null || value === undefined || value === "") return "Not set";
+  if (typeof value === "number" && !Number.isFinite(value)) return "Not set";
+  return `${value}${suffix}`;
+}
+
+function summaryMetrics(alert: ManagementAlert) {
+  if (alert.focusType === "HR") {
+    return [
+      ["Assigned Tasks", formatSummaryValue(alert.assignedTasks)],
+      ["Pending Reviews", formatSummaryValue(alert.pendingReviews)],
+      ["Acceptance Rate", formatSummaryValue(alert.acceptanceRate, "%")],
+      ["Today", formatSummaryValue(alert.today)],
+    ];
+  }
+
+  if (alert.focusType === "Project") {
+    return [
+      ["Required", formatSummaryValue(alert.required)],
+      ["Approved", formatSummaryValue(alert.approved)],
+      ["Needed", formatSummaryValue(alert.needed)],
+      ["Coverage", formatSummaryValue(alert.coveragePercent, "%")],
+      ["Days Left", formatSummaryValue(alert.daysLeft)],
+      ["Daily Gap", formatSummaryValue(alert.dailyGap, "/day")],
+      ["Applicants", formatSummaryValue(alert.applicants)],
+    ];
+  }
+
+  return [
+    ["Required", formatSummaryValue(alert.required)],
+    ["In Pool", formatSummaryValue(alert.inPool)],
+    ["Needed", formatSummaryValue(alert.needed)],
+    ["Coverage", formatSummaryValue(alert.coveragePercent, "%")],
+    ["Days Left", formatSummaryValue(alert.daysLeft)],
+    ["Daily Gap", formatSummaryValue(alert.dailyGap, "/day")],
+  ];
+}
+
+function rankingReason(alert: ManagementRiskCandidate) {
+  if (alert.focusType === "HR") return "Review queue may become a bottleneck.";
+  if (alert.focusType === "Project") return "Approved count is below target for the current timeline.";
+  return "Coverage gap remains material against the current deadline.";
+}
+
+function rankingAction(alert: ManagementRiskCandidate) {
+  if (alert.focusType === "HR") return "Redistribute part of the review workload if necessary.";
+  if (alert.focusType === "Project") return "Review existing applicants and increase review frequency.";
+  return "Consider opening or expanding a dedicated sourcing task.";
+}
+
+function rankingColumns(type: ManagementFocusType) {
+  if (type === "HR") {
+    return ["Rank", "Risk", "HR", "Assigned", "Pending", "Rate", "Today", "Main Reason", "Recommended Action", ""];
+  }
+  if (type === "Project") {
+    return ["Rank", "Risk", "Project", "Needed", "Approved", "Coverage", "Days Left", "Daily Gap", "Main Reason", "Recommended Action", ""];
+  }
+  return ["Rank", "Risk", "Language", "Needed", "Coverage", "Days Left", "Daily Gap", "Main Reason", "Recommended Action"];
+}
+
+function rankingCells(risk: ManagementRiskCandidate) {
+  if (risk.focusType === "HR") {
+    return [
+      risk.focusItem,
+      String(risk.assignedTasks ?? 0),
+      String(risk.pendingReviews ?? 0),
+      `${risk.acceptanceRate ?? 0}%`,
+      String(risk.today ?? 0),
+    ];
+  }
+  if (risk.focusType === "Project") {
+    return [
+      risk.focusItem,
+      String(risk.needed ?? 0),
+      `${risk.approved ?? 0}/${risk.required ?? 0}`,
+      `${risk.coveragePercent ?? 0}%`,
+      risk.daysLeft === null || risk.daysLeft === undefined ? "Not set" : String(risk.daysLeft),
+      `${risk.dailyGap ?? 0}/day`,
+    ];
+  }
+  return [
+    risk.focusItem,
+    String(risk.needed ?? 0),
+    `${risk.coveragePercent ?? 0}%`,
+    risk.daysLeft === null || risk.daysLeft === undefined ? "Not set" : String(risk.daysLeft),
+    `${risk.dailyGap ?? 0}/day`,
+  ];
 }
 
 function SectionCard({
@@ -1099,7 +1602,6 @@ export function RecruitingWorkbenchPage() {
       ]),
     ),
   );
-  const [selectedCandidateId, setSelectedCandidateId] = useState(recruitingCandidates[0].id);
   const [projectFormDraft, setProjectFormDraft] = useState<ProjectFormDraft>(createEmptyProjectFormDraft);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -1108,6 +1610,15 @@ export function RecruitingWorkbenchPage() {
   const [taskHrSearch, setTaskHrSearch] = useState("");
   const [taskHrDropdownOpen, setTaskHrDropdownOpen] = useState(false);
   const [expandedLanguageRows, setExpandedLanguageRows] = useState<Record<string, boolean>>({});
+  const [managementAlerts, setManagementAlerts] = useState<{ payload: string; alerts: Partial<Record<ManagementFocusType, ManagementAlert>> } | null>(null);
+  const [managementAlertNotice, setManagementAlertNotice] = useState("");
+  const [managementAlertError, setManagementAlertError] = useState("");
+  const [managementAnalysisStatus, setManagementAnalysisStatus] = useState<"preview" | "loading" | "ai" | "failed" | "stale">("preview");
+  const [isManagementAnalyzing, setIsManagementAnalyzing] = useState(false);
+  const [managementAnalyzedAt, setManagementAnalyzedAt] = useState("");
+  const [managementAlertsTab, setManagementAlertsTab] = useState<ManagementAlertsTab>("summary");
+  const [managementAlertModal, setManagementAlertModal] = useState<ManagementAlertModal>(null);
+  const [demoScenario] = useState<DemoRiskScenario>("Urgent Gap");
   const [hrAccounts] = useState<LocalAccount[]>(() => getStoredAccounts());
   const [hrAvatarPreview, setHrAvatarPreview] = useState("");
   const [hrAvatarError, setHrAvatarError] = useState("");
@@ -1117,8 +1628,6 @@ export function RecruitingWorkbenchPage() {
   const taskHrFieldRef = useRef<HTMLDivElement | null>(null);
   const hrAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
-  const selectedCandidate =
-    recruitingCandidates.find((item) => item.id === selectedCandidateId) ?? recruitingCandidates[0];
   const currentHrSession = readLoggedInSession();
   const currentHrName = currentHrSession?.name || "Julie Zhu";
   const currentHrRow = initialHrProgressRows.find((row) => row.hrName === currentHrName) ?? initialHrProgressRows[0];
@@ -1217,8 +1726,10 @@ export function RecruitingWorkbenchPage() {
     return () => document.removeEventListener("mousedown", handlePointerDown)
   }, [taskHrDropdownOpen, taskLanguageDropdownOpen])
 
+  const demoScenarioData = useMemo(() => getDemoScenarioData(demoScenario), [demoScenario]);
+
   const languageRecruitmentRows = useMemo(() => {
-    return languageRecruitmentProgressSeed.map((row) => {
+    return demoScenarioData.languageRows.map((row) => {
       const remainingNeeded = Math.max(row.requiredTalents - row.currentTalentPool, 0);
       const progress = row.requiredTalents > 0 ? Math.round((row.currentTalentPool / row.requiredTalents) * 100) : 0;
       return {
@@ -1228,14 +1739,14 @@ export function RecruitingWorkbenchPage() {
         status: getLanguageRecruitmentStatus(row.requiredTalents, row.currentTalentPool),
       } satisfies LanguageRecruitmentRow;
     });
-  }, []);
+  }, [demoScenarioData.languageRows]);
 
   const dashboardTotals = useMemo(() => {
     const totalRequiredTalents = languageRecruitmentRows.reduce((sum, row) => sum + row.requiredTalents, 0);
     const currentTalentPool = languageRecruitmentRows.reduce((sum, row) => sum + row.currentTalentPool, 0);
     const remainingNeeded = languageRecruitmentRows.reduce((sum, row) => sum + row.remainingNeeded, 0);
-    const activeProjects = recruitmentProjects.filter((project) => getProjectStatus(project.languages) !== "Completed").length;
-    const activeHrs = initialHrProgressRows.filter((row) => getHrStatusFromRow(row) !== "Idle").length;
+    const activeProjects = demoScenarioData.projectRows.filter((project) => project.status !== "Completed").length;
+    const activeHrs = demoScenarioData.hrRows.filter((row) => getHrStatusFromRow(row) !== "Idle").length;
 
     return {
       totalRequiredTalents,
@@ -1244,15 +1755,167 @@ export function RecruitingWorkbenchPage() {
       activeProjects,
       activeHrs,
     };
-  }, [languageRecruitmentRows, recruitmentProjects]);
+  }, [demoScenarioData.hrRows, demoScenarioData.projectRows, languageRecruitmentRows]);
 
   const hrProgressRows = useMemo(() => {
-    return initialHrProgressRows.map((row) => ({
+    return demoScenarioData.hrRows.map((row) => ({
       ...row,
       status: getHrStatusFromRow(row),
       successRate: row.submittedProfiles > 0 ? Math.round((row.acceptedProfiles / row.submittedProfiles) * 100) : 0,
     }));
-  }, []);
+  }, [demoScenarioData.hrRows]);
+
+  const managementFocusResult = useMemo(() => {
+    const languageRiskRows: ManagementLanguageRiskInput[] = [
+      ...languageRecruitmentRows.map((row) => ({
+        language: row.language,
+        region: row.region,
+        required: row.requiredTalents,
+        inPool: row.currentTalentPool,
+        owner: demoScenarioData.projectRows.find((task) => task.language === row.language)?.owner || "Julie Zhu",
+        daysLeft: demoScenarioData.projectRows.find((task) => task.language === row.language)?.daysLeft ?? 45,
+        relatedTaskStatus: row.remainingNeeded > 0 ? "Open" : "Completed",
+      })),
+    ];
+
+    return computeManagementFocusAlerts({
+      languageRows: languageRiskRows,
+      recruitingTasks: demoScenarioData.projectRows,
+      hrProgressRows,
+    });
+  }, [demoScenarioData.projectRows, hrProgressRows, languageRecruitmentRows]);
+
+  const ruleBasedFocusAlerts = useMemo(
+    () => ({
+      Language: managementFocusResult.topFocus.language ? makeFallbackAlert(managementFocusResult.topFocus.language) : undefined,
+      Project: managementFocusResult.topFocus.project ? makeFallbackAlert(managementFocusResult.topFocus.project) : undefined,
+      HR: managementFocusResult.topFocus.hr ? makeFallbackAlert(managementFocusResult.topFocus.hr) : undefined,
+    }),
+    [managementFocusResult],
+  );
+  const managementRiskPayload = useMemo(() => JSON.stringify(managementFocusResult), [managementFocusResult]);
+
+  const visibleFocusAlerts =
+    managementAlerts?.payload === managementRiskPayload ? managementAlerts.alerts : ruleBasedFocusAlerts;
+  const modalHrRow =
+    managementAlertModal?.type === "hr"
+      ? hrProgressRows.find((row) => row.hrName === managementAlertModal.risk.focusItem) ?? null
+      : null;
+
+  useEffect(() => {
+    if (!managementAlertModal) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setManagementAlertModal(null);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [managementAlertModal]);
+
+  async function analyzeManagementAlerts() {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+    const generatedAt = new Date().toISOString();
+    setManagementAnalysisStatus("loading");
+    setIsManagementAnalyzing(true);
+    setManagementAlertNotice("Analyzing current recruiting risks...");
+    setManagementAlertError("");
+    try {
+      const response = await fetch("/api/ai/gateway", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: "analyze_management_focus",
+          input: {
+            generatedAt,
+            trigger: "manual",
+            topFocus: managementFocusResult.topFocus,
+            rankings: {
+              languageTop3: managementFocusResult.topLanguageRisks,
+              projectTop3: managementFocusResult.topProjectRisks,
+              hrTop3: managementFocusResult.topHrRisks,
+            },
+          },
+        }),
+      });
+      const responseText = await response.text();
+      let payload: {
+        ok?: boolean;
+        error?: string;
+        result?: { focusAlerts?: Partial<Record<"language" | "project" | "hr", Partial<ManagementAlert>>> };
+      } | null = null;
+
+      try {
+        payload = responseText ? JSON.parse(responseText) : null;
+      } catch {
+        throw new Error("AI response could not be parsed. Showing rule-based alerts.");
+      }
+
+      if (!response.ok || !payload?.ok || !payload.result?.focusAlerts) {
+        throw new Error(payload?.error || "AI response could not be parsed.");
+      }
+      const merged = (["Language", "Project", "HR"] as ManagementFocusType[]).reduce<Partial<Record<ManagementFocusType, ManagementAlert>>>((current, type) => {
+        const ruleAlert = ruleBasedFocusAlerts[type];
+        if (!ruleAlert) return current;
+        const aiAlert = payload.result?.focusAlerts?.[type.toLowerCase() as "language" | "project" | "hr"];
+        if (!aiAlert) {
+          current[type] = ruleAlert;
+          return current;
+        }
+        current[type] = {
+          ...ruleAlert,
+          riskAlert: String(aiAlert.riskAlert || ruleAlert.riskAlert),
+          reason: String(aiAlert.reason || ruleAlert.reason),
+          businessImpact: String(aiAlert.businessImpact || ruleAlert.businessImpact),
+          recommendedActions:
+            Array.isArray(aiAlert.recommendedActions) && aiAlert.recommendedActions.length
+                ? aiAlert.recommendedActions.map(String).slice(0, 4)
+                : ruleAlert.recommendedActions,
+        };
+        return current;
+      }, {});
+      setManagementAlerts({ payload: managementRiskPayload, alerts: merged });
+      setManagementAnalysisStatus("ai");
+      const analyzedAt = new Date().toLocaleString();
+      setManagementAnalyzedAt(analyzedAt);
+      setManagementAlertNotice(`AI analysis updated at ${analyzedAt}.`);
+    } catch (error) {
+      const isAbort = error instanceof DOMException && error.name === "AbortError";
+      const message = isAbort
+        ? "AI analysis timed out. Showing rule-based alerts."
+        : error instanceof Error
+          ? error.message.includes("could not be parsed")
+            ? "AI response could not be parsed. Showing rule-based alerts."
+            : "AI analysis unavailable. Showing rule-based alerts."
+          : "AI analysis unavailable. Showing rule-based alerts.";
+      setManagementAnalysisStatus("failed");
+      setManagementAlertNotice(message);
+      setManagementAlertError(isAbort ? "The AI Gateway request exceeded the 15 second timeout." : error instanceof Error ? error.message : "AI analysis unavailable.");
+    } finally {
+      window.clearTimeout(timeoutId);
+      setIsManagementAnalyzing(false);
+    }
+  }
+
+  function openTaskRiskModal(risk: ManagementRiskCandidate) {
+    setManagementAlertModal({ type: "task", risk });
+  }
+
+  function openHrRiskModal(risk: ManagementRiskCandidate) {
+    const hrRecord = hrProgressRows.find((row) => row.hrName === risk.focusItem);
+    if (!hrRecord) {
+      setManagementAlertNotice("HR record not found.");
+      return;
+    }
+    setManagementAlertModal({ type: "hr", risk });
+  }
 
   const currentHrLoginAccount = currentHrSession?.loginAccount || "hr_japan_01";
   const currentHrAccount =
@@ -1426,10 +2089,6 @@ export function RecruitingWorkbenchPage() {
         : activeTab === "Plugin Workspace"
           ? "Preview recruiting task scripts and plugin sync readiness."
           : "Plan view of required talent by language, current pool coverage, and what is still missing.";
-
-  function selectCandidate(candidateId: string) {
-    setSelectedCandidateId(candidateId);
-  }
 
   function updateProjectScriptDraft(projectId: string, patch: Partial<ProjectScriptDraft>) {
     setProjectScriptDrafts((current) => ({
@@ -1736,15 +2395,15 @@ export function RecruitingWorkbenchPage() {
         {activeTab === "Overview" ? (
           <div className="mt-6 space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <MetricTile label="Required" value={dashboardTotals.totalRequiredTalents} />
-              <MetricTile label="In Pool" value={dashboardTotals.currentTalentPool} />
-              <MetricTile label="Needed" value={dashboardTotals.remainingNeeded} />
-              <MetricTile label="Tasks" value={dashboardTotals.activeProjects} />
-              <MetricTile label="HRs" value={dashboardTotals.activeHrs} />
+              <MetricTile label="Required" value={dashboardTotals.totalRequiredTalents} subtitle="Total demand" tone="slate" />
+              <MetricTile label="In Pool" value={dashboardTotals.currentTalentPool} subtitle="Current coverage" tone="green" />
+              <MetricTile label="Needed" value={dashboardTotals.remainingNeeded} subtitle="Talent gap" tone="amber" />
+              <MetricTile label="Tasks" value={dashboardTotals.activeProjects} subtitle="Active task plans" tone="steel" />
+              <MetricTile label="HRs" value={dashboardTotals.activeHrs} subtitle="Assigned recruiters" tone="plum" />
             </div>
 
             <SectionCard
-              title="Overall Language Recruitment Progress"
+              title="Language Coverage & Gap"
               description="Plan view of required talent by language, current pool coverage, and what is still missing."
               contentClassName="p-0"
             >
@@ -1797,7 +2456,7 @@ export function RecruitingWorkbenchPage() {
             </SectionCard>
 
             <SectionCard
-              title="Recruiting Tasks"
+              title="Recruiting Task Snapshot"
               description="View recruiting task progress, assigned HRs, languages, and plugin sync status."
             >
               {projectListView === "Card View" ? (
@@ -2018,14 +2677,7 @@ export function RecruitingWorkbenchPage() {
                   <table className="min-w-[980px] w-full border-collapse text-sm">
                     <thead className="sticky top-0 z-10 bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
                       <tr>
-                      {[
-                          "Task Name",
-                        "Assigned HRs",
-                        "Languages",
-                        "Required",
-                          "Progress",
-                          "Actions",
-                        ].map((heading) => (
+                      {["Task Name", "Assigned HRs", "Language", "Required", "Applicants", "Approved", "Deadline", "Status"].map((heading) => (
                           <th key={heading} className="border-b border-[#e2d8c8] px-4 py-3 text-left font-semibold">
                             {heading}
                           </th>
@@ -2033,70 +2685,33 @@ export function RecruitingWorkbenchPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {recruitmentProjects.map((project) => {
-                        const projectRequired = project.languages.reduce((sum, item) => sum + item.requiredCount, 0)
-                        const projectCurrent = project.languages.reduce((sum, item) => sum + item.currentCount, 0)
-                        const projectProgress = projectRequired > 0 ? Math.round((projectCurrent / projectRequired) * 100) : 0
-
+                      {demoScenarioData.projectRows.map((project) => {
                         return (
-                          <tr key={project.projectId} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
+                          <tr
+                            key={project.taskName}
+                            className="border-b border-[#efe6d8] bg-white transition hover:bg-[#f7f5ef]"
+                          >
                             <td className="px-4 py-4 align-top font-semibold leading-6 text-[#111827]">
-                              <div className="max-w-full break-words">{project.projectName}</div>
+                              <div className="max-w-full break-words">{project.taskName}</div>
                             </td>
                             <td className="px-4 py-4 align-top text-[#111827]">
                               <div className="flex flex-wrap gap-1.5">
-                                {project.assignedHrNames.map((hrAccount) => (
-                                  <Badge
-                                    key={`${project.projectId}-${hrAccount}`}
-                                    className="border-[#d7dccf] bg-[#eef4ee] text-[#1f5c43]"
-                                  >
-                                    {formatHrAccountLabel(hrAccount)}
-                                  </Badge>
-                                ))}
+                                <Badge className="border-[#d7dccf] bg-[#eef4ee] text-[#1f5c43]">{project.owner || "Not set"}</Badge>
                               </div>
                             </td>
                             <td className="px-4 py-4 align-top text-[#111827]">
                               <div className="flex flex-wrap gap-1.5">
-                                {project.languages.map((languageRow) => (
-                                  <Badge
-                                    key={`${project.projectId}-${languageRow.language}-${languageRow.region}`}
-                                    className="border-[#d7dccf] bg-[#f7f5ef] text-[#6f6256]"
-                                  >
-                                    {languageRow.language} ({languageRow.region})
-                                  </Badge>
-                                ))}
+                                <Badge className="border-[#d7dccf] bg-[#f7f5ef] text-[#6f6256]">{project.language}</Badge>
                               </div>
                             </td>
-                            <td className="px-4 py-4 align-top text-center font-black tabular-nums text-[#1d4ed8]">{projectRequired}</td>
+                            <td className="px-4 py-4 align-top text-center font-black tabular-nums text-[#1d4ed8]">{project.required}</td>
+                            <td className="px-4 py-4 align-top text-center font-black tabular-nums text-[#c85f19]">{project.applicants}</td>
+                            <td className="px-4 py-4 align-top text-center font-black tabular-nums text-[#1f5c43]">{project.approved}</td>
                             <td className="px-4 py-4 align-top">
-                              <div className="mx-auto w-full max-w-[140px]">
-                                <div className="h-2 rounded-full bg-[#ece7dc]">
-                                  <div
-                                    className="h-2 rounded-full bg-[#1f5c43]"
-                                    style={{ width: `${Math.min(100, projectProgress)}%` }}
-                                  />
-                                </div>
-                                <div className="mt-1 text-center text-xs font-semibold text-[#6f6256]">
-                                  {formatPercent(projectProgress)}
-                                </div>
-                              </div>
+                              <div className="text-sm font-semibold text-[#6f6256]">{project.daysLeft ?? "Not set"} days</div>
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => openEditProjectForm(project)} className={taskEditButtonClass}>
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleProjectLock(project.projectId)}
-                                  className={project.status === "Locked" ? taskLockedButtonClass : taskPauseButtonClass}
-                                >
-                                  {project.status === "Locked" ? "Locked" : "Pause"}
-                                </button>
-                                <button type="button" onClick={() => deleteProject(project.projectId)} className={taskDeleteButtonClass}>
-                                  Delete
-                                </button>
-                              </div>
+                              <Badge className={dashboardStatusClass(project.status)}>{project.status}</Badge>
                             </td>
                           </tr>
                         )
@@ -2108,7 +2723,7 @@ export function RecruitingWorkbenchPage() {
             </SectionCard>
 
             <SectionCard
-              title="HR Work Progress"
+              title="HR Recruiting Progress"
               description="Manager view of how each HR is progressing across assigned tasks and languages."
               contentClassName="p-0"
             >
@@ -2134,7 +2749,10 @@ export function RecruitingWorkbenchPage() {
                   </thead>
                   <tbody>
                     {hrProgressRows.map((row) => (
-                      <tr key={row.hrName} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
+                      <tr
+                        key={row.hrName}
+                        className="border-b border-[#efe6d8] bg-white transition hover:bg-[#f7f5ef]"
+                      >
                         <td className="px-4 py-3 font-semibold text-[#111827]">{row.hrName}</td>
                         <td className="px-4 py-3 text-[#111827]">
                           <details className="group">
@@ -2210,57 +2828,171 @@ export function RecruitingWorkbenchPage() {
             </SectionCard>
 
             <SectionCard
-              title="Candidate Queue"
-              description="Track candidates currently being reviewed, followed up, drafted, or submitted before they enter the Talent Library."
-              contentClassName="p-0"
+              title="Top Management Alerts"
+              description="Automatically highlights the most urgent risks across language coverage, recruiting tasks, and HR workload."
             >
-              <div className="max-h-[520px] overflow-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead className="sticky top-0 z-10 bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
-                    <tr>
-                      {["Candidate", "Language", "Region", "Platform", "Status", "Next Action", "Last Updated"].map((heading) => (
-                        <th
-                          key={heading}
-                          className="border-b border-[#e2d8c8] px-4 py-3 text-left font-semibold"
-                        >
-                          {heading}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recruitingCandidates.map((candidate) => {
-                      const isSelected = candidate.id === selectedCandidate.id;
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+                <div className="text-sm text-[#6f6256]">
+                  Last analyzed:{" "}
+                  {managementAnalysisStatus === "ai"
+                    ? managementAnalyzedAt || "AI analysis updated just now"
+                    : managementAnalysisStatus === "failed"
+                      ? "AI analysis unavailable. Showing rule-based alerts."
+                      : managementAnalysisStatus === "stale"
+                        ? "Data changed. Click Analyze Now to refresh AI narrative."
+                        : "Rule-based preview only"}
+                </div>
+                <button
+                  type="button"
+                  onClick={analyzeManagementAlerts}
+                  disabled={isManagementAnalyzing}
+                  className="rounded-md border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isManagementAnalyzing ? "Analyzing..." : "Analyze Now"}
+                </button>
+              </div>
+              {managementAlertNotice ? (
+                <div className="mb-3 rounded-xl border border-[#e8bf7a] bg-[#fff9ec] px-4 py-3 text-sm font-semibold text-[#9a4d13]">
+                  {managementAlertNotice}
+                </div>
+              ) : null}
+              {managementAlertError ? <div className="mb-4 text-xs text-[#b42318]">{managementAlertError}</div> : null}
+              <div className="mb-4 inline-flex rounded-lg border border-[#d7dccf] bg-white p-1 shadow-[0_8px_18px_rgba(31,41,51,0.06)]">
+                {[
+                  ["summary", "Summary"],
+                  ["language", "Language Risks"],
+                  ["project", "Project Risks"],
+                  ["hr", "HR Risks"],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setManagementAlertsTab(id as ManagementAlertsTab)}
+                    className={`rounded-md px-3 py-2 text-sm font-semibold whitespace-nowrap transition ${
+                      managementAlertsTab === id
+                        ? "bg-[#1f5c43] text-white shadow-[0_8px_18px_rgba(31,92,67,0.18)]"
+                        : "text-[#6f6256] hover:bg-[#f4efe2] hover:text-[#111827]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
+              {managementAlertsTab === "summary" ? (
+                <div className="rounded-2xl border border-[#eadfcd] bg-[#fbfaf6] p-4">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#1f5c43]">Summary</div>
+                  <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                    {(["Language", "Project", "HR"] as ManagementFocusType[]).map((type) => {
+                      const alert = visibleFocusAlerts[type];
+                      if (!alert) return null;
+                      const tone = managementRiskTone(alert.riskLevel);
+                      const title = type === "Language" ? "Highest Language Risk" : type === "Project" ? "Highest Project Risk" : "Highest HR Risk";
                       return (
-                        <tr
-                          key={candidate.id}
-                          onClick={() => selectCandidate(candidate.id)}
-                          className={`cursor-pointer border-b border-[#efe6d8] transition ${
-                            isSelected ? "bg-[#eef4ee]" : "bg-white hover:bg-[#f7f5ef]"
-                          }`}
-                        >
-                          <td className="px-4 py-3 align-top">
-                            <div className="font-semibold text-[#111827]">{candidate.name}</div>
-                            <div className="text-xs text-[#6f6256]">
-                              Track candidates currently being reviewed, followed up, drafted, or submitted before
-                              they enter the Talent Library.
+                        <article key={alert.id} className={`relative overflow-hidden rounded-2xl border ${tone.card} p-4`}>
+                          <div className={`absolute left-0 top-0 h-full w-1.5 ${tone.accent}`} />
+                          <div className="pl-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#6f6256]">{title}</div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 pl-2">
+                            <Badge className={tone.badge}>{alert.riskLevel}</Badge>
+                            <Badge className="border-[#d7dccf] bg-white/75 text-[#5f665c]">{alert.focusType}</Badge>
+                          </div>
+                          <h3 className="mt-3 pl-2 text-base font-black leading-6 text-[#111827]">{alert.focusItem}</h3>
+                          <p className="mt-2 pl-2 text-sm font-semibold leading-6 text-[#4b5563]">{alert.riskAlert}</p>
+                          <div className="mt-4 pl-2">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6256]">Key Metrics</div>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              {summaryMetrics(alert).slice(0, alert.focusType === "HR" ? 4 : 6).map(([label, value]) => (
+                                <div key={label} className="rounded-lg border border-white/70 bg-white/65 px-3 py-2">
+                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#6f6256]">{label}</div>
+                                  <div className="mt-1 text-sm font-black tabular-nums text-[#111827]">{value}</div>
+                                </div>
+                              ))}
                             </div>
-                          </td>
-                          <td className="px-4 py-3 align-top text-[#111827]">{candidate.language}</td>
-                          <td className="px-4 py-3 align-top text-[#111827]">{candidate.region}</td>
-                          <td className="px-4 py-3 align-top text-[#111827]">{candidate.platform}</td>
-                          <td className="px-4 py-3 align-top">
-                            <Badge className={statusBadgeClass(candidate.status)}>{candidate.status}</Badge>
-                          </td>
-                          <td className="px-4 py-3 align-top text-[#111827]">{candidate.nextAction}</td>
-                          <td className="px-4 py-3 align-top text-[#6f6256]">{candidate.updatedAt}</td>
-                        </tr>
+                          </div>
+                          <div className="mt-4 space-y-3 pl-2 text-sm leading-6 text-[#4b5563]">
+                            <div>
+                              <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6256]">Risk Reason</div>
+                              <p className="mt-1">{alert.reason}</p>
+                            </div>
+                            <div>
+                              <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6256]">Business Impact</div>
+                              <p className="mt-1">{alert.businessImpact}</p>
+                            </div>
+                            <div>
+                              <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6256]">Recommended Actions</div>
+                              <ul className="mt-1 space-y-1">
+                                {alert.recommendedActions.slice(0, 2).map((action) => (
+                                  <li key={action}>- {action}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </article>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {managementAlertsTab !== "summary" ? (
+                <div className="rounded-2xl border border-[#eadfcd] bg-[#fbfaf6] p-4">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1f5c43]">
+                    {managementAlertsTab === "language" ? "Language Risks Top 3" : managementAlertsTab === "project" ? "Project Risks Top 3" : "HR Risks Top 3"}
+                  </div>
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="min-w-[980px] w-full border-collapse text-sm">
+                      <thead className="bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+                        <tr>
+                          {rankingColumns(managementAlertsTab === "language" ? "Language" : managementAlertsTab === "project" ? "Project" : "HR").map((heading) => (
+                            <th key={heading || "actions"} className="border-b border-[#e2d8c8] px-3 py-3 text-left font-semibold">
+                              {heading}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(managementAlertsTab === "language"
+                          ? managementFocusResult.topLanguageRisks
+                          : managementAlertsTab === "project"
+                            ? managementFocusResult.topProjectRisks
+                            : managementFocusResult.topHrRisks
+                        ).map((risk, index) => {
+                          const cells = rankingCells(risk);
+                          return (
+                            <tr key={risk.id} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
+                              <td className="px-3 py-3 font-black text-[#6f6256]">{index + 1}</td>
+                              <td className="px-3 py-3"><Badge className={managementRiskTone(risk.riskLevel).badge}>{risk.riskLevel}</Badge></td>
+                              {cells.map((cell, cellIndex) => (
+                                <td key={`${risk.id}-cell-${cellIndex}`} className="px-3 py-3 text-[#111827]">{cell}</td>
+                              ))}
+                              <td className="px-3 py-3 text-[#4b5563]">{rankingReason(risk)}</td>
+                              <td className="px-3 py-3 text-[#4b5563]">{rankingAction(risk)}</td>
+                              {risk.focusType === "Project" ? (
+                                <td className="px-3 py-3">
+                                  <button type="button" onClick={() => openTaskRiskModal(risk)} className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-[#1f5c43] bg-[#1f5c43] px-3 text-[13px] font-semibold text-white transition hover:opacity-90">
+                                    Open Task
+                                  </button>
+                                </td>
+                              ) : risk.focusType === "HR" ? (
+                                <td className="px-3 py-3">
+                                  <button
+                                    type="button"
+                                    aria-label={`View HR Workbench for ${risk.focusItem}`}
+                                    onClick={() => openHrRiskModal(risk)}
+                                    className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-[#d7dccf] bg-[#f7f5ef] px-3 text-[13px] font-semibold text-[#111827] transition hover:bg-[#f0eadc]"
+                                  >
+                                    View HR
+                                  </button>
+                                </td>
+                              ) : null}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
             </SectionCard>
 
           </div>
@@ -2951,6 +3683,136 @@ export function RecruitingWorkbenchPage() {
           </div>
         ) : null}
       </section>
+      {managementAlertModal ? (() => {
+        const alert = makeFallbackAlert(managementAlertModal.risk);
+        const closeModal = () => setManagementAlertModal(null);
+        const modalTitle = managementAlertModal.type === "task" ? "Task Risk Detail" : "HR Workbench Preview";
+        const modalSubtitle = managementAlertModal.type === "task" ? alert.focusItem : modalHrRow?.hrName ?? alert.focusItem;
+        const profileRows =
+          managementAlertModal.type === "hr"
+            ? [
+                ["Name", modalHrRow?.hrName ?? alert.focusItem],
+                ["Status", modalHrRow?.status ?? alert.riskLevel],
+                ["Assigned Tasks", formatSummaryValue(modalHrRow?.assignedProjects.length ?? alert.assignedTasks)],
+                ["Languages", modalHrRow?.assignedLanguages.join(", ") || "Not set"],
+                ["Submitted", formatSummaryValue(modalHrRow?.submittedProfiles)],
+                ["Accepted", formatSummaryValue(modalHrRow?.acceptedProfiles)],
+                ["Pending Reviews", formatSummaryValue(Math.max((modalHrRow?.submittedProfiles ?? 0) - (modalHrRow?.acceptedProfiles ?? 0), 0))],
+                ["Acceptance Rate", formatSummaryValue(modalHrRow?.successRate ?? alert.acceptanceRate, "%")],
+                ["Today", formatSummaryValue(modalHrRow?.todayAdded ?? alert.today)],
+              ]
+            : [
+                ["Task name", alert.focusItem],
+                ["Status", alert.taskStatus ?? alert.riskLevel],
+                ["Language", alert.language ?? "Not set"],
+                ["Owner", alert.owner ?? "Not set"],
+                ["Required", formatSummaryValue(alert.required)],
+                ["Approved", formatSummaryValue(alert.approved)],
+                ["Applicants", formatSummaryValue(alert.applicants)],
+                ["Needed", formatSummaryValue(alert.needed)],
+                ["Coverage", formatSummaryValue(alert.coveragePercent, "%")],
+                ["Deadline", alert.daysLeft === null || alert.daysLeft === undefined ? "Not set" : `${alert.daysLeft} days left`],
+                ["Days Left", formatSummaryValue(alert.daysLeft)],
+                ["Daily Gap", formatSummaryValue(alert.dailyGap, "/day")],
+              ];
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/45 px-4 py-8"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeModal();
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={modalTitle}
+              className="max-h-[calc(100vh-64px)] w-full max-w-[720px] overflow-y-auto rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_70px_rgba(17,24,39,0.28)]"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-xl font-black text-[#111827]">{modalTitle}</div>
+                  <div className="mt-1 text-sm font-semibold text-[#6f6256]">{modalSubtitle}</div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close modal"
+                  onClick={closeModal}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d7cec0] bg-white text-lg font-semibold text-[#4b5563] transition hover:bg-[#f4efe2]"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-[#eadfcd] bg-white p-4">
+                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#1f5c43]">
+                  {managementAlertModal.type === "task" ? "Task Summary" : "Profile Summary"}
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {profileRows.map(([label, value]) => (
+                    <div key={label} className="rounded-xl border border-[#eadfcd] bg-[#fbfaf6] p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6f6256]">{label}</div>
+                      <div className="mt-1 text-sm font-semibold leading-5 text-[#111827]">{value || "Not set"}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {managementAlertModal.type === "task" ? (
+                <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-4">
+                  <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#1f5c43]">Risk Analysis</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge className={managementRiskTone(alert.riskLevel).badge}>{alert.riskLevel}</Badge>
+                    <Badge className="border-[#d7dccf] bg-[#f7f5ef] text-[#6f6256]">{alert.focusType}</Badge>
+                  </div>
+                  <div className="mt-4 space-y-3 text-sm leading-6 text-[#4b5563]">
+                    <div>
+                      <div className="font-bold text-[#111827]">Main Reason</div>
+                      <p className="mt-1">{alert.reason}</p>
+                    </div>
+                    <div>
+                      <div className="font-bold text-[#111827]">Business Impact</div>
+                      <p className="mt-1">{alert.businessImpact}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-4">
+                  <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#1f5c43]">Managed Tasks</div>
+                  <div className="mt-3 space-y-2">
+                    {(modalHrRow?.assignedProjects.length ? modalHrRow.assignedProjects : ["Not set"]).map((taskName) => (
+                      <div key={taskName} className="rounded-lg border border-[#eadfcd] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#4b5563]">
+                        {taskName}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-4">
+                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#1f5c43]">Recommended Actions</div>
+                <ul className="mt-3 space-y-2 text-sm leading-6 text-[#4b5563]">
+                  {alert.recommendedActions.slice(0, managementAlertModal.type === "task" ? 4 : 3).map((action) => (
+                    <li key={action} className="rounded-lg border border-[#eadfcd] bg-[#fbfaf6] px-3 py-2">
+                      {action}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-[#1f5c43] bg-[#1f5c43] px-5 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
     </main>
   );
 }

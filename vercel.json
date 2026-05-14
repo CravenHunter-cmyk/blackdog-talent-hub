@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/recruiting/management-alerts/scheduled",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/recruiting/management-alerts/scheduled",
+      "schedule": "0 12 * * *"
+    }
+  ]
+}

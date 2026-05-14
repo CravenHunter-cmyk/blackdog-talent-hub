@@ -101,7 +101,31 @@ async function queueFileWrite(filePath: string, task: () => Promise<void>) {
 
 export async function readTalentProfiles(): Promise<TalentProfileRecord[]> {
   const records = await readJsonFile<TalentProfileRecord[]>(TALENT_PROFILES_PATH, [])
-  return Array.isArray(records) ? records : []
+  if (!Array.isArray(records)) return []
+  return records.map((record) => {
+    const legacyAvatarUrl = safeName(
+      String(
+        (record as TalentProfileRecord & {
+          avatar?: string
+          profileImage?: string
+          imageUrl?: string
+          photoUrl?: string
+          candidateAvatar?: string
+          candidateAvatarUrl?: string
+        }).avatar ||
+          (record as TalentProfileRecord & { profileImage?: string }).profileImage ||
+          (record as TalentProfileRecord & { imageUrl?: string }).imageUrl ||
+          (record as TalentProfileRecord & { photoUrl?: string }).photoUrl ||
+          (record as TalentProfileRecord & { candidateAvatar?: string }).candidateAvatar ||
+          (record as TalentProfileRecord & { candidateAvatarUrl?: string }).candidateAvatarUrl ||
+          "",
+      ),
+    )
+    return {
+      ...record,
+      avatarUrl: safeName(record.avatarUrl || legacyAvatarUrl),
+    }
+  })
 }
 
 export async function readHrSubmissions(): Promise<HrSubmissionRecord[]> {
@@ -139,7 +163,7 @@ export async function upsertTalentProfile(profile: TalentPoolSubmissionPayload) 
     talentId,
     sourcePlatform: "Upwork",
     candidateName: safeName(profile.candidateName || existing?.candidateName || "Unknown Candidate"),
-    avatarUrl: safeName(profile.avatarUrl || ""),
+    avatarUrl: safeName(profile.avatarUrl || existing?.avatarUrl || ""),
     education: safeName(profile.education || existing?.education || ""),
     professionalDomain: safeName(profile.professionalDomain || existing?.professionalDomain || ""),
     upworkChatUrl: safeName(profile.upworkChatUrl || existing?.upworkChatUrl || ""),
