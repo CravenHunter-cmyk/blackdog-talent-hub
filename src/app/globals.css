@@ -16,4 +16,92 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+}
+
+html {
+  min-height: 100%;
+  overflow-y: auto;
+}
+
+.scroll-panel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-x-panel {
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.page-shell {
+  width: min(92vw, 1440px);
+  margin-inline: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 0.875rem;
+}
+
+.data-table thead {
+  background: #f1ece3;
+  color: #1e1712;
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.data-table th {
+  border-bottom: 1px solid #e2d8c8;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 1rem;
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  border-bottom: 1px solid #eee7db;
+}
+
+.data-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.data-table tbody tr:hover {
+  background: #f7f5ef;
+}
+
+.th-left,
+.td-left {
+  text-align: left;
+}
+
+.th-center,
+.td-center {
+  text-align: center;
+}
+
+.td-actions {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.td-actions > div {
+  justify-content: center;
 }

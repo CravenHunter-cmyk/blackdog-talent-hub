@@ -70,11 +70,6 @@ export async function POST(request: Request) {
     }
 
     const result = await saveTalentPoolSubmission(payload)
-    console.log("[BlackDog] API saved avatarUrl", {
-      candidateName: result?.talentProfile?.candidateName || payload.candidateName,
-      talentId: result?.talentProfile?.talentId || "",
-      avatarUrl: result?.talentProfile?.avatarUrl || payload.avatarUrl || "",
-    })
     return jsonResponse({
       ok: true,
       ...result,

@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, DragEvent } from "react";
+import Image from "next/image";
+import { PermissionFallback } from "@/components/auth/AccessGate";
+import { canAccessModule, readPlatformUser, type PlatformUser as AccountUser } from "@/lib/permissions";
+import type { TalentProfileRecord } from "@/types/talent-pool";
 
 type PlatformRole = "Super Admin" | "Executive" | "HR User";
 type ConversationKind = "platform" | "talent" | "group";
 type ConversationFilter = "All" | "Management" | "HR" | "Talent Pool" | "Groups";
+type TalentCommunicationFilter = "All" | "PM" | "HR" | "Project Group";
+type TalentCommunicationKind = "PM" | "HR" | "Project Group";
 type MessageKind = "text" | "system" | "attachment" | "image" | "video";
 type TalentProfileStatus = "Submitted" | "In Review" | "Drafted" | "New";
 type GroupType = "Project Group" | "Language Group" | "Custom Group";
@@ -68,6 +74,7 @@ type PlatformConversation = BaseConversation & {
 type TalentConversation = BaseConversation & {
   kind: "talent";
   talentId: string;
+  avatarUrl?: string;
   nativeLanguage: string;
   secondLanguage: string;
   skill: string;
@@ -95,6 +102,52 @@ type GroupConversation = BaseConversation & {
 };
 
 type Conversation = PlatformConversation | TalentConversation | GroupConversation;
+
+type TalentCommunicationConversation = {
+  id: string;
+  kind: TalentCommunicationKind;
+  name: string;
+  avatarSeed: string;
+  avatarUrl?: string;
+  roleLabel: string;
+  projectName: string;
+  level?: string;
+  completedProjects?: number;
+  relationship?: string;
+  memberScope?: string;
+  currentTalentAccess?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  online?: boolean;
+  messages: ChatMessage[];
+  permissionsSummary: string[];
+};
+
+type CommunicationAccessItem = {
+  id: string;
+  name: string;
+  subtitle: string;
+  meta?: string;
+  avatarSeed: string;
+  avatarUrl?: string;
+  unreadCount?: number;
+  onSelect?: () => void;
+};
+
+type GroupMemberDetail = {
+  name: string;
+  role: string;
+  level?: string;
+  status?: string;
+  avatarSeed: string;
+  avatarUrl?: string;
+};
+
+type GroupRuleLink = {
+  title: string;
+  url: string;
+};
 
 type GroupDraft = {
   groupName: string;
@@ -136,6 +189,7 @@ type WorkbenchApplicant = {
   name: string;
   language: string;
   skill: string;
+  level?: string;
   status: ApplicantStatus;
   taskId: string;
 };
@@ -172,6 +226,7 @@ type TalentMessagesPageProps = {
   initialTab?: string;
   initialTaskId?: string;
   initialTaskName?: string;
+  initialTalentProfiles?: TalentProfileRecord[];
 };
 
 function normalizeTaskParam(value: string) {
@@ -297,19 +352,75 @@ const initialWorkbenchTasks: WorkbenchTask[] = [
 
 const initialWorkbenchApplicants: WorkbenchApplicant[] = [
   {
+    id: "kim-seoyeon",
+    name: "Kim Seoyeon",
+    language: "Korean",
+    skill: "LLM Evaluation",
+    level: "Level A",
+    status: "Approved",
+    taskId: "korean-llm-evaluation",
+  },
+  {
+    id: "park-minjun",
+    name: "Park Minjun",
+    language: "Korean",
+    skill: "Model Response Review",
+    level: "Level B",
+    status: "Approved",
+    taskId: "korean-llm-evaluation",
+  },
+  {
+    id: "choi-hana",
+    name: "Choi Hana",
+    language: "Korean",
+    skill: "LLM Evaluation",
+    level: "Level C",
+    status: "Under Review",
+    taskId: "korean-llm-evaluation",
+  },
+  {
     id: "yamane-risa",
     name: "Yamane Risa",
     language: "Japanese",
     skill: "LLM Evaluation",
+    level: "Level B",
     status: "Applied",
     taskId: "japanese-llm-evaluation",
+  },
+  {
+    id: "rika-tanaka",
+    name: "Rika Tanaka",
+    language: "Japanese",
+    skill: "LLM Evaluation",
+    level: "Level A",
+    status: "Approved",
+    taskId: "japanese-llm-evaluation",
+  },
+  {
+    id: "haruto-sato",
+    name: "Haruto Sato",
+    language: "Japanese",
+    skill: "LLM Evaluation",
+    level: "Level B",
+    status: "Approved",
+    taskId: "japanese-evaluator-pool",
   },
   {
     id: "tanchanok-pearl",
     name: "Tanchanok Pearl",
     language: "Thai",
     skill: "OCR Review",
+    level: "Level C",
     status: "Under Review",
+    taskId: "arabic-ocr-expert-pool",
+  },
+  {
+    id: "amina-hassan",
+    name: "Amina Hassan",
+    language: "Arabic",
+    skill: "OCR Review",
+    level: "Level B",
+    status: "Approved",
     taskId: "arabic-ocr-expert-pool",
   },
   {
@@ -317,6 +428,7 @@ const initialWorkbenchApplicants: WorkbenchApplicant[] = [
     name: "Nayara Ribeiro",
     language: "Portuguese-BR",
     skill: "Localization Review",
+    level: "Level B",
     status: "Applied",
     taskId: "portuguese-br-localization",
   },
@@ -653,8 +765,8 @@ const initialConversations: Conversation[] = [
       { id: "gj2", sender: "Julie Zhu", timestamp: "9:06 AM", kind: "text", text: "Hi everyone, this group will be used for task notifications, guideline updates, and delivery reminders.", roleLabel: "HR", align: "left" },
       { id: "gj3", sender: "Yamane Risa", timestamp: "9:08 AM", kind: "text", text: "Thanks. Please share the guideline when it is ready.", roleLabel: "Talent", align: "right" },
       { id: "gj4", sender: "Julie Zhu", timestamp: "9:10 AM", kind: "attachment", text: "Guidelines_v1.pdf", attachmentName: "Guidelines_v1.pdf", attachmentMeta: "PDF • 2.1 MB", roleLabel: "HR", align: "left" },
-      { id: "gj5", sender: "Julie Zhu", timestamp: "9:12 AM", kind: "image", text: "Sample task image placeholder", attachmentName: "Sample_Task_Screenshot.png", attachmentMeta: "Image preview", roleLabel: "HR", align: "left" },
-      { id: "gj6", sender: "Julie Zhu", timestamp: "9:14 AM", kind: "video", text: "Sample task video placeholder", attachmentName: "Sample_Task_Video.mp4", attachmentMeta: "Video preview", roleLabel: "HR", align: "left" },
+      { id: "gj5", sender: "Julie Zhu", timestamp: "9:12 AM", kind: "image", text: "Task reference image", attachmentName: "Task_Reference_Screenshot.png", attachmentMeta: "Image preview", roleLabel: "HR", align: "left" },
+      { id: "gj6", sender: "Julie Zhu", timestamp: "9:14 AM", kind: "video", text: "Task reference video", attachmentName: "Task_Reference_Video.mp4", attachmentMeta: "Video preview", roleLabel: "HR", align: "left" },
     ],
   },
   {
@@ -723,6 +835,172 @@ const initialConversations: Conversation[] = [
   },
 ];
 
+const initialTalentCommunicationConversations: TalentCommunicationConversation[] = [
+  {
+    id: "talent-pm-julie",
+    kind: "PM",
+    name: "Julie Zhu",
+    avatarSeed: "Julie Zhu",
+    roleLabel: "Project Manager",
+    projectName: "Japanese LLM Evaluation",
+    level: "Level A",
+    completedProjects: 18,
+    relationship: "Assigned PM for Japanese LLM Evaluation",
+    lastMessage: "Please review the guideline before the pilot starts.",
+    lastMessageTime: "9:20 AM",
+    unreadCount: 1,
+    online: true,
+    permissionsSummary: [
+      "Can message assigned PM",
+      "Cannot access management groups",
+      "Cannot create groups",
+    ],
+    messages: [
+      { id: "tpm1", sender: "Julie Zhu", timestamp: "9:05 AM", kind: "text", text: "Welcome to the Japanese LLM Evaluation project workspace.", roleLabel: "Project Manager", align: "left" },
+      { id: "tpm2", sender: "Julie Zhu", timestamp: "9:20 AM", kind: "text", text: "Please review the guideline before the pilot starts.", roleLabel: "Project Manager", align: "left" },
+    ],
+  },
+  {
+    id: "talent-pm-maya",
+    kind: "PM",
+    name: "Maya Chen",
+    avatarSeed: "Maya Chen",
+    roleLabel: "Project Manager",
+    projectName: "Korean LLM Evaluation",
+    level: "Level B",
+    completedProjects: 12,
+    relationship: "Backup PM for Korean LLM Evaluation pilot review",
+    lastMessage: "I will share the pilot rubric after Julie confirms timing.",
+    lastMessageTime: "Yesterday",
+    unreadCount: 0,
+    online: false,
+    permissionsSummary: [
+      "Can message assigned PM",
+      "Cannot access management groups",
+      "Cannot create groups",
+    ],
+    messages: [
+      { id: "tpm-maya-1", sender: "Maya Chen", timestamp: "Yesterday", kind: "text", text: "I will share the pilot rubric after Julie confirms timing.", roleLabel: "Project Manager", align: "left" },
+    ],
+  },
+  {
+    id: "talent-hr-daniel",
+    kind: "HR",
+    name: "Daniel Kim",
+    avatarSeed: "Daniel Kim",
+    roleLabel: "HR Support",
+    projectName: "Onboarding and schedule",
+    level: "Level B",
+    completedProjects: 22,
+    relationship: "Responsible HR for onboarding and schedule",
+    lastMessage: "Send me your preferred work window when ready.",
+    lastMessageTime: "Yesterday",
+    unreadCount: 0,
+    online: true,
+    permissionsSummary: [
+      "Can message responsible HR",
+      "Cannot message other talents",
+      "Cannot access global HR management groups",
+    ],
+    messages: [
+      { id: "thr1", sender: "Daniel Kim", timestamp: "Yesterday", kind: "text", text: "I will help with onboarding, schedule confirmation, and task availability.", roleLabel: "HR Support", align: "left" },
+      { id: "thr2", sender: "Daniel Kim", timestamp: "Yesterday", kind: "text", text: "Send me your preferred work window when ready.", roleLabel: "HR Support", align: "left" },
+    ],
+  },
+  {
+    id: "talent-hr-aisha",
+    kind: "HR",
+    name: "Aisha Khan",
+    avatarSeed: "Aisha Khan",
+    roleLabel: "HR Support",
+    projectName: "Availability and timesheet support",
+    level: "Level C",
+    completedProjects: 14,
+    relationship: "Responsible HR for availability updates and timesheet support",
+    lastMessage: "I will check your weekend availability note.",
+    lastMessageTime: "Monday",
+    unreadCount: 0,
+    online: false,
+    permissionsSummary: [
+      "Can message responsible HR",
+      "Cannot message other talents",
+      "Cannot access global HR management groups",
+    ],
+    messages: [
+      { id: "thr-aisha-1", sender: "Aisha Khan", timestamp: "Monday", kind: "text", text: "I will check your weekend availability note.", roleLabel: "HR Support", align: "left" },
+    ],
+  },
+  {
+    id: "talent-project-group-japanese",
+    kind: "Project Group",
+    name: "Japanese LLM Evaluation Work Group",
+    avatarSeed: "Japanese LLM Evaluation Work Group",
+    roleLabel: "Project group",
+    projectName: "Japanese LLM Evaluation",
+    memberScope: "Approved project members only",
+    currentTalentAccess: "Joined",
+    lastMessage: "Guideline v1 has been uploaded.",
+    lastMessageTime: "Today",
+    unreadCount: 2,
+    online: true,
+    permissionsSummary: [
+      "Can message joined project groups",
+      "Cannot enter other project groups",
+      "Cannot add other talents as contacts",
+    ],
+    messages: [
+      { id: "tpg1", sender: "Julie Zhu", timestamp: "Today", kind: "system", text: "You joined Japanese LLM Evaluation Work Group.", align: "center" },
+      { id: "tpg2", sender: "Julie Zhu", timestamp: "Today", kind: "attachment", text: "Guideline_v1.pdf", attachmentName: "Guideline_v1.pdf", attachmentMeta: "PDF - project guideline", roleLabel: "Project Manager", align: "left" },
+      { id: "tpg3", sender: "Daniel Kim", timestamp: "Today", kind: "text", text: "Please ask task-specific questions in this project group.", roleLabel: "HR Support", align: "left" },
+    ],
+  },
+  {
+    id: "talent-project-group-korean",
+    kind: "Project Group",
+    name: "Korean LLM Pilot Work Group",
+    avatarSeed: "Korean LLM Pilot Work Group",
+    roleLabel: "Project group",
+    projectName: "Korean LLM Evaluation",
+    memberScope: "Approved pilot members only",
+    currentTalentAccess: "Approved",
+    lastMessage: "Pilot schedule draft is ready for review.",
+    lastMessageTime: "Yesterday",
+    unreadCount: 1,
+    online: true,
+    permissionsSummary: [
+      "Can message joined project groups",
+      "Cannot enter other project groups",
+      "Cannot add other talents as contacts",
+    ],
+    messages: [
+      { id: "tpg-korean-1", sender: "Maya Chen", timestamp: "Yesterday", kind: "system", text: "You joined Korean LLM Pilot Work Group.", align: "center" },
+      { id: "tpg-korean-2", sender: "Maya Chen", timestamp: "Yesterday", kind: "text", text: "Pilot schedule draft is ready for review.", roleLabel: "Project Manager", align: "left" },
+    ],
+  },
+  {
+    id: "talent-project-group-guideline",
+    kind: "Project Group",
+    name: "QA Guideline Review Group",
+    avatarSeed: "QA Guideline Review Group",
+    roleLabel: "Project group",
+    projectName: "Cross-project QA Guideline Review",
+    memberScope: "Joined guideline reviewers only",
+    currentTalentAccess: "Joined",
+    lastMessage: "Please add questions under the QA section.",
+    lastMessageTime: "Monday",
+    unreadCount: 0,
+    online: true,
+    permissionsSummary: [
+      "Can message joined project groups",
+      "Cannot enter other project groups",
+      "Cannot add other talents as contacts",
+    ],
+    messages: [
+      { id: "tpg-guideline-1", sender: "Julie Zhu", timestamp: "Monday", kind: "text", text: "Please add questions under the QA section.", roleLabel: "Project Manager", align: "left" },
+    ],
+  },
+];
+
 const conversationTypeColor: Record<string, string> = {
   "Super Admin": "border-[#b38f2d] bg-[#fff4d5] text-[#946200]",
   Executive: "border-[#7c3aed] bg-[#f3e8ff] text-[#6d28d9]",
@@ -758,6 +1036,37 @@ function initials(name: string) {
     .join("");
 }
 
+function normalizeProfileKey(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function displayValue(value?: string | number) {
+  const text = String(value ?? "").trim();
+  return text || "Not set";
+}
+
+function findMatchingTalentProfile(profiles: TalentProfileRecord[], conversation?: TalentConversation) {
+  if (!conversation) return undefined;
+  const conversationName = normalizeProfileKey(conversation.name);
+  const conversationChatUrl = normalizeProfileKey(conversation.upworkChatUrl);
+  const conversationProfileUrl = normalizeProfileKey(conversation.upworkProfileUrl);
+
+  return profiles.find((profile) => {
+    const profileName = normalizeProfileKey(profile.candidateName);
+    const profileChatUrl = normalizeProfileKey(profile.upworkChatUrl);
+    const profileUrl = normalizeProfileKey(profile.profileUrl);
+    return (
+      profile.talentId === conversation.talentId ||
+      (conversationName && profileName && conversationName === profileName) ||
+      (conversationChatUrl && profileChatUrl && conversationChatUrl === profileChatUrl) ||
+      (conversationProfileUrl && profileUrl && conversationProfileUrl === profileUrl)
+    );
+  });
+}
+
 function hashHue(value: string) {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -791,6 +1100,40 @@ function Avatar({ name, seed, size = "md" }: { name: string; seed: string; size?
       aria-label={name}
     >
       {initials(name)}
+    </div>
+  );
+}
+
+function ProfilePhoto({
+  name,
+  avatarUrl,
+  failed,
+  onError,
+  sizeClass = "h-24 w-24 text-2xl",
+}: {
+  name: string;
+  avatarUrl?: string;
+  failed?: boolean;
+  onError?: () => void;
+  sizeClass?: string;
+}) {
+  const photoUrl = String(avatarUrl || "").trim();
+  return (
+    <div
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#d7dccf] bg-[#f4efe2] font-black text-[#1f5c43] shadow-sm ${sizeClass}`}
+    >
+      {photoUrl && !failed ? (
+        <Image
+          src={photoUrl}
+          alt={name}
+          fill
+          unoptimized
+          className="object-cover"
+          onError={onError}
+        />
+      ) : (
+        initials(name || "Talent")
+      )}
     </div>
   );
 }
@@ -941,7 +1284,12 @@ function canViewChatHistory(currentUser: { name: string; role: PlatformRole }, c
   return true;
 }
 
-export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initialTaskName = "" }: TalentMessagesPageProps) {
+export function TalentMessagesPage({
+  initialTab = "",
+  initialTaskId = "",
+  initialTaskName = "",
+  initialTalentProfiles = [],
+}: TalentMessagesPageProps) {
   const initialRequestedTask = initialTaskId || initialTaskName;
   const initialTargetTask = initialRequestedTask
     ? initialWorkbenchTasks.find((task) => {
@@ -959,6 +1307,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
     initialTab === "personal-center" ? "personal-center" : initialTab === "communication-hub" ? "communication-hub" : "task-center";
 
   const [activeTab, setActiveTab] = useState<WorkbenchTab>(initialWorkbenchTab);
+  const [platformUser, setPlatformUser] = useState<AccountUser | null>(null);
   const [activeView, setActiveView] = useState<WorkbenchView>("manager");
   const [workbenchTasks, setWorkbenchTasks] = useState<WorkbenchTask[]>(initialWorkbenchTasks);
   const [workbenchApplicants, setWorkbenchApplicants] = useState<WorkbenchApplicant[]>(initialWorkbenchApplicants);
@@ -977,6 +1326,12 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
   const [profileApplicantId, setProfileApplicantId] = useState("");
   const [applyingTaskId, setApplyingTaskId] = useState("");
   const [talentApplications, setTalentApplications] = useState<Record<string, ApplicantStatus>>({});
+  const [talentProfiles, setTalentProfiles] = useState<TalentProfileRecord[]>(initialTalentProfiles);
+  const talentAvatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [talentAvatarDragActive, setTalentAvatarDragActive] = useState(false);
+  const [talentAvatarError, setTalentAvatarError] = useState("");
+  const [talentAvatarStatus, setTalentAvatarStatus] = useState("");
+  const [failedTalentAvatarUrl, setFailedTalentAvatarUrl] = useState("");
   const [approvedProjectIds, setApprovedProjectIds] = useState<string[]>([]);
   const [projectGroups, setProjectGroups] = useState<Record<string, ProjectGroupPreview>>({
     "japanese-llm-evaluation": {
@@ -1001,9 +1356,31 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [selectedConversationId, setSelectedConversationId] = useState(initialConversations[0]?.id ?? "");
   const [filter, setFilter] = useState<ConversationFilter>("All");
+  const [talentCommunicationConversations, setTalentCommunicationConversations] = useState<TalentCommunicationConversation[]>(
+    initialTalentCommunicationConversations,
+  );
+  const [selectedTalentCommunicationId, setSelectedTalentCommunicationId] = useState(initialTalentCommunicationConversations[0]?.id ?? "");
+  const [talentCommunicationFilter, setTalentCommunicationFilter] = useState<TalentCommunicationFilter>("All");
+  const [openAccessSection, setOpenAccessSection] = useState("");
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [groupMemberOverrides, setGroupMemberOverrides] = useState<Record<string, GroupMemberDetail[]>>({});
+  const [groupAdminNames, setGroupAdminNames] = useState<Record<string, string[]>>({});
+  const [groupMemberModal, setGroupMemberModal] = useState<{
+    mode: "add" | "delete";
+    groupKey: string;
+    members: GroupMemberDetail[];
+  } | null>(null);
+  const [groupMemberModalSearch, setGroupMemberModalSearch] = useState("");
+  const [selectedGroupMemberNames, setSelectedGroupMemberNames] = useState<string[]>([]);
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [groupSettingsSearch, setGroupSettingsSearch] = useState("");
+  const [groupActionMemberName, setGroupActionMemberName] = useState("");
+  const [groupNoticeDrafts, setGroupNoticeDrafts] = useState<Record<string, string>>({});
+  const [groupNameDrafts, setGroupNameDrafts] = useState<Record<string, string>>({});
+  const [groupRuleDrafts, setGroupRuleDrafts] = useState<Record<string, GroupRuleLink>>({});
+  const [groupSettingToggles, setGroupSettingToggles] = useState<Record<string, Record<string, boolean>>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const attachmentUrlsRef = useRef<string[]>([]);
@@ -1060,12 +1437,49 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
     });
   }, [conversations, filter, search]);
 
+  const selectedTalentCommunication = useMemo(
+    () =>
+      talentCommunicationConversations.find((item) => item.id === selectedTalentCommunicationId) ??
+      talentCommunicationConversations[0],
+    [talentCommunicationConversations, selectedTalentCommunicationId],
+  );
+
+  const visibleTalentCommunicationConversations = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return talentCommunicationConversations.filter((conversation) => {
+      const matchesFilter = talentCommunicationFilter === "All" || conversation.kind === talentCommunicationFilter;
+      if (!matchesFilter) return false;
+      if (!query) return true;
+      return [
+        conversation.name,
+        conversation.roleLabel,
+        conversation.projectName,
+        conversation.lastMessage,
+        conversation.kind,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [search, talentCommunicationConversations, talentCommunicationFilter]);
+
   const selectedCanSend = selectedConversation ? canSendMessage(currentUser, selectedConversation, permissionConfig) : false;
   const selectedCanFile = selectedConversation ? canSendFile(currentUser, selectedConversation, permissionConfig) : false;
   const selectedCanVideo = selectedConversation ? canSendVideo(currentUser, selectedConversation, permissionConfig) : false;
   const selectedCanCreateGroup = canCreateGroup(currentUser, permissionConfig);
   const selectedCanInvite = selectedConversation ? canInviteMembers(currentUser, selectedConversation, permissionConfig) : false;
   const selectedCanHistory = selectedConversation ? canViewChatHistory(currentUser, selectedConversation, permissionConfig) : false;
+  const activeRestrictedModule = activeTab === "personal-center" ? "personal-center" : activeTab === "communication-hub" ? "communication-hub" : "";
+  const activeTabBlocked = Boolean(activeRestrictedModule && !canAccessModule(platformUser, activeRestrictedModule));
+
+  useEffect(() => {
+    function refreshAccount() {
+      setPlatformUser(readPlatformUser());
+    }
+    refreshAccount();
+    window.addEventListener("storage", refreshAccount);
+    return () => window.removeEventListener("storage", refreshAccount);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1076,6 +1490,12 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
 
   function updateConversation(targetId: string, updater: (conversation: Conversation) => Conversation) {
     setConversations((prev) => prev.map((conversation) => (conversation.id === targetId ? updater(conversation) : conversation)));
+  }
+
+  function updateTalentCommunication(targetId: string, updater: (conversation: TalentCommunicationConversation) => TalentCommunicationConversation) {
+    setTalentCommunicationConversations((prev) =>
+      prev.map((conversation) => (conversation.id === targetId ? updater(conversation) : conversation)),
+    );
   }
 
   function formatFileSize(size: number) {
@@ -1101,7 +1521,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
         : "Local attachment only";
 
     const nextMessage: ChatMessage = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: `${selectedConversation.id}-attachment-${selectedConversation.messages.length + 1}`,
       sender: currentUser.name,
       timestamp: "Just now",
       kind: nextKind,
@@ -1124,13 +1544,45 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
     }));
   }
 
+  function appendTalentAttachment(file: File) {
+    if (!selectedTalentCommunication) return;
+
+    const isImage = file.type.startsWith("image/");
+    const nextKind: MessageKind = isImage ? "image" : "attachment";
+    const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
+    if (previewUrl) attachmentUrlsRef.current.push(previewUrl);
+
+    const nextMessage: ChatMessage = {
+      id: `${selectedTalentCommunication.id}-message-${selectedTalentCommunication.messages.length + 1}`,
+      sender: currentTalentName,
+      timestamp: "Just now",
+      kind: nextKind,
+      text: file.name,
+      roleLabel: "Talent",
+      attachmentName: file.name,
+      attachmentMeta: isImage ? "Local image preview" : "Local attachment only",
+      attachmentType: file.type || file.name.split(".").pop()?.toUpperCase() || "FILE",
+      attachmentSize: formatFileSize(file.size),
+      previewUrl,
+      align: "right",
+    };
+
+    updateTalentCommunication(selectedTalentCommunication.id, (conversation) => ({
+      ...conversation,
+      messages: [...conversation.messages, nextMessage],
+      lastMessage: file.name,
+      lastMessageTime: "Just now",
+      unreadCount: 0,
+    }));
+  }
+
   function handleSend() {
     if (!selectedConversation || !selectedCanSend) return;
     const value = draft.trim();
     if (!value) return;
 
     const nextMessage: ChatMessage = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: `${selectedConversation.id}-message-${selectedConversation.messages.length + 1}`,
       sender: currentUser.name,
       timestamp: "Just now",
       kind: "text",
@@ -1140,6 +1592,31 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
     };
 
     updateConversation(selectedConversation.id, (conversation) => ({
+      ...conversation,
+      messages: [...conversation.messages, nextMessage],
+      lastMessage: value,
+      lastMessageTime: "Just now",
+      unreadCount: 0,
+    }));
+    setDraft("");
+  }
+
+  function handleTalentSend() {
+    if (!selectedTalentCommunication) return;
+    const value = draft.trim();
+    if (!value) return;
+
+    const nextMessage: ChatMessage = {
+      id: `${selectedTalentCommunication.id}-message-${selectedTalentCommunication.messages.length + 1}`,
+      sender: currentTalentName,
+      timestamp: "Just now",
+      kind: "text",
+      text: value,
+      roleLabel: "Talent",
+      align: "right",
+    };
+
+    updateTalentCommunication(selectedTalentCommunication.id, (conversation) => ({
       ...conversation,
       messages: [...conversation.messages, nextMessage],
       lastMessage: value,
@@ -1182,7 +1659,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
       allowFileSharing: groupDraft.allowFileSharing,
       allowVideoSharing: groupDraft.allowVideoSharing,
       members,
-      permissionsSummary: `${groupDraft.groupType} created from the Talent Workbench preview.`,
+      permissionsSummary: `${groupDraft.groupType} created from the Talent Hub preview.`,
       lastMessage: `${currentUser.name} created the group ${groupName}.`,
       lastMessageTime: "Just now",
       messages: [
@@ -1238,15 +1715,15 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
       owner: createTaskForm.owner.trim() || "Julie Zhu",
       deadline: createTaskForm.deadline.trim() || "TBD",
       description: createTaskForm.description.trim(),
-      projectBackground: createTaskForm.description.trim() || "Mock recruiting task created from Talent Workbench.",
+      projectBackground: createTaskForm.description.trim() || "Recruiting task created from Talent Hub.",
       workScope: "Review task requirements, confirm fit, and coordinate with the project owner after approval.",
       languageRequirement: createTaskForm.language.trim() || "Language requirement TBD.",
-      workload: "Workload will be confirmed after the mock task is reviewed.",
+      workload: "Workload will be confirmed after the task is reviewed.",
       timeline: createTaskForm.deadline.trim() ? `Target deadline is ${createTaskForm.deadline.trim()}.` : "Timeline TBD.",
       paymentNote: "Payment will be confirmed after official scope and workload are finalized.",
       applicationRequirement: "Applicants should provide relevant background, experience, and availability.",
       materialsToSubmit: "Self-introduction, relevant experience, availability, and optional resume/profile link.",
-      notes: "This is a local mock task and is not saved to a database.",
+      notes: "This task is pending workspace sync.",
       ownerContact: createTaskForm.owner.trim() || "Julie Zhu",
     };
 
@@ -1333,12 +1810,155 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
   }
 
   const selectedTask = selectedApplicantsTask();
+  const applicantStatsForTask = (taskId: string) => {
+    const normalizedApplicants = workbenchApplicants
+      .filter((applicant) => applicant.taskId === taskId)
+      .filter((applicant) => applicant.status !== "Rejected");
+    return {
+      applicants: normalizedApplicants.length,
+      approved: normalizedApplicants.filter((applicant) => applicant.status === "Approved").length,
+    };
+  };
   const applicantsForSelectedTask = workbenchApplicants.filter((applicant) => applicant.taskId === selectedTask?.id);
+  const normalizedApplicantsForSelectedTask = applicantsForSelectedTask
+    .map((applicant) => {
+      if (["Approved"].includes(applicant.status)) return { ...applicant, status: "Approved" as const };
+      if (["Rejected"].includes(applicant.status)) return null;
+      return { ...applicant, status: "Applied" as const };
+    })
+    .filter((applicant): applicant is WorkbenchApplicant & { status: "Applied" | "Approved" } => Boolean(applicant));
+  const selectedApplicantStats = selectedTask ? applicantStatsForTask(selectedTask.id) : { applicants: 0, approved: 0 };
   const profileApplicant = workbenchApplicants.find((applicant) => applicant.id === profileApplicantId);
   const projectGroupCards = Object.values(projectGroups);
-  const pendingApplicants = workbenchApplicants.filter((applicant) => applicant.status === "Applied" || applicant.status === "Under Review");
   const talentAppliedTasks = workbenchTasks.filter((task) => talentApplications[task.id]);
   const talentApprovedTasks = workbenchTasks.filter((task) => approvedProjectIds.includes(task.id));
+  const talentConversations = conversations.filter((item): item is TalentConversation => item.kind === "talent");
+  const currentTalentConversation =
+    selectedConversation?.kind === "talent"
+      ? selectedConversation
+      : talentConversations.find((conversation) => normalizeProfileKey(conversation.name) === "nayara ribeiro") ??
+        talentConversations[0];
+  const currentTalentProfile = findMatchingTalentProfile(talentProfiles, currentTalentConversation);
+  const currentTalentName = currentTalentProfile?.candidateName || currentTalentConversation?.name || "Talent";
+  const currentTalentAvatarUrl = currentTalentProfile?.avatarUrl || currentTalentConversation?.avatarUrl || "";
+  const currentTalentStatus = currentTalentProfile?.status
+    ? currentTalentProfile.status.charAt(0).toUpperCase() + currentTalentProfile.status.slice(1)
+    : currentTalentConversation?.profileStatus || "Not set";
+  const currentTalentActiveTasks = Math.max(
+    talentApprovedTasks.length,
+    currentTalentConversation?.relatedProjects.length || 0,
+  );
+  const currentTalentLastUpdated = currentTalentProfile?.updatedAt
+    ? new Date(currentTalentProfile.updatedAt).toLocaleString()
+    : "Not set";
+
+  function updateCurrentTalentConversationAvatar(nextAvatarUrl: string) {
+    if (!currentTalentConversation) return;
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.kind === "talent" && conversation.id === currentTalentConversation.id
+          ? { ...conversation, avatarUrl: nextAvatarUrl }
+          : conversation,
+      ),
+    );
+  }
+
+  async function persistTalentAvatar(nextAvatarUrl: string) {
+    if (!currentTalentProfile) {
+      setTalentAvatarError("Current talent profile was not found.");
+      return;
+    }
+
+    const response = await fetch("/api/talent-pool/update", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        talentId: currentTalentProfile.talentId,
+        candidateName: currentTalentProfile.candidateName,
+        avatarUrl: nextAvatarUrl,
+        education: currentTalentProfile.education,
+        professionalDomain: currentTalentProfile.professionalDomain,
+        upworkChatUrl: currentTalentProfile.upworkChatUrl,
+        profileUrl: currentTalentProfile.profileUrl,
+        nativeLanguage: currentTalentProfile.nativeLanguage,
+        secondLanguage: currentTalentProfile.secondLanguage,
+        mainSkill: currentTalentProfile.mainSkill,
+        experienceSummary: currentTalentProfile.experienceSummary,
+        dailyAvailability: currentTalentProfile.dailyAvailability,
+        weekendAvailability: currentTalentProfile.weekendAvailability,
+        email: currentTalentProfile.email,
+        onlineContactMethod: currentTalentProfile.onlineContactMethod,
+        onlineContactAccount: currentTalentProfile.onlineContactAccount,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || `Profile photo update failed: ${response.status}`);
+    }
+
+    const updatedProfile = data.talentProfile as TalentProfileRecord;
+    setTalentProfiles((current) =>
+      current.map((profile) => (profile.talentId === updatedProfile.talentId ? updatedProfile : profile)),
+    );
+    updateCurrentTalentConversationAvatar(updatedProfile.avatarUrl);
+  }
+
+  function applyTalentAvatarFile(file: File) {
+    const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      setTalentAvatarStatus("");
+      setTalentAvatarError("Please upload a valid image file.");
+      return;
+    }
+
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      setTalentAvatarStatus("");
+      setTalentAvatarError("Image is too large. Please upload a file under 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const nextAvatarUrl = String(reader.result || "");
+      if (!nextAvatarUrl) {
+        setTalentAvatarStatus("");
+        setTalentAvatarError("Could not read the selected image.");
+        return;
+      }
+      setTalentAvatarError("");
+      setTalentAvatarStatus("Profile photo updated.");
+      setFailedTalentAvatarUrl("");
+      setTalentProfiles((current) =>
+        current.map((profile) =>
+          profile.talentId === currentTalentProfile?.talentId
+            ? { ...profile, avatarUrl: nextAvatarUrl, updatedAt: new Date().toISOString() }
+            : profile,
+        ),
+      );
+      updateCurrentTalentConversationAvatar(nextAvatarUrl);
+      void persistTalentAvatar(nextAvatarUrl).catch((error) => {
+        setTalentAvatarStatus("");
+        setTalentAvatarError(error instanceof Error ? error.message : "Profile photo update failed.");
+      });
+    };
+    reader.onerror = () => {
+      setTalentAvatarStatus("");
+      setTalentAvatarError("Could not read the selected image.");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleTalentAvatarFileSelect(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    applyTalentAvatarFile(file);
+    if (talentAvatarInputRef.current) {
+      talentAvatarInputRef.current.value = "";
+    }
+  }
 
   const headerMeta = useMemo(() => {
     if (!selectedConversation) return "";
@@ -1379,15 +1999,701 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
     { label: "Can view history", value: selectedConversation ? selectedCanHistory : false },
   ];
 
+  const communicationTitle = activeView === "manager" ? selectedConversation?.name : selectedTalentCommunication?.name;
+  const communicationMessages = activeView === "manager" ? selectedConversation?.messages ?? [] : selectedTalentCommunication?.messages ?? [];
+  const communicationCanSend = activeView === "manager" ? selectedCanSend : Boolean(selectedTalentCommunication);
+  const communicationCanFile = activeView === "manager" ? selectedCanFile : Boolean(selectedTalentCommunication);
+  const communicationCanHistory = activeView === "manager" ? selectedCanHistory : Boolean(selectedTalentCommunication);
+  const communicationIsGroup =
+    activeView === "manager"
+      ? selectedConversation?.kind === "group"
+      : selectedTalentCommunication?.kind === "Project Group";
+  const communicationHeaderMeta =
+    activeView === "manager"
+      ? headerMeta
+      : selectedTalentCommunication
+        ? `${selectedTalentCommunication.roleLabel} · ${selectedTalentCommunication.projectName}`
+        : "";
+
+  const managerProjectGroupAccess: CommunicationAccessItem[] = [
+    ...conversations
+      .filter((conversation): conversation is GroupConversation => conversation.kind === "group" && conversation.groupType === "Project Group")
+      .map((conversation) => ({
+        id: conversation.id,
+        name: conversation.name,
+        subtitle: conversation.relatedProject ?? "Project group",
+        meta: `${conversation.memberCount} members`,
+        avatarSeed: conversation.avatarSeed,
+        unreadCount: conversation.unreadCount,
+        onSelect: () => setSelectedConversationId(conversation.id),
+      })),
+    ...projectGroupCards.map((group) => ({
+      id: `project-card-${normalizeTaskParam(group.groupName)}`,
+      name: group.groupName,
+      subtitle: group.activity,
+      meta: `${group.members} members`,
+      avatarSeed: group.groupName,
+    })),
+    {
+      id: "manager-project-arabic-ocr",
+      name: "Arabic OCR Expert Pool Group",
+      subtitle: "Arabic OCR Expert Pool",
+      meta: "9 members",
+      avatarSeed: "Arabic OCR Expert Pool Group",
+    },
+    {
+      id: "manager-project-portuguese-review",
+      name: "Portuguese-BR Localization Review Group",
+      subtitle: "Portuguese-BR Localization Review",
+      meta: "16 members",
+      avatarSeed: "Portuguese-BR Localization Review Group",
+    },
+  ];
+
+  const managerDirectMessageAccess: CommunicationAccessItem[] = conversations
+    .filter((conversation): conversation is PlatformConversation | TalentConversation => conversation.kind === "platform" || conversation.kind === "talent")
+    .map((conversation) => ({
+      id: conversation.id,
+      name: conversation.name,
+      subtitle: conversation.kind === "platform" ? conversation.role : "Talent",
+      meta: conversation.kind === "platform" ? conversation.department : conversation.skill,
+      avatarSeed: conversation.avatarSeed,
+      avatarUrl: conversation.kind === "talent" ? conversation.avatarUrl : undefined,
+      unreadCount: conversation.unreadCount,
+      onSelect: () => setSelectedConversationId(conversation.id),
+    }));
+
+  const managerLanguageGroupAccess: CommunicationAccessItem[] = [
+    ...conversations
+      .filter((conversation): conversation is GroupConversation => conversation.kind === "group" && conversation.groupType === "Language Group")
+      .map((conversation) => ({
+        id: conversation.id,
+        name: conversation.name,
+        subtitle: conversation.relatedLanguage ?? "Language group",
+        meta: `${conversation.memberCount} members`,
+        avatarSeed: conversation.avatarSeed,
+        unreadCount: conversation.unreadCount,
+        onSelect: () => setSelectedConversationId(conversation.id),
+      })),
+    {
+      id: "manager-language-japanese",
+      name: "Japanese Talent Pool",
+      subtitle: "Japanese",
+      meta: "80 members",
+      avatarSeed: "Japanese Talent Pool",
+    },
+    {
+      id: "manager-language-arabic-reviewers",
+      name: "Arabic OCR Reviewers",
+      subtitle: "Arabic OCR",
+      meta: "15 members",
+      avatarSeed: "Arabic OCR Reviewers",
+    },
+    {
+      id: "manager-language-portuguese",
+      name: "Portuguese-BR Localization Pool",
+      subtitle: "Portuguese-BR",
+      meta: "28 members",
+      avatarSeed: "Portuguese-BR Localization Pool",
+    },
+  ];
+
+  const talentPmAccess: CommunicationAccessItem[] = talentCommunicationConversations
+    .filter((conversation) => conversation.kind === "PM")
+    .map((conversation) => ({
+      id: conversation.id,
+      name: conversation.name,
+      subtitle: `${conversation.roleLabel} · ${conversation.projectName}`,
+      meta: conversation.level,
+      avatarSeed: conversation.avatarSeed,
+      avatarUrl: conversation.avatarUrl,
+      unreadCount: conversation.unreadCount,
+      onSelect: () => setSelectedTalentCommunicationId(conversation.id),
+    }));
+
+  const talentHrAccess: CommunicationAccessItem[] = talentCommunicationConversations
+    .filter((conversation) => conversation.kind === "HR")
+    .map((conversation) => ({
+      id: conversation.id,
+      name: conversation.name,
+      subtitle: `${conversation.roleLabel} · ${conversation.projectName}`,
+      meta: conversation.level,
+      avatarSeed: conversation.avatarSeed,
+      avatarUrl: conversation.avatarUrl,
+      unreadCount: conversation.unreadCount,
+      onSelect: () => setSelectedTalentCommunicationId(conversation.id),
+    }));
+
+  const talentProjectGroupAccess: CommunicationAccessItem[] = talentCommunicationConversations
+    .filter((conversation) => conversation.kind === "Project Group")
+    .map((conversation) => ({
+      id: conversation.id,
+      name: conversation.name,
+      subtitle: conversation.projectName,
+      meta: conversation.memberScope,
+      avatarSeed: conversation.avatarSeed,
+      unreadCount: conversation.unreadCount,
+      onSelect: () => setSelectedTalentCommunicationId(conversation.id),
+    }));
+
   const blockedReason = useMemo(() => {
     if (!selectedConversation) return "";
     return "";
   }, [selectedConversation]);
 
+  function accessOverflowKey(sectionKey: string) {
+    return `${activeView}-${sectionKey}`;
+  }
+
+  function renderAccessChip(item: CommunicationAccessItem, compact = false) {
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={item.onSelect}
+        className={`flex w-full items-center gap-2 rounded-xl border border-[#eadfcd] bg-[#fbfaf6] text-left transition hover:border-[#1f5c43] hover:bg-[#f3fbf6] ${
+          compact ? "px-2.5 py-2" : "px-3 py-2.5"
+        }`}
+      >
+        {item.avatarUrl ? (
+          <ProfilePhoto name={item.name} avatarUrl={item.avatarUrl} sizeClass={compact ? "h-8 w-8 text-xs" : "h-9 w-9 text-xs"} />
+        ) : (
+          <Avatar name={item.name} seed={item.avatarSeed} size="sm" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-[#111827]">{item.name}</div>
+          <div className="truncate text-xs text-[#6b7280]">{displayValue(item.subtitle)}</div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {item.meta ? <span className="max-w-[88px] truncate text-[11px] font-semibold text-[#1f5c43]">{item.meta}</span> : null}
+          {item.unreadCount ? (
+            <span className="rounded-full bg-[#1f5c43] px-2 py-0.5 text-[10px] font-bold text-white">{item.unreadCount}</span>
+          ) : null}
+        </div>
+      </button>
+    );
+  }
+
+  function renderAccessSection(title: string, items: CommunicationAccessItem[], limit: number, sectionKey: string) {
+    const visibleItems = items.slice(0, limit);
+    const hiddenItems = items.slice(limit);
+    const overflowKey = accessOverflowKey(sectionKey);
+    const isOpen = openAccessSection === overflowKey;
+
+    return (
+      <div className="relative min-h-[168px] rounded-2xl border border-[#eadfcd] bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#1f5c43]">{title}</div>
+          {hiddenItems.length ? (
+            <button
+              type="button"
+              onClick={() => setOpenAccessSection(isOpen ? "" : overflowKey)}
+              className="rounded-full border border-[#b7dfca] bg-[#edf8f1] px-2.5 py-1 text-[11px] font-bold text-[#1f5c43] transition hover:border-[#1f5c43]"
+            >
+              +{hiddenItems.length} more
+            </button>
+          ) : null}
+        </div>
+        <div className="mt-3 space-y-2">
+          {visibleItems.length ? visibleItems.map((item) => renderAccessChip(item, true)) : (
+            <div className="rounded-xl border border-dashed border-[#d7cec0] bg-[#fbfaf6] px-3 py-2 text-sm text-[#6b7280]">No access assigned.</div>
+          )}
+        </div>
+        {isOpen && hiddenItems.length ? (
+          <div className="absolute left-4 right-4 top-[calc(100%-0.5rem)] z-30 rounded-2xl border border-[#d7cec0] bg-white p-3 shadow-[0_18px_34px_rgba(31,41,51,0.16)]">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#6f6256]">More {title}</div>
+              <button type="button" onClick={() => setOpenAccessSection("")} className="text-xs font-semibold text-[#1f5c43]">
+                Close
+              </button>
+            </div>
+            <div className="scroll-panel max-h-64 space-y-2 pr-1">
+              {hiddenItems.map((item) => renderAccessChip(item, true))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function managerTalentLevel(conversation: TalentConversation) {
+    if (conversation.name.includes("Nayara")) return "Level A";
+    if (conversation.name.includes("Risa")) return "Level B";
+    if (conversation.name.includes("Pearl")) return "Level C";
+    return "Level B";
+  }
+
+  function managerTalentProjectsCompleted(conversation: TalentConversation) {
+    if (conversation.name.includes("Nayara")) return 26;
+    if (conversation.name.includes("Risa")) return 18;
+    if (conversation.name.includes("Pearl")) return 11;
+    return 9;
+  }
+
+  function platformUserLevel(conversation: PlatformConversation) {
+    if (conversation.role === "Super Admin") return "Level A";
+    if (conversation.role === "Executive") return "Level A";
+    return conversation.name.includes("Daniel") ? "Level B" : "Level C";
+  }
+
+  function platformUserWorkload(conversation: PlatformConversation): Record<string, string> {
+    if (conversation.role === "HR User") {
+      return {
+        assignedTasks: String(conversation.assignedProjects.length),
+        assignedLanguages: conversation.assignedProjects.includes("Japanese Pool") ? "Japanese, Korean" : "Portuguese-BR, Arabic",
+        pendingReviews: conversation.name.includes("Daniel") ? "7" : "4",
+        acceptedProfiles: conversation.name.includes("Daniel") ? "34" : "21",
+        activeProjects: conversation.assignedProjects.join(", "),
+      };
+    }
+
+    return {
+      managedProjects: conversation.assignedProjects.join(", "),
+      managedLanguages: conversation.name.includes("Julie") ? "Global, Japanese, Korean" : "Global coverage review",
+      team: conversation.department,
+    };
+  }
+
+  function platformRoleLabel(conversation: PlatformConversation) {
+    if (conversation.role === "Super Admin") return "Project Manager";
+    if (conversation.role === "Executive") return "Manager";
+    return "HR Support";
+  }
+
+  function findConversationPerson(name: string) {
+    const normalizedName = normalizeProfileKey(name);
+    return conversations.find((conversation) => normalizeProfileKey(conversation.name) === normalizedName);
+  }
+
+  function personDetailFromName(name: string): GroupMemberDetail {
+    const conversation = findConversationPerson(name);
+    if (conversation?.kind === "platform") {
+      return {
+        name: conversation.name,
+        role: platformRoleLabel(conversation),
+        level: platformUserLevel(conversation),
+        status: conversation.online ? "Online" : conversation.status,
+        avatarSeed: conversation.avatarSeed,
+      };
+    }
+    if (conversation?.kind === "talent") {
+      return {
+        name: conversation.name,
+        role: "Talent",
+        level: managerTalentLevel(conversation),
+        status: conversation.online ? "Online" : conversation.profileStatus,
+        avatarSeed: conversation.avatarSeed,
+        avatarUrl: conversation.avatarUrl,
+      };
+    }
+    return {
+      name,
+      role: "Member",
+      level: "",
+      status: "Active",
+      avatarSeed: name,
+    };
+  }
+
+  function availableGroupPeople() {
+    const people = [
+      ...conversations
+        .filter((conversation): conversation is PlatformConversation | TalentConversation => conversation.kind === "platform" || conversation.kind === "talent")
+        .map((conversation) => personDetailFromName(conversation.name)),
+      ...talentCommunicationConversations
+        .filter((conversation) => conversation.kind === "PM" || conversation.kind === "HR")
+        .map((conversation) => ({
+          name: conversation.name,
+          role: conversation.roleLabel,
+          level: conversation.level,
+          status: conversation.online ? "Online" : "Offline",
+          avatarSeed: conversation.avatarSeed,
+          avatarUrl: conversation.avatarUrl,
+        })),
+      personDetailFromName(currentTalentName),
+    ];
+
+    const seen = new Set<string>();
+    return people.filter((person) => {
+      const key = normalizeProfileKey(person.name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function groupMemberDetails(memberNames: string[], fallbackMembers: number): GroupMemberDetail[] {
+    const names = Array.from(new Set(memberNames.filter(Boolean)));
+    const detailedMembers = names.map((name) => personDetailFromName(name));
+
+    if (detailedMembers.length) return detailedMembers;
+    return Array.from({ length: fallbackMembers }).map((_, index) => ({
+      name: `Member ${index + 1}`,
+      role: "Member",
+      level: "",
+      status: "Active",
+      avatarSeed: `Member ${index + 1}`,
+    }));
+  }
+
+  function groupRuleLink(groupName: string): GroupRuleLink | null {
+    if (groupName.includes("Japanese")) {
+      return {
+        title: "Project Guideline",
+        url: "https://example.com/blackdog/japanese-llm-guideline",
+      };
+    }
+    if (groupName.includes("Korean")) {
+      return {
+        title: "Pilot Task Brief",
+        url: "https://example.com/blackdog/korean-llm-brief",
+      };
+    }
+    if (groupName.includes("QA")) {
+      return {
+        title: "QA Review Rule",
+        url: "https://example.com/blackdog/qa-review-rule",
+      };
+    }
+    return null;
+  }
+
+  function renderDetailRows(rows: Array<[string, string | number | undefined]>) {
+    return (
+      <div className="mt-4 space-y-2 text-sm">
+        {rows
+          .filter(([, value]) => String(value ?? "").trim())
+          .map(([label, value]) => (
+            <InfoRow key={label} label={label} value={displayValue(value)} />
+          ))}
+      </div>
+    );
+  }
+
+  function setGroupMembers(groupKey: string, members: GroupMemberDetail[]) {
+    setGroupMemberOverrides((current) => ({
+      ...current,
+      [groupKey]: members,
+    }));
+  }
+
+  function openGroupMemberModal(mode: "add" | "delete", groupKey: string, members: GroupMemberDetail[]) {
+    setGroupMemberModal({ mode, groupKey, members });
+    setGroupMemberModalSearch("");
+    setSelectedGroupMemberNames([]);
+  }
+
+  function closeGroupMemberModal() {
+    setGroupMemberModal(null);
+    setGroupMemberModalSearch("");
+    setSelectedGroupMemberNames([]);
+  }
+
+  function toggleSelectedGroupMember(name: string) {
+    setSelectedGroupMemberNames((current) =>
+      current.some((item) => normalizeProfileKey(item) === normalizeProfileKey(name))
+        ? current.filter((item) => normalizeProfileKey(item) !== normalizeProfileKey(name))
+        : [...current, name],
+    );
+  }
+
+  function confirmGroupMemberModal() {
+    if (!groupMemberModal || !selectedGroupMemberNames.length) return;
+    const selectedKeys = new Set(selectedGroupMemberNames.map((name) => normalizeProfileKey(name)));
+
+    if (groupMemberModal.mode === "add") {
+      const nextMembers = availableGroupPeople().filter((person) => selectedKeys.has(normalizeProfileKey(person.name)));
+      const currentMembers = groupMemberOverrides[groupMemberModal.groupKey] ?? groupMemberModal.members;
+      const existingKeys = new Set(currentMembers.map((member) => normalizeProfileKey(member.name)));
+      setGroupMembers(groupMemberModal.groupKey, [
+        ...currentMembers,
+        ...nextMembers.filter((member) => !existingKeys.has(normalizeProfileKey(member.name))),
+      ]);
+    } else {
+      setGroupMembers(
+        groupMemberModal.groupKey,
+        groupMemberModal.members.filter((member) => !selectedKeys.has(normalizeProfileKey(member.name))),
+      );
+      setGroupAdminNames((current) => ({
+        ...current,
+        [groupMemberModal.groupKey]: (current[groupMemberModal.groupKey] ?? []).filter(
+          (name) => !selectedKeys.has(normalizeProfileKey(name)),
+        ),
+      }));
+    }
+
+    closeGroupMemberModal();
+  }
+
+  function toggleGroupAdmin(groupKey: string, memberName: string) {
+    setGroupAdminNames((current) => {
+      const currentAdmins = current[groupKey] ?? [];
+      const isAdmin = currentAdmins.some((name) => normalizeProfileKey(name) === normalizeProfileKey(memberName));
+      return {
+        ...current,
+        [groupKey]: isAdmin
+          ? currentAdmins.filter((name) => normalizeProfileKey(name) !== normalizeProfileKey(memberName))
+          : [...currentAdmins, memberName],
+      };
+    });
+  }
+
+  function removeMemberFromGroup(groupKey: string, members: GroupMemberDetail[], memberName: string) {
+    const memberKey = normalizeProfileKey(memberName);
+    setGroupMembers(groupKey, members.filter((member) => normalizeProfileKey(member.name) !== memberKey));
+    setGroupAdminNames((current) => ({
+      ...current,
+      [groupKey]: (current[groupKey] ?? []).filter((name) => normalizeProfileKey(name) !== memberKey),
+    }));
+    setGroupActionMemberName("");
+  }
+
+  function toggleGroupSetting(groupKey: string, settingKey: string) {
+    setGroupSettingToggles((current) => ({
+      ...current,
+      [groupKey]: {
+        ...(current[groupKey] ?? {}),
+        [settingKey]: !(current[groupKey]?.[settingKey] ?? false),
+      },
+    }));
+  }
+
+  function renderProjectRules(rule: GroupRuleLink | null) {
+    return (
+      <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-3">
+        <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#1f5c43]">Project Rules</div>
+        {rule ? (
+          <div className="mt-3 rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-3">
+            <div className="text-sm font-semibold text-[#111827]">{rule.title}</div>
+            <div className="mt-1 break-all text-xs text-[#6b7280]">{rule.url}</div>
+            <a
+              href={rule.url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex rounded-full border border-[#1f5c43] bg-[#1f5c43] px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              Open Rule
+            </a>
+          </div>
+        ) : (
+          <div className="mt-3 rounded-2xl border border-dashed border-[#d7cec0] bg-[#fbfaf6] px-3 py-3 text-sm text-[#6b7280]">
+            No project rule link added yet.
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderGroupMemberTile(person: GroupMemberDetail, admins: string[], selected = false) {
+    const isAdmin = admins.some((name) => normalizeProfileKey(name) === normalizeProfileKey(person.name));
+    return (
+      <div
+        key={person.name}
+        className={`rounded-2xl border bg-[#fbfaf6] px-2.5 py-3 text-center transition ${
+          selected ? "border-[#1f5c43] ring-2 ring-[#d6eadc]" : "border-[#eadfcd]"
+        }`}
+      >
+        <div className="mx-auto flex justify-center">
+          {person.avatarUrl ? (
+            <ProfilePhoto name={person.name} avatarUrl={person.avatarUrl} sizeClass="h-11 w-11 text-xs" />
+          ) : (
+            <Avatar name={person.name} seed={person.avatarSeed} size="md" />
+          )}
+        </div>
+        <div className="mt-2 truncate text-xs font-semibold text-[#111827]">{person.name}</div>
+        <div className="mt-1 truncate text-[11px] text-[#6b7280]">{person.role}</div>
+        {isAdmin ? (
+          <div className="mt-1 inline-flex rounded-full border border-[#b7dfca] bg-[#edf8f1] px-2 py-0.5 text-[10px] font-bold text-[#1f5c43]">
+            Admin
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderGroupMembers(members: ReturnType<typeof groupMemberDetails>, groupKey: string) {
+    const admins = groupAdminNames[groupKey] ?? (members[0]?.name ? [members[0].name] : []);
+
+    return (
+      <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#1f5c43]">Group Members</div>
+            <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{`Group Members · ${members.length}`}</Badge>
+          </div>
+        </div>
+        <div className="scroll-panel mt-3 grid max-h-80 grid-cols-3 gap-2 pr-1">
+          {members.map((member) => renderGroupMemberTile(member, admins))}
+        </div>
+      </div>
+    );
+  }
+
+  function renderPersonDetails() {
+    if (activeView === "talent" && selectedTalentCommunication && selectedTalentCommunication.kind !== "Project Group") {
+      return (
+        <>
+          <div className="flex items-start gap-3">
+            {selectedTalentCommunication.avatarUrl ? (
+              <ProfilePhoto name={selectedTalentCommunication.name} avatarUrl={selectedTalentCommunication.avatarUrl} sizeClass="h-16 w-16 text-lg" />
+            ) : (
+              <Avatar name={selectedTalentCommunication.name} seed={selectedTalentCommunication.avatarSeed} size="lg" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-base font-semibold text-[#111827]">{selectedTalentCommunication.name}</div>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">{selectedTalentCommunication.roleLabel}</Badge>
+                <Badge className={selectedTalentCommunication.online ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#cbd5e1] bg-[#f1f5f9] text-[#64748b]"}>
+                  {selectedTalentCommunication.online ? "Online" : "Offline"}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          {renderDetailRows([
+            ["Name", selectedTalentCommunication.name],
+            ["Role", selectedTalentCommunication.roleLabel],
+            ["Level", selectedTalentCommunication.level],
+            ["Projects Completed", `${selectedTalentCommunication.completedProjects ?? 0} projects`],
+            ["Assigned Project", selectedTalentCommunication.projectName],
+            ["Relationship", selectedTalentCommunication.relationship],
+          ])}
+        </>
+      );
+    }
+
+    if (selectedConversation?.kind === "platform") {
+      const workload = platformUserWorkload(selectedConversation);
+      return (
+        <>
+          <div className="flex items-start gap-3">
+            <Avatar name={selectedConversation.name} seed={selectedConversation.avatarSeed} size="lg" />
+            <div className="min-w-0 flex-1">
+              <div className="text-base font-semibold text-[#111827]">{selectedConversation.name}</div>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <Badge className={selectedConversation.role === "Super Admin" ? "border-[#b38f2d] bg-[#fff4d5] text-[#946200]" : selectedConversation.role === "Executive" ? "border-[#7c3aed] bg-[#f3e8ff] text-[#6d28d9]" : "border-[#2563eb] bg-[#dbeafe] text-[#1d4ed8]"}>
+                  {platformRoleLabel(selectedConversation)}
+                </Badge>
+                <Badge className={selectedConversation.online ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#cbd5e1] bg-[#f1f5f9] text-[#64748b]"}>
+                  {selectedConversation.online ? "Online" : selectedConversation.status}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          {renderDetailRows([
+            ["Name", selectedConversation.name],
+            ["Role", platformRoleLabel(selectedConversation)],
+            ["Level", platformUserLevel(selectedConversation)],
+            ["Assigned Tasks", workload.assignedTasks],
+            ["Assigned Languages", workload.assignedLanguages],
+            ["Managed Projects", workload.managedProjects],
+            ["Department", selectedConversation.department],
+            ["Status", selectedConversation.status],
+            ["Last Active", selectedConversation.lastActive],
+          ])}
+        </>
+      );
+    }
+
+    if (selectedConversation?.kind === "talent") {
+      return (
+        <>
+          <div className="flex items-start gap-3">
+            {selectedConversation.avatarUrl ? (
+              <ProfilePhoto name={selectedConversation.name} avatarUrl={selectedConversation.avatarUrl} sizeClass="h-16 w-16 text-lg" />
+            ) : (
+              <Avatar name={selectedConversation.name} seed={selectedConversation.avatarSeed} size="lg" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-base font-semibold text-[#111827]">{selectedConversation.name}</div>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <Badge className="border-[#c46a1c] bg-[#fff2df] text-[#b45309]">Talent</Badge>
+                <Badge className={selectedConversation.online ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#cbd5e1] bg-[#f1f5f9] text-[#64748b]"}>
+                  {selectedConversation.online ? "Online" : "Offline"}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          {renderDetailRows([
+            ["Name", selectedConversation.name],
+            ["Role", "Talent"],
+            ["Level", managerTalentLevel(selectedConversation)],
+            ["Projects Completed", `${managerTalentProjectsCompleted(selectedConversation)} projects`],
+            ["Native Language", selectedConversation.nativeLanguage],
+            ["Second Language", selectedConversation.secondLanguage],
+            ["Skill", selectedConversation.skill],
+            ["Assigned HR", selectedConversation.assignedHr],
+            ["Assigned Project", selectedConversation.relatedProjects.join(", ")],
+            ["Profile Status", selectedConversation.profileStatus],
+            ["Last Active", selectedConversation.lastContactTime],
+          ])}
+        </>
+      );
+    }
+
+    return null;
+  }
+
+  function renderGroupDetails() {
+    if (activeView === "talent" && selectedTalentCommunication?.kind === "Project Group") {
+      const groupKey = `talent:${selectedTalentCommunication.id}`;
+      const defaultMembers = groupMemberDetails(
+        [
+          ...talentCommunicationConversations.filter((conversation) => conversation.kind === "PM" || conversation.kind === "HR").map((conversation) => conversation.name),
+          currentTalentName,
+        ],
+        3,
+      );
+      const members = groupMemberOverrides[groupKey] ?? defaultMembers;
+      const rule = groupRuleLink(selectedTalentCommunication.name);
+      return (
+        <>
+          <div className="flex items-start gap-3">
+            <Avatar name={selectedTalentCommunication.name} seed={selectedTalentCommunication.avatarSeed} size="lg" />
+            <div className="min-w-0 flex-1">
+              <div className="text-base font-semibold text-[#111827]">{selectedTalentCommunication.name}</div>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">Project Group</Badge>
+                <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">Active</Badge>
+              </div>
+            </div>
+          </div>
+          {renderProjectRules(rule)}
+          {renderGroupMembers(members, groupKey)}
+        </>
+      );
+    }
+
+    if (selectedConversation?.kind !== "group") return null;
+    const groupKey = `manager:${selectedConversation.id}`;
+    const defaultMembers = groupMemberDetails([selectedConversation.owner, ...selectedConversation.members], selectedConversation.memberCount);
+    const members = groupMemberOverrides[groupKey] ?? defaultMembers;
+    const rule = groupRuleLink(selectedConversation.name);
+    return (
+      <>
+        <div className="flex items-start gap-3">
+          <Avatar name={selectedConversation.name} seed={selectedConversation.avatarSeed} size="lg" />
+          <div className="min-w-0 flex-1">
+            <div className="text-base font-semibold text-[#111827]">{selectedConversation.name}</div>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.groupType}</Badge>
+              <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">Active</Badge>
+            </div>
+          </div>
+        </div>
+        {renderProjectRules(rule)}
+        {renderGroupMembers(members, groupKey)}
+      </>
+    );
+  }
+
   function handleFileSelection(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    if (activeTab === "communication-hub" && activeView === "talent") {
+      appendTalentAttachment(file);
+      return;
+    }
     appendLocalAttachment(file, "file");
   }
 
@@ -1399,7 +2705,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
   }
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-[#f6f0e6] text-[#1f2937]">
+    <main className="flex min-h-screen flex-col bg-[#f6f0e6] text-[#1f2937]">
       <input
         ref={fileInputRef}
         type="file"
@@ -1414,13 +2720,13 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
         onChange={handleVideoSelection}
         className="hidden"
       />
-      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-6 px-6 py-6">
+      <div className="page-shell flex min-h-0 flex-1 flex-col gap-6 pb-24 pt-6">
         <section className="rounded-xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <h1 className="text-4xl font-black tracking-tight text-[#111827]">Talent Workbench</h1>
+              <h1 className="text-4xl font-black tracking-tight text-[#111827]">Talent Hub</h1>
               <p className="mt-3 max-w-3xl text-base font-medium leading-7 text-[#6f6256]">
-                Manage recruiting tasks, talent applications, approvals, and project communication in one workspace.
+                Manage talent tasks, applications, approvals, and project communication in one hub.
               </p>
             </div>
 
@@ -1445,30 +2751,32 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-semibold text-[#6f6256]">View as:</span>
-                <div className="inline-flex rounded-lg border border-[#d7dccf] bg-white p-1">
-                  {[
-                    { id: "manager", label: "Manager" },
-                    { id: "talent", label: "Talent" },
-                  ].map((view) => (
-                    <button
-                      key={view.id}
-                      type="button"
-                      onClick={() => {
-                        const nextView = view.id as WorkbenchView;
-                        setActiveView(nextView);
-                        setTaskPanelMode(nextView === "manager" ? "applicants" : "details");
-                      }}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                        activeView === view.id ? "bg-[#1f5c43] text-white" : "text-[#6f6256] hover:bg-[#f4efe2] hover:text-[#111827]"
-                      }`}
-                    >
-                      {view.label}
-                    </button>
-                  ))}
+              {activeTab === "personal-center" ? null : (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-semibold text-[#6f6256]">View as:</span>
+                  <div className="inline-flex rounded-lg border border-[#d7dccf] bg-white p-1">
+                    {[
+                      { id: "manager", label: "Manager" },
+                      { id: "talent", label: "Talent" },
+                    ].map((view) => (
+                      <button
+                        key={view.id}
+                        type="button"
+                        onClick={() => {
+                          const nextView = view.id as WorkbenchView;
+                          setActiveView(nextView);
+                          setTaskPanelMode(nextView === "manager" ? "applicants" : "details");
+                        }}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                          activeView === view.id ? "bg-[#1f5c43] text-white" : "text-[#6f6256] hover:bg-[#f4efe2] hover:text-[#111827]"
+                        }`}
+                      >
+                        {view.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </section>
@@ -1487,8 +2795,12 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
               </div>
             ) : null}
 
-        {activeTab === "task-center" ? (
-        <section className="grid min-h-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        {activeTabBlocked ? (
+          <PermissionFallback type="no-permission" />
+        ) : null}
+
+        {!activeTabBlocked && activeTab === "task-center" ? (
+        <section className="grid min-h-0 gap-5 min-[900px]:grid-cols-[minmax(360px,440px)_minmax(0,1fr)] min-[1180px]:grid-cols-[minmax(480px,520px)_minmax(520px,1fr)]">
           <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <SectionHeading
@@ -1510,32 +2822,33 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
               {workbenchTasks.map((task) => {
                 const selected = selectedTask?.id === task.id;
                 const applicationStatus = talentApplications[task.id];
+                const taskApplicantStats = applicantStatsForTask(task.id);
                 return (
                   <article
                     key={task.id}
-                    onClick={() => selectTask(task.id, activeView === "manager" ? "applicants" : "details")}
-                    className={`cursor-pointer rounded-2xl border bg-white p-4 transition ${
+                    onClick={() => selectTask(task.id, "details")}
+                    className={`cursor-pointer rounded-2xl border bg-white p-3.5 transition ${
                       selected
                         ? "border-[#b7dfca] border-l-4 border-l-[#1f5c43] bg-[#f2fbf5] shadow-[0_10px_22px_rgba(31,92,67,0.10)]"
                         : "border-[#e4d7c6] hover:border-[#cfe8d9] hover:bg-[#fffdf8]"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-lg font-semibold leading-6 text-[#111827]">{task.taskName}</div>
-                        <div className="mt-2 text-sm leading-6 text-[#6b7280]">
+                        <div className="text-base font-semibold leading-5 text-[#111827]">{task.taskName}</div>
+                        <div className="mt-1.5 text-sm leading-5 text-[#6b7280]">
                           {task.language} · {task.targetTalent} · Deadline {task.deadline}
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#4b5563]">
-                          <span>Applicants: <strong className="text-[#111827]">{task.applicants}</strong></span>
-                          <span>Approved: <strong className="text-[#111827]">{task.approved}</strong></span>
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#4b5563]">
+                          <span>Applicants: <strong className="text-[#111827]">{taskApplicantStats.applicants}</strong></span>
+                          <span>Approved: <strong className="text-[#111827]">{taskApplicantStats.approved}</strong></span>
                           <span>Owner: <strong className="text-[#111827]">{task.owner}</strong></span>
                         </div>
                       </div>
                       <Badge className="border-[#1f5c43] bg-[#edf8f1] text-[#1f5c43]">{task.status}</Badge>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       {activeView === "manager" ? (
                         <>
                           <button
@@ -1610,7 +2923,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
             </div>
           </div>
 
-          <aside className="min-w-0 overflow-y-auto rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+          <aside className="scroll-panel min-w-0 rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-bold uppercase tracking-[0.24em] text-[#1f5c43]">
@@ -1629,25 +2942,25 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
 
             {selectedTask ? (
               <>
-                <div className="mt-5 space-y-2 border-t border-[#eadfcd] pt-4 text-sm">
+                <div className="mt-5 grid gap-3 border-t border-[#eadfcd] pt-4 text-sm sm:grid-cols-2 xl:grid-cols-3">
                   {[
                     ["Language", selectedTask.language],
                     ["Target", selectedTask.targetTalent],
                     ["Deadline", selectedTask.deadline],
                     ["Owner", selectedTask.owner],
-                    ["Applicants", String(selectedTask.applicants)],
-                    ["Approved", String(selectedTask.approved)],
+                    ["Applicants", String(selectedApplicantStats.applicants)],
+                    ["Approved", String(selectedApplicantStats.approved)],
                   ].map(([label, value]) => (
-                    <div key={label} className="flex items-start justify-between gap-4">
-                      <span className="font-semibold text-[#6f6256]">{label}</span>
-                      <span className="min-w-0 max-w-[64%] break-words text-right font-medium text-[#111827]">{value}</span>
+                    <div key={label} className="rounded-2xl border border-[#eadfcd] bg-white px-3 py-2">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6256]">{label}</div>
+                      <div className="mt-1 min-w-0 break-words text-sm font-semibold text-[#111827]">{value}</div>
                     </div>
                   ))}
                 </div>
 
                 {activeView === "manager" && taskPanelMode === "manage" ? (
                   <div className="mt-6 space-y-4">
-                    <SectionHeading label="Task Overview" subtitle="Mock management panel for task setup and delivery readiness." />
+                    <SectionHeading label="Task Overview" subtitle="Review task setup, applicant progress, and delivery readiness." />
                     <div className="rounded-2xl border border-[#eadfcd] bg-white p-4 text-sm leading-6 text-[#4b5563]">
                       <div className="font-semibold text-[#111827]">{selectedTask.taskName}</div>
                       <div className="mt-2">{selectedTask.status} · {selectedTask.language} · {selectedTask.targetTalent}</div>
@@ -1676,26 +2989,33 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                       </button>
                     </div>
                   </div>
-                ) : activeView === "manager" ? (
+                ) : activeView === "manager" && taskPanelMode === "applicants" ? (
                   <div className="mt-6">
-                    <SectionHeading label="Applicant Review Queue" subtitle="Review applicants for the selected task and update mock application status." />
+                    <SectionHeading label="Applicant Management" subtitle="Review who applied and approve talents for this task." />
                     <div className="space-y-3">
-                      {applicantsForSelectedTask.length ? applicantsForSelectedTask.map((applicant) => (
+                      {normalizedApplicantsForSelectedTask.length ? normalizedApplicantsForSelectedTask.map((applicant) => (
                         <div key={applicant.id} className="rounded-2xl border border-[#eadfcd] bg-white p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="font-semibold text-[#111827]">{applicant.name}</div>
-                              <div className="mt-1 text-sm text-[#6b7280]">{applicant.language} · {applicant.skill}</div>
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-start gap-3">
+                              <Avatar name={applicant.name} seed={applicant.id} size="sm" />
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[#111827]">{applicant.name}</div>
+                                <div className="mt-1 text-sm text-[#6b7280]">
+                                  Native: {applicant.language} · Skill: {applicant.skill}
+                                  {applicant.level ? ` · ${applicant.level}` : ""}
+                                </div>
+                              </div>
                             </div>
-                            <Badge className={applicant.status === "Approved" ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : applicant.status === "Rejected" ? "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]" : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
+                            <Badge className={applicant.status === "Approved" ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
                               {applicant.status}
                             </Badge>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-1.5">
                             <button type="button" onClick={() => setProfileApplicantId(applicant.id)} className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-2.5 py-1 text-[11px] font-semibold text-[#4b5563]">View Profile</button>
                             <button type="button" onClick={() => openApplicantMessage(applicant)} className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-2.5 py-1 text-[11px] font-semibold text-[#4b5563]">Message</button>
-                            <button type="button" onClick={() => handleApplicantDecision(applicant.id, "Approved")} className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-2.5 py-1 text-[11px] font-semibold text-white">Approve</button>
-                            <button type="button" onClick={() => handleApplicantDecision(applicant.id, "Rejected")} className="rounded-full border border-[#f5c2c7] bg-[#fff5f5] px-2.5 py-1 text-[11px] font-semibold text-[#b42318]">Reject</button>
+                            {applicant.status === "Applied" ? (
+                              <button type="button" onClick={() => handleApplicantDecision(applicant.id, "Approved")} className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-2.5 py-1 text-[11px] font-semibold text-white">Approve</button>
+                            ) : null}
                           </div>
                         </div>
                       )) : (
@@ -1705,11 +3025,47 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                       )}
                     </div>
                   </div>
+                ) : activeView === "manager" ? (
+                  <div className="mt-6">
+                    <SectionHeading label="Applicant Management" subtitle="Review who applied and approve talents for this task." />
+                    <div className="space-y-3">
+                      {normalizedApplicantsForSelectedTask.length ? normalizedApplicantsForSelectedTask.map((applicant) => (
+                        <div key={applicant.id} className="rounded-2xl border border-[#eadfcd] bg-white p-3">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-start gap-3">
+                              <Avatar name={applicant.name} seed={applicant.id} size="sm" />
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[#111827]">{applicant.name}</div>
+                                <div className="mt-1 text-sm text-[#6b7280]">
+                                  Native: {applicant.language} · Skill: {applicant.skill}
+                                  {applicant.level ? ` · ${applicant.level}` : ""}
+                                </div>
+                              </div>
+                            </div>
+                            <Badge className={applicant.status === "Approved" ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
+                              {applicant.status}
+                            </Badge>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            <button type="button" onClick={() => setProfileApplicantId(applicant.id)} className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-2.5 py-1 text-[11px] font-semibold text-[#4b5563]">View Profile</button>
+                            <button type="button" onClick={() => openApplicantMessage(applicant)} className="rounded-full border border-[#d7cec0] bg-[#f8f4ea] px-2.5 py-1 text-[11px] font-semibold text-[#4b5563]">Message</button>
+                            {applicant.status === "Applied" ? (
+                              <button type="button" onClick={() => handleApplicantDecision(applicant.id, "Approved")} className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-2.5 py-1 text-[11px] font-semibold text-white">Approve</button>
+                            ) : null}
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="rounded-2xl border border-dashed border-[#d7cec0] bg-white px-4 py-8 text-center text-sm text-[#6b7280]">
+                          No applicants for this task yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ) : (
                   <div className="mt-6">
                     {applyingTaskId === selectedTask.id ? (
                       <div>
-                        <SectionHeading label="Application Form" subtitle="Submit a local mock application for this task." />
+                        <SectionHeading label="Application Form" subtitle="Share your background, experience, and availability for this task." />
                         <div className="space-y-3">
                           {[
                             ["selfIntroduction", "Self Introduction"],
@@ -1756,7 +3112,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                         </div>
                       </div>
                     ) : taskPanelMode === "brief" ? (
-                      <div className="space-y-5">
+                      <div className="max-w-[920px] space-y-5">
                         <SectionHeading label="Task Brief" subtitle="Review the full business context before applying." />
                         <div className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm font-semibold text-[#111827]">
                           Application Status: {talentApplications[selectedTask.id] || "Not Applied"}
@@ -1775,9 +3131,9 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                             ["Notes", selectedTask.notes],
                             ["Owner Contact", selectedTask.ownerContact],
                           ].map(([label, value]) => (
-                            <section key={label} className="rounded-2xl border border-[#eadfcd] bg-white p-4">
+                            <section key={label} className="rounded-2xl border border-[#eadfcd] bg-white p-5">
                               <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#1f5c43]">{label}</div>
-                              <p className="mt-2 text-sm leading-6 text-[#4b5563]">{value}</p>
+                              <p className="mt-2 text-sm leading-7 text-[#4b5563]">{value}</p>
                             </section>
                           ))}
                         </div>
@@ -1819,10 +3175,38 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                         </div>
                       </div>
                     ) : (
-                      <div>
-                        <SectionHeading label="Application Status" subtitle="Open the full brief or submit a local mock application." />
+                      <div className="max-w-[920px]">
+                        <SectionHeading label="Application Status" subtitle="Open the full brief or submit your application." />
                         <div className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm font-semibold text-[#111827]">
-                          {talentApplications[selectedTask.id] || "Not Applied"}
+                          {talentApplications[selectedTask.id] === "Approved" ? "Approved" : talentApplications[selectedTask.id] ? "Applied" : "Not Applied"}
+                        </div>
+                        <div className="mt-5">
+                          <SectionHeading label="Application List" subtitle="People who have applied for this task." />
+                          <div className="mt-3 space-y-3">
+                            {normalizedApplicantsForSelectedTask.length ? normalizedApplicantsForSelectedTask.map((applicant) => (
+                              <div key={applicant.id} className="rounded-2xl border border-[#eadfcd] bg-white p-3">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div className="flex min-w-0 items-start gap-3">
+                                    <Avatar name={applicant.name} seed={applicant.id} size="sm" />
+                                    <div className="min-w-0">
+                                      <div className="font-semibold text-[#111827]">{applicant.name}</div>
+                                      <div className="mt-1 text-sm text-[#6b7280]">
+                                        Native: {applicant.language} · Skill: {applicant.skill}
+                                        {applicant.level ? ` · ${applicant.level}` : ""}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <Badge className={applicant.status === "Approved" ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
+                                    {applicant.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                            )) : (
+                              <div className="rounded-2xl border border-dashed border-[#d7cec0] bg-white px-4 py-8 text-center text-sm text-[#6b7280]">
+                                No applications for this task yet.
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2">
                           <button
@@ -1873,45 +3257,97 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
         </section>
         ) : null}
 
-        {activeTab === "personal-center" ? (
+        {!activeTabBlocked && activeTab === "personal-center" ? (
         <section className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
-          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
-            <SectionHeading label="Profile Summary" subtitle="Mock personal workspace profile for the current user." />
-            <div className="mt-4 space-y-2 text-sm">
-              {activeView === "manager" ? (
-                <>
-                  <InfoRow label="Name" value="Julie Zhu" />
-                  <InfoRow label="Role" value="Super Admin / Manager" />
-                  <InfoRow label="Department" value="Platform Ops" />
-                  <InfoRow label="Status" value="Active" />
-                </>
-              ) : (
-                <>
-                  <InfoRow label="Name" value="Yamane Risa" />
-                  <InfoRow label="Role" value="Talent" />
-                  <InfoRow label="Native Language" value="Japanese" />
-                  <InfoRow label="Skills" value="LLM Evaluation, Translation, Localization" />
-                  <InfoRow label="Status" value="Available" />
-                </>
-              )}
-            </div>
-          </div>
+          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)] lg:col-span-2">
+              <SectionHeading label="Talent Basic Info" subtitle="Personal profile details and task participation summary." />
+              <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(280px,340px)_1fr]">
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => talentAvatarInputRef.current?.click()}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setTalentAvatarDragActive(true);
+                    }}
+                    onDragEnter={(event) => {
+                      event.preventDefault();
+                      setTalentAvatarDragActive(true);
+                    }}
+                    onDragLeave={(event) => {
+                      event.preventDefault();
+                      setTalentAvatarDragActive(false);
+                    }}
+                    onDrop={(event: DragEvent<HTMLButtonElement>) => {
+                      event.preventDefault();
+                      setTalentAvatarDragActive(false);
+                      handleTalentAvatarFileSelect(event.dataTransfer.files);
+                    }}
+                    className={`group flex w-full flex-col items-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
+                      talentAvatarDragActive
+                        ? "border-[#1f5c43] bg-[#eff8f1]"
+                        : "border-[#d7dccf] bg-[#fffdf8] hover:border-[#1f5c43] hover:bg-[#f7fbf8]"
+                    }`}
+                  >
+                    <ProfilePhoto
+                      name={currentTalentName}
+                      avatarUrl={currentTalentAvatarUrl}
+                      failed={Boolean(currentTalentAvatarUrl && failedTalentAvatarUrl === currentTalentAvatarUrl)}
+                      onError={() => setFailedTalentAvatarUrl(currentTalentAvatarUrl)}
+                    />
+                    <div className="mt-4 text-xl font-black text-[#111827]">{currentTalentName}</div>
+                    <div className="mt-1 text-sm text-[#6f6256]">
+                      Talent · {displayValue(currentTalentStatus)}
+                    </div>
+                    <div className="mt-3 text-sm font-semibold text-[#1f5c43]">
+                      Drag image here or click to upload
+                    </div>
+                    <div className="mt-1 text-xs text-[#6f6256]">PNG, JPG, WEBP, GIF up to 5MB</div>
+                  </button>
+                  <input
+                    ref={talentAvatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(event) => handleTalentAvatarFileSelect(event.target.files)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => talentAvatarInputRef.current?.click()}
+                    className="w-full rounded-md border border-[#1f5c43] bg-[#1f5c43] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Upload Photo
+                  </button>
+                  {talentAvatarStatus ? <p className="text-sm font-medium text-[#1f5c43]">{talentAvatarStatus}</p> : null}
+                  {talentAvatarError ? <p className="text-sm font-medium text-[#b42318]">{talentAvatarError}</p> : null}
+                </div>
 
-          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
-            {activeView === "manager" ? (
-              <>
-                <SectionHeading label="My Managed Tasks" subtitle="Manager-owned mock recruiting tasks." />
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {workbenchTasks.map((task) => (
-                    <div key={task.id} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm font-semibold text-[#111827]">
-                      {task.taskName}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {[
+                    ["Name", currentTalentName],
+                    ["Native Language", currentTalentProfile?.nativeLanguage || currentTalentConversation?.nativeLanguage],
+                    ["Second Language", currentTalentProfile?.secondLanguage || currentTalentConversation?.secondLanguage],
+                    ["Main Skill", currentTalentProfile?.mainSkill || currentTalentConversation?.skill],
+                    ["Daily Availability", currentTalentProfile?.dailyAvailability],
+                    ["Weekend Availability", currentTalentProfile?.weekendAvailability],
+                    ["Status", currentTalentStatus],
+                    ["Active Tasks", currentTalentActiveTasks],
+                    ["Last Updated", currentTalentLastUpdated],
+                  ].map(([label, value]) => (
+                    <div key={label as string} className="rounded-xl border border-[#d7dccf] bg-[#fffdf8] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6f6256]">
+                        {label}
+                      </div>
+                      <div className="mt-2 break-words text-base font-semibold text-[#111827]">{displayValue(value)}</div>
                     </div>
                   ))}
                 </div>
-              </>
-            ) : (
-              <>
-                <SectionHeading label="My Applications" subtitle="Mock applications submitted from Talent View." />
+              </div>
+            </div>
+
+          <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+            <>
+                <SectionHeading label="My Applied Tasks" subtitle="Applications submitted from your talent workspace." />
                 <div className="mt-4 space-y-2">
                   {talentAppliedTasks.length ? (
                     talentAppliedTasks.map((task) => (
@@ -1925,19 +3361,12 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                   )}
                 </div>
               </>
-            )}
           </div>
 
           <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
-            <SectionHeading label={activeView === "manager" ? "Pending Applicants" : "My Active Projects"} subtitle={activeView === "manager" ? "Applicants waiting for review." : "Approved tasks appear here."} />
+            <SectionHeading label="My Tasks" subtitle="Approved project tasks and joined project work appear here." />
             <div className="mt-4 space-y-2">
-              {activeView === "manager" ? (
-                pendingApplicants.map((applicant) => (
-                  <div key={applicant.id} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#4b5563]">
-                    {applicant.name} — {applicant.status}
-                  </div>
-                ))
-              ) : talentApprovedTasks.length ? (
+              {talentApprovedTasks.length ? (
                 talentApprovedTasks.map((task) => (
                   <div key={task.id} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm font-semibold text-[#111827]">
                     {task.taskName}
@@ -1950,71 +3379,60 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
           </div>
 
           <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
-            {activeView === "manager" ? (
-              <>
-                <SectionHeading label="Recent Actions" subtitle="Manager follow-ups for task execution." />
+            <>
+                <SectionHeading label="My Recent Messages" subtitle="Recent task updates and project manager communication." />
                 <div className="mt-4 space-y-2">
-                  {["Review new Japanese applicants", "Confirm Arabic OCR shortlist", "Sync project scripts"].map((action) => (
-                    <div key={action} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#4b5563]">{action}</div>
+                  {(currentTalentConversation?.messages || []).slice(-3).reverse().map((message) => (
+                    <div key={message.id} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#4b5563]">
+                      <div className="font-semibold text-[#111827]">{message.sender}</div>
+                      <div className="mt-1 line-clamp-2">{message.text}</div>
+                      <div className="mt-1 text-xs text-[#8a8177]">{message.timestamp}</div>
+                    </div>
                   ))}
                 </div>
               </>
-            ) : (
-              <>
-                <SectionHeading label="My To-do" subtitle="Talent-side task readiness checklist." />
-                <div className="mt-4 space-y-2">
-                  {["Complete profile", "Check task guideline", "Reply to project owner"].map((todo) => (
-                    <div key={todo} className="rounded-2xl border border-[#eadfcd] bg-white px-4 py-3 text-sm text-[#4b5563]">{todo}</div>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
         </section>
         ) : null}
 
-        {activeTab === "communication-hub" ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-5">
+        {!activeTabBlocked && activeTab === "communication-hub" ? (
+        <div className="mb-16 flex min-h-0 flex-1 flex-col gap-5">
           <section className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
             <SectionHeading
-              label="Communication Hub"
-              subtitle="Coordinate task-related conversations with talents, project groups, and language groups."
+              label={activeView === "manager" ? "Communication Hub" : "My Communication Access"}
+              subtitle={
+                activeView === "manager"
+                  ? "Coordinate task-related conversations with talents, project groups, and language groups."
+                  : "Your assigned PMs, responsible HRs, and approved project groups."
+              }
             />
             <div className="grid gap-3 lg:grid-cols-3">
-              <div className="rounded-2xl border border-[#eadfcd] bg-white p-4">
-                <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#1f5c43]">Project Groups</div>
-                <div className="mt-3 space-y-3">
-                  {projectGroupCards.map((group) => (
-                    <div key={group.groupName} className="border-b border-[#f0e7d8] pb-3 last:border-0 last:pb-0">
-                      <div className="text-sm font-semibold text-[#111827]">{group.groupName}</div>
-                      <div className="mt-1 text-sm text-[#6b7280]">Members: {group.members}</div>
-                      <div className="mt-1 text-sm text-[#4b5563]">{group.activity}</div>
-                    </div>
-                  ))}
+              {activeView === "manager" ? (
+                <>
+                  {renderAccessSection("Project Groups", managerProjectGroupAccess, 2, "project-groups")}
+                  {renderAccessSection("Direct Messages", managerDirectMessageAccess, 2, "direct-messages")}
+                  {renderAccessSection("Language Groups", managerLanguageGroupAccess, 2, "language-groups")}
+                </>
+              ) : (
+                <>
+                  {renderAccessSection("My PMs", talentPmAccess, 2, "my-pms")}
+                  {renderAccessSection("My HRs", talentHrAccess, 2, "my-hrs")}
+                  {renderAccessSection("My Project Groups", talentProjectGroupAccess, 2, "my-project-groups")}
+                </>
+              )}
                 </div>
-              </div>
-              <div className="rounded-2xl border border-[#eadfcd] bg-white p-4">
-                <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#1f5c43]">Direct Messages</div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {["Julie Zhu", "Maya Chen", "Daniel Kim"].map((name) => (
-                    <Badge key={name} className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{name}</Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-[#eadfcd] bg-white p-4">
-                <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#1f5c43]">Language Groups</div>
-                <div className="mt-3 space-y-2 text-sm text-[#4b5563]">
-                  <div>Japanese Talent Pool</div>
-                  <div>Arabic OCR Reviewers</div>
-                  <div>Portuguese-BR Localization Pool</div>
-                </div>
-              </div>
-            </div>
           </section>
-        <section className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[330px_minmax(0,1fr)_360px]">
-          <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+        <section className="grid h-[980px] min-h-[980px] gap-5 xl:grid-cols-[330px_minmax(0,1fr)_360px]">
+          <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
             <div className="border-b border-[#eadfcd] p-4">
-              <SectionHeading label="Task-related Conversations" subtitle="Communication Hub for task, project group, language group, and personal coordination." />
+              <SectionHeading
+                label={activeView === "manager" ? "Task-related Conversations" : "My Conversations"}
+                subtitle={
+                  activeView === "manager"
+                    ? "Communication Hub for task, project group, language group, and personal coordination."
+                    : "Assigned PM, responsible HR, and joined project group only."
+                }
+              />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -2022,26 +3440,41 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                 className="mt-3 w-full rounded-2xl border border-[#d9d2c7] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
               />
               <div className="mt-3 flex flex-wrap gap-2">
-                {(["All", "Management", "HR", "Talent Pool", "Groups"] as ConversationFilter[]).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => toggleFilter(item)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                      filter === item
-                        ? "border-[#1f5c43] bg-[#1f5c43] text-white"
-                        : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256] hover:border-[#1f5c43] hover:text-[#1f5c43]"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ))}
+                {activeView === "manager"
+                  ? (["All", "Management", "HR", "Talent Pool", "Groups"] as ConversationFilter[]).map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => toggleFilter(item)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                          filter === item
+                            ? "border-[#1f5c43] bg-[#1f5c43] text-white"
+                            : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256] hover:border-[#1f5c43] hover:text-[#1f5c43]"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ))
+                  : (["All", "PM", "HR", "Project Group"] as TalentCommunicationFilter[]).map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setTalentCommunicationFilter(item)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                          talentCommunicationFilter === item
+                            ? "border-[#1f5c43] bg-[#1f5c43] text-white"
+                            : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256] hover:border-[#1f5c43] hover:text-[#1f5c43]"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ))}
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            <div className="scroll-panel flex-1 p-2">
               <div className="space-y-1.5">
-                {visibleConversations.map((conversation) => {
+                {activeView === "manager" ? visibleConversations.map((conversation) => {
                   const active = conversation.id === selectedConversation?.id;
 
                   return (
@@ -2049,7 +3482,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                       key={conversation.id}
                       type="button"
                       onClick={() => setSelectedConversationId(conversation.id)}
-                      className={`flex w-full items-start gap-3 rounded-xl border border-[#e5ddcf] border-l-4 px-3 py-2.5 text-left transition ${
+                      className={`flex w-full items-start gap-3 rounded-xl border border-[#e5ddcf] border-l-4 px-3 py-2 text-left transition ${
                         conversationListTone(conversation)
                       } ${
                         active
@@ -2080,66 +3513,129 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                       </div>
                     </button>
                   );
+                }) : visibleTalentCommunicationConversations.map((conversation) => {
+                  const active = conversation.id === selectedTalentCommunication?.id;
+
+                  return (
+                    <button
+                      key={conversation.id}
+                      type="button"
+                      onClick={() => setSelectedTalentCommunicationId(conversation.id)}
+                      className={`flex w-full items-start gap-3 rounded-xl border border-[#e5ddcf] border-l-4 px-3 py-2 text-left transition ${
+                        active
+                          ? "border-[#cfe8d9] border-l-[#1f5c43] bg-[#eef7f0] shadow-[0_10px_20px_rgba(31,92,67,0.12)]"
+                          : "border-l-[#d89a54] bg-[#fffaf4] hover:bg-[#fff6ec]"
+                      }`}
+                    >
+                      <Avatar name={conversation.name} seed={conversation.avatarSeed} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="truncate text-[14px] font-semibold leading-5 text-[#111827]">{conversation.name}</div>
+                            <div className="mt-0.5 truncate text-[12px] leading-5 text-[#6b7280]">
+                              {conversation.roleLabel} · {conversation.projectName}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-[11px] font-medium text-[#8a8177]">
+                            {conversation.lastMessageTime}
+                          </div>
+                        </div>
+                        <div className="mt-0.5 flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1 truncate text-[12px] leading-5 text-[#6b7280]">
+                            {conversation.lastMessage}
+                          </div>
+                          {conversation.unreadCount ? (
+                            <span className="shrink-0 rounded-full bg-[#1f5c43] px-2 py-0.5 text-[11px] font-semibold text-white">
+                              {conversation.unreadCount}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </button>
+                  );
                 })}
               </div>
             </div>
           </aside>
 
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#e4d7c6] bg-[#fcfbf7] shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[#e4d7c6] bg-[#fcfbf7] shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
             <div className="border-b border-[#eadfcd] px-5 py-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-lg font-semibold text-[#111827]">{selectedConversation?.name}</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#6b7280]">
-                    <Badge className={selectedConversation ? typeBadge(selectedConversation.kind, selectedConversation.kind === "platform" ? selectedConversation.role : undefined) : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
-                      {selectedConversation?.kind === "platform"
-                        ? selectedConversation.role
-                        : selectedConversation?.kind === "talent"
-                          ? "Talent"
-                          : "Group"}
-                    </Badge>
-                    {selectedConversation?.kind === "talent" ? (
-                      <>
-                        <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.profileStatus}</Badge>
-                        <Badge className={selectedConversation.online ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#cbd5e1] bg-[#f1f5f9] text-[#64748b]"}>
-                          {selectedConversation.online ? "Online" : "Offline"}
+              {communicationIsGroup ? (
+                <div className="flex min-h-10 items-center justify-between gap-4">
+                  <div className="min-w-0 truncate text-lg font-semibold text-[#111827]">{communicationTitle}</div>
+                  {activeView === "manager" && selectedConversation?.kind === "group" ? (
+                    <button
+                      type="button"
+                      aria-label={`Open group settings for ${selectedConversation.name}`}
+                      title="Group settings"
+                      onClick={() => {
+                        setIsGroupSettingsOpen(true);
+                        setGroupSettingsSearch("");
+                        setGroupActionMemberName("");
+                      }}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-xl font-bold leading-none text-[#374151] transition hover:bg-[#eee7da] hover:text-[#1f5c43] focus:outline-none focus:ring-2 focus:ring-[#1f5c43]/20"
+                    >
+                      <span aria-hidden="true" className="-mt-1">...</span>
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-lg font-semibold text-[#111827]">{communicationTitle}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#6b7280]">
+                      {activeView === "manager" ? (
+                        <Badge className={selectedConversation ? typeBadge(selectedConversation.kind, selectedConversation.kind === "platform" ? selectedConversation.role : undefined) : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
+                          {selectedConversation?.kind === "platform"
+                            ? selectedConversation.role
+                            : selectedConversation?.kind === "talent"
+                              ? "Talent"
+                              : "Group"}
                         </Badge>
-                      </>
-                    ) : null}
-                    {selectedConversation?.kind === "group" ? (
-                      <>
-                        <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.groupType}</Badge>
-                        <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{`${selectedConversation.memberCount} members`}</Badge>
-                      </>
-                    ) : null}
-                    {selectedConversation?.kind === "platform" ? (
-                      <>
-                        <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.department}</Badge>
-                        <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.status ?? currentUser.status}</Badge>
-                      </>
-                    ) : null}
+                      ) : selectedTalentCommunication ? (
+                        <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">{selectedTalentCommunication.kind}</Badge>
+                      ) : null}
+                      {activeView === "manager" && selectedConversation?.kind === "talent" ? (
+                        <>
+                          <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.profileStatus}</Badge>
+                          <Badge className={selectedConversation.online ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#cbd5e1] bg-[#f1f5f9] text-[#64748b]"}>
+                            {selectedConversation.online ? "Online" : "Offline"}
+                          </Badge>
+                        </>
+                      ) : null}
+                      {activeView === "manager" && selectedConversation?.kind === "platform" ? (
+                        <>
+                          <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.department}</Badge>
+                          <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.status ?? currentUser.status}</Badge>
+                        </>
+                      ) : null}
+                    </div>
+                    <div className="mt-2 text-sm text-[#6b7280]">{communicationHeaderMeta}</div>
                   </div>
-                  <div className="mt-2 text-sm text-[#6b7280]">{headerMeta}</div>
+                  <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    {activeView === "manager" ? (
+                      <Badge className={selectedConversation ? typeBadge(selectedConversation.kind, selectedConversation.kind === "platform" ? selectedConversation.role : undefined) : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
+                        {selectedConversation?.kind === "platform"
+                          ? selectedConversation.role
+                          : selectedConversation?.kind === "talent"
+                            ? "Talent"
+                            : "Group"}
+                      </Badge>
+                    ) : (
+                      <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">Project Access Only</Badge>
+                    )}
+                    <Badge className={communicationCanHistory ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
+                      {communicationCanHistory ? "History Allowed" : "History Blocked"}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge className={selectedConversation ? typeBadge(selectedConversation.kind, selectedConversation.kind === "platform" ? selectedConversation.role : undefined) : "border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]"}>
-                    {selectedConversation?.kind === "platform"
-                      ? selectedConversation.role
-                      : selectedConversation?.kind === "talent"
-                        ? "Talent"
-                        : "Group"}
-                  </Badge>
-                  <Badge className={selectedCanHistory ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
-                    {selectedCanHistory ? "History Allowed" : "History Blocked"}
-                  </Badge>
-                </div>
-              </div>
+              )}
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-              {selectedCanHistory && selectedConversation ? (
+            <div className="scroll-panel flex-1 px-5 py-5">
+              {communicationCanHistory && communicationMessages.length ? (
                 <div className="space-y-4">
-                  {selectedConversation.messages.map((message) => {
+                  {communicationMessages.map((message) => {
                     if (message.align === "center" || message.kind === "system") {
                       return (
                         <div key={message.id} className="flex justify-center">
@@ -2177,28 +3673,30 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
               )}
             </div>
 
-            <div className="sticky bottom-0 border-t border-[#eadfcd] bg-[#fcfbf7] px-5 py-4">
+            <div className="shrink-0 border-t border-[#eadfcd] bg-[#fcfbf7] px-5 py-4">
               <div className="rounded-2xl border border-[#e2d8c8] bg-[#fbfaf6] p-4 shadow-[0_10px_20px_rgba(31,41,51,0.04)]">
                 <div className="flex flex-wrap gap-2 text-xs font-semibold text-[#6f6256]">
-                  <Badge className={selectedCanHistory ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
-                    {selectedCanHistory ? "Chat history allowed" : "Chat history blocked"}
+                  <Badge className={communicationCanHistory ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
+                    {communicationCanHistory ? "Chat history allowed" : "Chat history blocked"}
                   </Badge>
-                  <Badge className={selectedCanSend ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
-                    {selectedCanSend ? "Message allowed" : "Message blocked"}
+                  <Badge className={communicationCanSend ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
+                    {communicationCanSend ? "Message allowed" : "Message blocked"}
                   </Badge>
-                  <Badge className={selectedCanFile ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
-                    {selectedCanFile ? "File allowed" : "File blocked"}
+                  <Badge className={communicationCanFile ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
+                    {communicationCanFile ? "File allowed" : "File blocked"}
                   </Badge>
-                  <Badge className={selectedCanVideo ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
-                    {selectedCanVideo ? "Video allowed" : "Video blocked"}
-                  </Badge>
+                  {activeView === "manager" ? (
+                    <Badge className={selectedCanVideo ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#f5c2c7] bg-[#fdecec] text-[#b42318]"}>
+                      {selectedCanVideo ? "Video allowed" : "Video blocked"}
+                    </Badge>
+                  ) : null}
                 </div>
 
                 <div className="mt-3">
                   <textarea
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
-                    disabled={!selectedCanSend}
+                    disabled={!communicationCanSend}
                     placeholder={blockedReason || "Write a message to the selected conversation..."}
                     className="min-h-[108px] w-full resize-none rounded-2xl border border-[#d9d2c7] bg-white px-4 py-3 text-sm text-[#111827] outline-none transition placeholder:text-[#9ca3af] focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc] disabled:cursor-not-allowed disabled:bg-[#f5f5f4]"
                   />
@@ -2207,39 +3705,43 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    disabled={!selectedCanSend}
-                    onClick={handleSend}
+                    disabled={!communicationCanSend}
+                    onClick={activeView === "manager" ? handleSend : handleTalentSend}
                     className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(31,92,67,0.18)] transition hover:bg-[#184d38] disabled:cursor-not-allowed disabled:border-[#cbd5e1] disabled:bg-[#94a3b8]"
                   >
                     Send
                   </button>
                   <button
                     type="button"
-                    disabled={!selectedCanFile}
+                    disabled={!communicationCanFile}
                     onClick={() => handleQuickAttachment("attachment")}
                     className="rounded-full border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563] transition hover:border-[#1f5c43] hover:text-[#1f5c43] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Attach File
                   </button>
-                  <button
-                    type="button"
-                    disabled={!selectedCanVideo}
-                    onClick={() => handleQuickAttachment("video")}
-                    className="rounded-full border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563] transition hover:border-[#1f5c43] hover:text-[#1f5c43] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Attach Video
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!selectedCanCreateGroup}
-                    onClick={() => setIsCreateGroupOpen(true)}
-                    className="rounded-full border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563] transition hover:border-[#1f5c43] hover:text-[#1f5c43] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    New Group
-                  </button>
+                  {activeView === "manager" ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={!selectedCanVideo}
+                        onClick={() => handleQuickAttachment("video")}
+                        className="rounded-full border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563] transition hover:border-[#1f5c43] hover:text-[#1f5c43] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Attach Video
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!selectedCanCreateGroup}
+                        onClick={() => setIsCreateGroupOpen(true)}
+                        className="rounded-full border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563] transition hover:border-[#1f5c43] hover:text-[#1f5c43] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        New Group
+                      </button>
+                    </>
+                  ) : null}
                 </div>
 
-                {!selectedCanSend ? (
+                {!communicationCanSend ? (
                   <div className="mt-3 rounded-2xl border border-[#f2d1d1] bg-[#fff5f5] px-4 py-3 text-sm text-[#9a3412]">
                     {blockedReason}
                   </div>
@@ -2248,20 +3750,76 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
             </div>
           </section>
 
-          <aside className="flex min-h-0 flex-col gap-5 overflow-hidden">
-            <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-4 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
+          <aside className="flex h-full min-h-0 flex-col overflow-hidden">
+            <div className="scroll-panel h-full rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-4 pb-6 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
               <SectionHeading
                 label="Conversation Details"
-                subtitle="Context changes based on the selected person or group."
+                subtitle="Basic profile or group context for the selected conversation."
               />
 
-              {selectedConversation?.kind === "talent" ? (
+              {activeView === "talent" && selectedTalentCommunication?.kind === "Project Group"
+                ? renderGroupDetails()
+                : activeView === "manager" && selectedConversation?.kind === "group"
+                  ? renderGroupDetails()
+                  : renderPersonDetails()}
+
+              <div className="hidden" aria-hidden="true">
+              {activeView === "talent" && selectedTalentCommunication ? (
                 <>
                   <div className="flex items-start gap-3">
-                    <Avatar name={selectedConversation.name} seed={selectedConversation.avatarSeed} size="lg" />
+                    {selectedTalentCommunication.avatarUrl ? (
+                      <ProfilePhoto name={selectedTalentCommunication.name} avatarUrl={selectedTalentCommunication.avatarUrl} sizeClass="h-16 w-16 text-lg" />
+                    ) : (
+                      <Avatar name={selectedTalentCommunication.name} seed={selectedTalentCommunication.avatarSeed} size="lg" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-base font-semibold text-[#111827]">{selectedTalentCommunication.name}</div>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">{selectedTalentCommunication.kind}</Badge>
+                        <Badge className={selectedTalentCommunication.online ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#cbd5e1] bg-[#f1f5f9] text-[#64748b]"}>
+                          {selectedTalentCommunication.online ? "Online" : "Offline"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2 text-sm">
+                    {selectedTalentCommunication.kind === "Project Group" ? (
+                      <>
+                        <InfoRow label="Group Name" value={selectedTalentCommunication.name} />
+                        <InfoRow label="Type" value="Project Group" />
+                        <InfoRow label="Project Name" value={displayValue(selectedTalentCommunication.projectName)} />
+                        <InfoRow label="Member Scope" value={displayValue(selectedTalentCommunication.memberScope)} />
+                        <InfoRow label="Current Talent Access" value={displayValue(selectedTalentCommunication.currentTalentAccess)} />
+                        <InfoRow label="Unread Count" value={String(selectedTalentCommunication.unreadCount)} />
+                      </>
+                    ) : (
+                      <>
+                        <InfoRow label="Role / Position" value={selectedTalentCommunication.roleLabel} />
+                        <InfoRow label="Level" value={displayValue(selectedTalentCommunication.level)} />
+                        <InfoRow label="Projects Completed" value={`${selectedTalentCommunication.completedProjects ?? 0} projects`} />
+                        <InfoRow label="Online Status" value={selectedTalentCommunication.online ? "Online" : "Offline"} />
+                        <InfoRow label="Relationship" value={displayValue(selectedTalentCommunication.relationship)} />
+                      </>
+                    )}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-[#b7dfca] bg-[#edf8f1] px-3 py-2 text-sm font-medium text-[#1f5c43]">
+                    Access: Assigned PM, responsible HR, and joined project groups only.
+                  </div>
+                </>
+              ) : selectedConversation?.kind === "talent" ? (
+                <>
+                  <div className="flex items-start gap-3">
+                    {selectedConversation.avatarUrl ? (
+                      <ProfilePhoto name={selectedConversation.name} avatarUrl={selectedConversation.avatarUrl} sizeClass="h-16 w-16 text-lg" />
+                    ) : (
+                      <Avatar name={selectedConversation.name} seed={selectedConversation.avatarSeed} size="lg" />
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="text-base font-semibold text-[#111827]">{selectedConversation.name}</div>
                       <div className="mt-1 flex flex-wrap gap-2">
+                        <Badge className="border-[#c46a1c] bg-[#fff2df] text-[#b45309]">Talent</Badge>
                         <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.profileStatus}</Badge>
                         <Badge className={selectedConversation.online ? "border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]" : "border-[#cbd5e1] bg-[#f1f5f9] text-[#64748b]"}>
                           {selectedConversation.online ? "Online" : "Offline"}
@@ -2271,17 +3829,23 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                   </div>
 
                   <div className="mt-4 space-y-2 text-sm">
+                    <InfoRow label="Name" value={selectedConversation.name} />
+                    <InfoRow label="Role" value="Talent" />
+                    <InfoRow label="Level" value={managerTalentLevel(selectedConversation)} />
+                    <InfoRow label="Projects Completed" value={`${managerTalentProjectsCompleted(selectedConversation)} projects`} />
                     <InfoRow label="Talent ID" value={selectedConversation.talentId} />
-                    <InfoRow label="Native Language" value={selectedConversation.nativeLanguage} />
-                    <InfoRow label="Second Language" value={selectedConversation.secondLanguage} />
-                    <InfoRow label="Skill" value={selectedConversation.skill} />
-                    <InfoRow label="Education" value={selectedConversation.education} />
-                    <InfoRow label="Professional Domain" value={selectedConversation.professionalDomain} />
-                    <InfoRow label="Assigned HR" value={selectedConversation.assignedHr} />
-                    <InfoRow label="Related Projects" value={selectedConversation.relatedProjects.join(", ")} />
-                    <InfoRow label="Upwork Chat URL" value={selectedConversation.upworkChatUrl} />
-                    <InfoRow label="Upwork Profile URL" value={selectedConversation.upworkProfileUrl} />
-                    <InfoRow label="Last Contact Time" value={selectedConversation.lastContactTime} />
+                    <InfoRow label="Native Language" value={displayValue(selectedConversation.nativeLanguage)} />
+                    <InfoRow label="Second Language" value={displayValue(selectedConversation.secondLanguage)} />
+                    <InfoRow label="Skill" value={displayValue(selectedConversation.skill)} />
+                    <InfoRow label="Education" value={displayValue(selectedConversation.education)} />
+                    <InfoRow label="Professional Domain" value={displayValue(selectedConversation.professionalDomain)} />
+                    <InfoRow label="Assigned HR" value={displayValue(selectedConversation.assignedHr)} />
+                    <InfoRow label="Related Projects" value={displayValue(selectedConversation.relatedProjects.join(", "))} />
+                    <InfoRow label="Availability" value={selectedConversation.online ? "Available now" : "Scheduled availability"} />
+                    <InfoRow label="Profile Status" value={selectedConversation.profileStatus} />
+                    <InfoRow label="Upwork Chat URL" value={displayValue(selectedConversation.upworkChatUrl)} />
+                    <InfoRow label="Upwork Profile URL" value={displayValue(selectedConversation.upworkProfileUrl)} />
+                    <InfoRow label="Last Active" value={selectedConversation.lastContactTime} />
                   </div>
 
                   <div className="mt-4 grid gap-2">
@@ -2292,7 +3856,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                       Open Upwork Chat
                     </button>
                     <button type="button" className="rounded-full border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563]">
-                      View in Talent Library
+                      View in Talent Museum
                     </button>
                   </div>
                 </>
@@ -2312,12 +3876,18 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                   </div>
 
                   <div className="mt-4 space-y-2 text-sm">
-                    <InfoRow label="Group Owner" value={selectedConversation.owner} />
+                    <InfoRow label="Group Type" value={selectedConversation.groupType} />
                     <InfoRow
-                      label="Project / Language"
-                      value={selectedConversation.relatedProject ?? selectedConversation.relatedLanguage ?? "—"}
+                      label="Related Project / Language"
+                      value={displayValue(selectedConversation.relatedProject ?? selectedConversation.relatedLanguage)}
                     />
-                    <InfoRow label="Permissions Summary" value={selectedConversation.permissionsSummary} />
+                    <InfoRow label="Members Count" value={`${selectedConversation.memberCount} members`} />
+                    <InfoRow label="Owner" value={selectedConversation.owner} />
+                    <InfoRow
+                      label="Access Scope"
+                      value={displayValue(selectedConversation.permissionsSummary)}
+                    />
+                    <InfoRow label="Last Activity" value={selectedConversation.lastMessageTime} />
                   </div>
 
                   <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-3">
@@ -2349,17 +3919,56 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                   </div>
 
                   <div className="mt-4 space-y-2 text-sm">
-                    <InfoRow label="Department" value={selectedConversation.department} />
-                    <InfoRow label="Assigned Projects" value={selectedConversation.assignedProjects.join(", ")} />
-                    <InfoRow label="Permissions Summary" value={selectedConversation.permissionsSummary} />
-                    <InfoRow label="Last Active" value={selectedConversation.lastActive} />
+                    {selectedConversation.role === "HR User" ? (
+                      <>
+                        <InfoRow label="Name" value={selectedConversation.name} />
+                        <InfoRow label="Role" value="HR" />
+                        <InfoRow label="Level" value={platformUserLevel(selectedConversation)} />
+                        <InfoRow label="Assigned Tasks" value={platformUserWorkload(selectedConversation).assignedTasks ?? "0"} />
+                        <InfoRow label="Assigned Languages" value={platformUserWorkload(selectedConversation).assignedLanguages ?? "Not set"} />
+                        <InfoRow label="Pending Reviews" value={platformUserWorkload(selectedConversation).pendingReviews ?? "0"} />
+                        <InfoRow label="Accepted Profiles" value={platformUserWorkload(selectedConversation).acceptedProfiles ?? "0"} />
+                        <InfoRow label="Active Projects" value={platformUserWorkload(selectedConversation).activeProjects ?? "Not set"} />
+                        <InfoRow label="Last Active" value={selectedConversation.lastActive} />
+                      </>
+                    ) : (
+                      <>
+                        <InfoRow label="Name" value={selectedConversation.name} />
+                        <InfoRow label="Role / Position" value={selectedConversation.role === "Super Admin" ? "Project Manager" : selectedConversation.role} />
+                        <InfoRow label="Level" value={platformUserLevel(selectedConversation)} />
+                        <InfoRow label="Managed Projects" value={platformUserWorkload(selectedConversation).managedProjects ?? "Not set"} />
+                        <InfoRow label="Managed Languages" value={platformUserWorkload(selectedConversation).managedLanguages ?? "Not set"} />
+                        <InfoRow label="Team / Department" value={platformUserWorkload(selectedConversation).team ?? selectedConversation.department} />
+                        <InfoRow label="Permissions Summary" value={selectedConversation.permissionsSummary} />
+                        <InfoRow label="Last Active" value={selectedConversation.lastActive} />
+                      </>
+                    )}
                   </div>
                 </>
               ) : null}
+              {activeView === "manager" ? (
+                <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-3">
+                  <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#1f5c43]">Manager Permissions Summary</div>
+                  <div className="mt-3 space-y-2">
+                    {[
+                      "Can message HRs and talents",
+                      "Can manage project groups",
+                      "Can access language group conversations",
+                      "Can create groups",
+                    ].map((item) => (
+                      <div key={item} className="rounded-xl border border-[#e4d7c6] bg-[#fbfaf6] px-3 py-2 text-sm text-[#4b5563]">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              </div>
             </div>
 
+            {false && activeView === "manager" ? (
             <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-4 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
-              <SectionHeading label="Communication Permissions Debug" subtitle="Mock permission logic for message, file, group, and history access." />
+              <SectionHeading label="Communication Permissions" subtitle="Review message, file, group, and history access." />
 
               <div className="space-y-3">
                 <label className="block rounded-2xl border border-[#eadfcd] bg-white p-3">
@@ -2452,121 +4061,25 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                 </div>
               </div>
             </div>
+            ) : null}
 
+            {false && activeView === "manager" ? (
             <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-4 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
-              <SectionHeading label="Create Group" subtitle="Mock local-only group creation." />
-              <div className="space-y-3">
-                <label className="block">
-                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Group Name</div>
-                  <input
-                    value={groupDraft.groupName}
-                    onChange={(event) => setGroupDraft((prev) => ({ ...prev, groupName: event.target.value }))}
-                    className="mt-2 w-full rounded-xl border border-[#d9d2c7] bg-white px-3 py-2 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
-                  />
-                </label>
-                <label className="block">
-                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Group Type</div>
-                  <select
-                    value={groupDraft.groupType}
-                    onChange={(event) => setGroupDraft((prev) => ({ ...prev, groupType: event.target.value as GroupType }))}
-                    className="mt-2 w-full rounded-xl border border-[#d9d2c7] bg-white px-3 py-2 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
-                  >
-                    <option>Project Group</option>
-                    <option>Language Group</option>
-                    <option>Custom Group</option>
-                  </select>
-                </label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Related Project</div>
-                    <input
-                      value={groupDraft.relatedProject}
-                      onChange={(event) => setGroupDraft((prev) => ({ ...prev, relatedProject: event.target.value }))}
-                      className="mt-2 w-full rounded-xl border border-[#d9d2c7] bg-white px-3 py-2 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
-                    />
-                  </label>
-                  <label className="block">
-                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Related Language</div>
-                    <input
-                      value={groupDraft.relatedLanguage}
-                      onChange={(event) => setGroupDraft((prev) => ({ ...prev, relatedLanguage: event.target.value }))}
-                      className="mt-2 w-full rounded-xl border border-[#d9d2c7] bg-white px-3 py-2 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
-                    />
-                  </label>
-                </div>
-                <label className="block">
-                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Group Owner</div>
-                  <input
-                    value={groupDraft.owner}
-                    onChange={(event) => setGroupDraft((prev) => ({ ...prev, owner: event.target.value }))}
-                    className="mt-2 w-full rounded-xl border border-[#d9d2c7] bg-white px-3 py-2 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
-                  />
-                </label>
-                <div className="rounded-2xl border border-[#eadfcd] bg-white p-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Members</div>
-                  <div className="mt-3 max-h-44 space-y-2 overflow-y-auto pr-1">
-                    {conversations
-                      .filter((item): item is TalentConversation => item.kind === "talent")
-                      .map((contact) => {
-                        const checked = groupDraft.memberIds.includes(contact.id);
-                        return (
-                          <label key={contact.id} className="flex items-center gap-3 rounded-2xl border border-[#eadfcd] px-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(event) =>
-                                setGroupDraft((prev) => ({
-                                  ...prev,
-                                  memberIds: event.target.checked
-                                    ? [...prev.memberIds, contact.id]
-                                    : prev.memberIds.filter((id) => id !== contact.id),
-                                }))
-                              }
-                              className="h-4 w-4 rounded border-[#c8bba8] text-[#1f5c43] focus:ring-[#1f5c43]"
-                            />
-                            <div className="flex items-center gap-2">
-                              <Avatar name={contact.name} seed={contact.avatarSeed} size="sm" />
-                              <div>
-                                <div className="text-sm font-semibold text-[#111827]">{contact.name}</div>
-                                <div className="text-xs text-[#6b7280]">
-                                  {contact.nativeLanguage} • {contact.assignedHr}
-                                </div>
-                              </div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <label className="inline-flex items-center gap-2 text-sm text-[#334155]">
-                    <input
-                      type="checkbox"
-                      checked={groupDraft.allowFileSharing}
-                      onChange={(event) => setGroupDraft((prev) => ({ ...prev, allowFileSharing: event.target.checked }))}
-                      className="h-4 w-4 rounded border-[#c8bba8] text-[#1f5c43] focus:ring-[#1f5c43]"
-                    />
-                    Allow file sharing
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-sm text-[#334155]">
-                    <input
-                      type="checkbox"
-                      checked={groupDraft.allowVideoSharing}
-                      onChange={(event) => setGroupDraft((prev) => ({ ...prev, allowVideoSharing: event.target.checked }))}
-                      className="h-4 w-4 rounded border-[#c8bba8] text-[#1f5c43] focus:ring-[#1f5c43]"
-                    />
-                    Allow video sharing
-                  </label>
-                </div>
+              <SectionHeading label="Create Group" subtitle="Group creation opens in a modal so this rail stays compact." />
+              <div className="rounded-2xl border border-[#eadfcd] bg-white px-3 py-3 text-sm text-[#6b7280]">
+                Use New Group when you need to configure members, access, and sharing options.
+              </div>
+              <div className="mt-3">
                 <button
                   type="button"
-                  onClick={handleCreateGroup}
+                  onClick={() => setIsCreateGroupOpen(true)}
                   className="w-full rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(31,92,67,0.18)] transition hover:bg-[#184d38]"
                 >
-                  Create Group
+                  New Group
                 </button>
               </div>
             </div>
+            ) : null}
           </aside>
         </section>
         </div>
@@ -2575,11 +4088,11 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
 
       {isCreateTaskOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 px-4 py-8">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_60px_rgba(17,24,39,0.25)]">
+          <div className="scroll-panel max-h-[90vh] w-full max-w-2xl rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_60px_rgba(17,24,39,0.25)]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xl font-semibold text-[#111827]">Create Recruiting Task</div>
-                <div className="mt-1 text-sm text-[#6b7280]">Create a local mock task for the current workbench preview.</div>
+                <div className="mt-1 text-sm text-[#6b7280]">Create a recruiting task for the current Talent Hub workspace.</div>
               </div>
               <button
                 type="button"
@@ -2637,7 +4150,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
                 onClick={handleCreateMockTask}
                 className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(31,92,67,0.18)]"
               >
-                Create Mock Task
+                Create Task
               </button>
             </div>
           </div>
@@ -2650,7 +4163,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xl font-semibold text-[#111827]">Applicant Profile</div>
-                <div className="mt-1 text-sm text-[#6b7280]">Local mock applicant details for Task Center review.</div>
+                <div className="mt-1 text-sm text-[#6b7280]">Applicant details for Task Center review.</div>
               </div>
               <button
                 type="button"
@@ -2676,11 +4189,11 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
 
       {isCreateGroupOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 px-4 py-8">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_60px_rgba(17,24,39,0.25)]">
+          <div className="scroll-panel max-h-[90vh] w-full max-w-3xl rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_60px_rgba(17,24,39,0.25)]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xl font-semibold text-[#111827]">Create Group</div>
-                <div className="mt-1 text-sm text-[#6b7280]">Mock local-only group creation for Talent Workbench.</div>
+                <div className="mt-1 text-sm text-[#6b7280]">Create a project group for Talent Hub collaboration.</div>
               </div>
               <button
                 type="button"
@@ -2738,7 +4251,7 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
               </label>
               <label className="block md:col-span-2">
                 <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Members</div>
-                <div className="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-2xl border border-[#eadfcd] bg-white p-3">
+                <div className="scroll-panel mt-2 max-h-56 space-y-2 rounded-2xl border border-[#eadfcd] bg-white p-3">
                   {conversations
                     .filter((item): item is TalentConversation => item.kind === "talent")
                     .map((contact) => {
@@ -2809,6 +4322,324 @@ export function TalentMessagesPage({ initialTab = "", initialTaskId = "", initia
           </div>
         </div>
       ) : null}
+
+      {isGroupSettingsOpen && activeView === "manager" && selectedConversation?.kind === "group" ? (() => {
+        const groupKey = `manager:${selectedConversation.id}`;
+        const defaultMembers = groupMemberDetails([selectedConversation.owner, ...selectedConversation.members], selectedConversation.memberCount);
+        const members = groupMemberOverrides[groupKey] ?? defaultMembers;
+        const admins = groupAdminNames[groupKey] ?? (members[0]?.name ? [members[0].name] : []);
+        const rule = groupRuleDrafts[groupKey] ?? groupRuleLink(selectedConversation.name);
+        const visibleMembers = members.filter((member) =>
+          [member.name, member.role, member.level ?? "", member.status ?? ""].join(" ").toLowerCase().includes(groupSettingsSearch.trim().toLowerCase()),
+        );
+        const selectedActionMember = members.find((member) => normalizeProfileKey(member.name) === normalizeProfileKey(groupActionMemberName));
+        const settings = groupSettingToggles[groupKey] ?? {};
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/45 px-4 py-8"
+            onClick={() => {
+              setIsGroupSettingsOpen(false);
+              setGroupActionMemberName("");
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="group-settings-title"
+              onClick={(event) => event.stopPropagation()}
+              className="scroll-panel max-h-[calc(100vh-80px)] w-[min(760px,calc(100vw-32px))] rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_70px_rgba(17,24,39,0.28)]"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div id="group-settings-title" className="text-xl font-semibold text-[#111827]">Group Settings</div>
+                  <div className="mt-1 text-sm text-[#6b7280]">Manage project group details and members.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsGroupSettingsOpen(false);
+                    setGroupActionMemberName("");
+                  }}
+                  className="rounded-full border border-[#d7cec0] bg-white px-3 py-1.5 text-sm font-semibold text-[#4b5563]"
+                >
+                  X
+                </button>
+              </div>
+
+              <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#eadfcd] bg-white p-3">
+                <Avatar name={selectedConversation.name} seed={selectedConversation.avatarSeed} size="lg" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-base font-semibold text-[#111827]">
+                    {groupNameDrafts[groupKey] || selectedConversation.name}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    <Badge className="border-[#d7cec0] bg-[#f8f4ea] text-[#6f6256]">{selectedConversation.groupType}</Badge>
+                    <Badge className="border-[#b7dfca] bg-[#edf8f1] text-[#1f5c43]">{`${members.length} members`}</Badge>
+                  </div>
+                </div>
+              </div>
+
+              <label className="mt-5 block">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Search group members</div>
+                <input
+                  value={groupSettingsSearch}
+                  onChange={(event) => setGroupSettingsSearch(event.target.value)}
+                  placeholder="Search group members"
+                  className="mt-2 h-10 w-full rounded-2xl border border-[#d9d2c7] bg-white px-4 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
+                />
+              </label>
+
+              <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-3">
+                <div className="scroll-panel grid max-h-80 grid-cols-4 gap-2 pr-1">
+                  {visibleMembers.slice(0, 15).map((member) => (
+                    <button
+                      key={member.name}
+                      type="button"
+                      onClick={() => setGroupActionMemberName(member.name)}
+                      className="text-left"
+                    >
+                      {renderGroupMemberTile(member, admins, normalizeProfileKey(groupActionMemberName) === normalizeProfileKey(member.name))}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => openGroupMemberModal("add", groupKey, members)}
+                    className="rounded-2xl border border-dashed border-[#1f5c43] bg-[#edf8f1] px-2.5 py-3 text-center text-xs font-bold text-[#1f5c43]"
+                  >
+                    <div className="text-2xl leading-none">+</div>
+                    <div className="mt-2">Add</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openGroupMemberModal("delete", groupKey, members)}
+                    className="rounded-2xl border border-dashed border-[#c58d65] bg-[#fff7ef] px-2.5 py-3 text-center text-xs font-bold text-[#a15c2e]"
+                  >
+                    <div className="text-2xl leading-none">-</div>
+                    <div className="mt-2">Delete</div>
+                  </button>
+                </div>
+                {members.length > 15 ? (
+                  <div className="mt-3 text-center text-xs font-semibold text-[#1f5c43]">View more</div>
+                ) : null}
+              </div>
+
+              {selectedActionMember ? (
+                <div className="mt-4 rounded-2xl border border-[#eadfcd] bg-white p-3">
+                  <div className="text-sm font-semibold text-[#111827]">{selectedActionMember.name}</div>
+                  <div className="mt-1 text-xs text-[#6b7280]">
+                    {[selectedActionMember.role, selectedActionMember.level, selectedActionMember.status].filter(Boolean).join(" · ")}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" className="rounded-full border border-[#d7cec0] bg-[#fbfaf6] px-3 py-1.5 text-xs font-semibold text-[#4b5563]">
+                      View Profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroupAdmin(groupKey, selectedActionMember.name)}
+                      className="rounded-full border border-[#1f5c43] bg-[#edf8f1] px-3 py-1.5 text-xs font-semibold text-[#1f5c43]"
+                    >
+                      {admins.some((name) => normalizeProfileKey(name) === normalizeProfileKey(selectedActionMember.name)) ? "Remove Admin" : "Set as Admin"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeMemberFromGroup(groupKey, members, selectedActionMember.name)}
+                      className="rounded-full border border-[#f5c2c7] bg-[#fff5f5] px-3 py-1.5 text-xs font-semibold text-[#b42318]"
+                    >
+                      Remove from Group
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-4 space-y-3">
+                <label className="block rounded-2xl border border-[#eadfcd] bg-white p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Group Name</div>
+                  <input
+                    value={groupNameDrafts[groupKey] ?? selectedConversation.name}
+                    onChange={(event) => setGroupNameDrafts((current) => ({ ...current, [groupKey]: event.target.value }))}
+                    className="mt-2 w-full rounded-xl border border-[#d9d2c7] bg-[#fbfaf6] px-3 py-2 text-sm outline-none focus:border-[#1f5c43]"
+                  />
+                </label>
+
+                <label className="block rounded-2xl border border-[#eadfcd] bg-white p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Group Notice</div>
+                  <textarea
+                    value={groupNoticeDrafts[groupKey] ?? "Please follow project rules and keep task discussions in this group."}
+                    onChange={(event) => setGroupNoticeDrafts((current) => ({ ...current, [groupKey]: event.target.value }))}
+                    rows={3}
+                    className="mt-2 w-full resize-none rounded-xl border border-[#d9d2c7] bg-[#fbfaf6] px-3 py-2 text-sm outline-none focus:border-[#1f5c43]"
+                  />
+                </label>
+
+                <div className="rounded-2xl border border-[#eadfcd] bg-white p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Project Rules</div>
+                  {rule ? (
+                    <div className="mt-2 rounded-xl border border-[#e4d7c6] bg-[#fbfaf6] p-3">
+                      <div className="text-sm font-semibold text-[#111827]">{rule.title}</div>
+                      <div className="mt-1 break-all text-xs text-[#6b7280]">{rule.url}</div>
+                      <div className="mt-2 flex gap-2">
+                        <a href={rule.url} target="_blank" rel="noreferrer" className="rounded-full border border-[#1f5c43] bg-[#1f5c43] px-3 py-1.5 text-xs font-semibold text-white">
+                          Open Rule
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => setGroupRuleDrafts((current) => ({ ...current, [groupKey]: { title: "Project Guideline", url: "https://example.com/blackdog/project-rule" } }))}
+                          className="rounded-full border border-[#d7cec0] bg-white px-3 py-1.5 text-xs font-semibold text-[#4b5563]"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 rounded-xl border border-dashed border-[#d7cec0] bg-[#fbfaf6] p-3 text-sm text-[#6b7280]">
+                      No project rule link added yet.
+                      <button
+                        type="button"
+                        onClick={() => setGroupRuleDrafts((current) => ({ ...current, [groupKey]: { title: "Project Guideline", url: "https://example.com/blackdog/project-rule" } }))}
+                        className="mt-3 block rounded-full border border-[#1f5c43] bg-[#1f5c43] px-3 py-1.5 text-xs font-semibold text-white"
+                      >
+                        Add Rule Link
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <InfoRow label="My Nickname in Group" value={currentUser.name} />
+
+                <button
+                  type="button"
+                  onClick={() => showWorkbenchNotice("info", "Search chat history is not connected yet.")}
+                  className="w-full rounded-2xl border border-[#eadfcd] bg-white px-3 py-3 text-left text-sm font-semibold text-[#4b5563]"
+                >
+                  Search chat history
+                </button>
+
+                <div className="rounded-2xl border border-[#eadfcd] bg-white p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Message Settings</div>
+                  {[
+                    ["mute", "Mute Notifications"],
+                    ["pin", "Pin Chat"],
+                    ["contacts", "Save to Contacts"],
+                    ["nicknames", "Show Member Nicknames"],
+                  ].map(([key, label]) => (
+                    <label key={key} className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold text-[#4b5563]">
+                      <span>{label}</span>
+                      <input
+                        type="checkbox"
+                        checked={settings[key] ?? false}
+                        onChange={() => toggleGroupSetting(groupKey, key)}
+                        className="h-4 w-4 rounded border-[#c8bba8] text-[#1f5c43] focus:ring-[#1f5c43]"
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl border border-[#f5c2c7] bg-[#fff5f5] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b42318]">Danger Zone</div>
+                  <button type="button" className="mt-3 w-full rounded-full border border-[#b42318] bg-white px-3 py-2 text-sm font-semibold text-[#b42318]">
+                    Clear Chat History
+                  </button>
+                  <button type="button" className="mt-2 w-full rounded-full border border-[#d7cec0] bg-[#fbfaf6] px-3 py-2 text-sm font-semibold text-[#6b7280]">
+                    Leave Group
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
+
+      {groupMemberModal ? (() => {
+        const admins = groupAdminNames[groupMemberModal.groupKey] ?? (groupMemberModal.members[0]?.name ? [groupMemberModal.members[0].name] : []);
+        const availablePeople = availableGroupPeople().filter(
+          (person) => !groupMemberModal.members.some((member) => normalizeProfileKey(member.name) === normalizeProfileKey(person.name)),
+        );
+        const modalPeople = groupMemberModal.mode === "add" ? availablePeople : groupMemberModal.members;
+        const query = groupMemberModalSearch.trim().toLowerCase();
+        const visiblePeople = modalPeople.filter((person) =>
+          [person.name, person.role, person.level ?? "", person.status ?? ""].join(" ").toLowerCase().includes(query),
+        );
+        const emptyText = groupMemberModal.mode === "add" ? "No available people to add." : "No members available to delete.";
+        const actionText = groupMemberModal.mode === "add" ? "Add" : "Delete";
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/45 px-4 py-8">
+            <div className="scroll-panel max-h-[calc(100vh-80px)] w-full max-w-[720px] rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_70px_rgba(17,24,39,0.28)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-xl font-semibold text-[#111827]">
+                    {groupMemberModal.mode === "add" ? "Add members" : "Delete members"}
+                  </div>
+                  <div className="mt-1 text-sm text-[#6b7280]">
+                    {groupMemberModal.mode === "add" ? "Choose people to add to this group." : "Remove selected members from this group only."}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeGroupMemberModal}
+                  className="rounded-full border border-[#d7cec0] bg-white px-3 py-1.5 text-sm font-semibold text-[#4b5563]"
+                >
+                  X
+                </button>
+              </div>
+
+              <input
+                value={groupMemberModalSearch}
+                onChange={(event) => setGroupMemberModalSearch(event.target.value)}
+                placeholder={groupMemberModal.mode === "add" ? "Search people" : "Search group members"}
+                className="mt-5 h-10 w-full rounded-2xl border border-[#d9d2c7] bg-white px-4 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
+              />
+
+              <div className="scroll-panel mt-4 max-h-[420px] rounded-2xl border border-[#eadfcd] bg-white p-3">
+                {visiblePeople.length ? (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                    {visiblePeople.map((person) => {
+                      const selected = selectedGroupMemberNames.some((name) => normalizeProfileKey(name) === normalizeProfileKey(person.name));
+                      return (
+                        <button
+                          key={person.name}
+                          type="button"
+                          onClick={() => toggleSelectedGroupMember(person.name)}
+                          className="text-left"
+                        >
+                          {renderGroupMemberTile(person, admins, selected)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[#d7cec0] bg-[#fbfaf6] px-4 py-8 text-center text-sm text-[#6b7280]">
+                    {emptyText}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeGroupMemberModal}
+                  className="rounded-full border border-[#d7cec0] bg-white px-4 py-2.5 text-sm font-semibold text-[#4b5563]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedGroupMemberNames.length}
+                  onClick={confirmGroupMemberModal}
+                  className={`rounded-full border px-5 py-2.5 text-sm font-semibold shadow-[0_10px_18px_rgba(31,92,67,0.18)] disabled:cursor-not-allowed disabled:border-[#cbd5e1] disabled:bg-[#94a3b8] ${
+                    groupMemberModal.mode === "delete"
+                      ? "border-[#b42318] bg-[#b42318] text-white"
+                      : "border-[#1f5c43] bg-[#1f5c43] text-white"
+                  }`}
+                >
+                  {actionText}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
     </main>
   );
 }

@@ -155,9 +155,9 @@ export function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f3ed] px-6 py-10 text-[#111827]">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-center justify-center">
-        <section className="w-full max-w-xl rounded-2xl border border-[#d7dccf] bg-white p-8 shadow-[0_18px_50px_rgba(31,41,51,0.12)]">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_center,rgba(31,92,67,0.08),transparent_34%),linear-gradient(180deg,#f8f3ea_0%,#efe6d8_100%)] px-6 pb-20 pt-[clamp(80px,12vh,140px)] text-[#111827]">
+      <div className="mx-auto flex max-w-6xl justify-center">
+        <section className="w-full max-w-xl rounded-[28px] border border-[#d7dccf] bg-white p-9 shadow-[0_24px_70px_rgba(31,41,51,0.16)]">
           <div className="text-center">
             <div className="text-sm font-semibold uppercase tracking-[0.24em] text-[#1f5c43]">BlackDog Talent Hub</div>
             <h1 className="mt-3 text-3xl font-black tracking-tight">Sign in</h1>
@@ -230,7 +230,7 @@ export function LoginPage() {
             </button>
 
             <div className="rounded-xl border border-[#e4dbc9] bg-[#fbfaf6] px-4 py-3 text-xs text-[#6f6256]">
-              <div className="font-semibold text-[#40372f]">Mock accounts</div>
+              <div className="font-semibold text-[#40372f]">Test accounts</div>
               <div className="mt-1 leading-5">
                 julie, hr_japan_01, tanchanok_pearl, nayara_ribeiro, locked_demo
               </div>

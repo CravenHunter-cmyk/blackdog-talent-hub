@@ -324,8 +324,8 @@ export function TaskManagementPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f6f0e6] text-[#1f2937]">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6">
+    <main className="min-h-screen bg-[#f6f0e6] pb-24 text-[#1f2937]">
+      <div className="page-shell flex flex-col gap-6 py-6">
         <section className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] px-6 py-5 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
           <div>
             <div className="text-2xl font-semibold tracking-tight text-[#111827]">Task Management</div>
@@ -352,10 +352,10 @@ export function TaskManagementPage() {
                   <SectionHeading label="Task List" subtitle="Client delivery tasks and operational tracking." />
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-[1380px] w-full border-separate border-spacing-0">
+              <div className="scroll-x-panel">
+                <table className="data-table min-w-[1380px]">
                   <thead>
-                    <tr className="text-left text-xs uppercase tracking-[0.16em] text-[#6f6256]">
+                    <tr>
                       {[
                         "Task Name",
                         "Client / Account",
@@ -371,7 +371,7 @@ export function TaskManagementPage() {
                         "Participants",
                         "Actions",
                       ].map((heading) => (
-                        <th key={heading} className="border-b border-[#eadfcd] px-3 py-3 font-semibold">
+                        <th key={heading} className={["Task Name", "Client / Account", "Project Type", "Language / Market", "Owner PM"].includes(heading) ? "th-left" : "th-center"}>
                           {heading}
                         </th>
                       ))}
@@ -380,33 +380,33 @@ export function TaskManagementPage() {
                   <tbody>
                     {taskRows.map((task) => (
                       <tr key={task.id} className="align-top">
-                        <td className="border-b border-[#f0e6d7] px-3 py-4">
+                        <td className="td-left">
                           <button type="button" onClick={() => setSelectedTaskId(task.id)} className="text-left">
                             <div className="font-semibold text-[#111827]">{task.taskName}</div>
                             <div className="mt-1 max-w-[260px] text-xs text-[#6b7280]">{task.description}</div>
                           </button>
                         </td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{task.client}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{task.projectType}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{task.languageOrMarket}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm font-semibold text-[#111827]">{task.totalVolume.toLocaleString()}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm font-semibold text-[#1f5c43]">{task.completedVolume.toLocaleString()}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm font-semibold text-[#b45309]">{task.remainingVolume.toLocaleString()}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4">
-                          <div className="flex items-center gap-3">
+                        <td className="td-left text-sm text-[#334155]">{task.client}</td>
+                        <td className="td-left text-sm text-[#334155]">{task.projectType}</td>
+                        <td className="td-left text-sm text-[#334155]">{task.languageOrMarket}</td>
+                        <td className="td-center text-sm font-semibold text-[#111827]">{task.totalVolume.toLocaleString()}</td>
+                        <td className="td-center text-sm font-semibold text-[#1f5c43]">{task.completedVolume.toLocaleString()}</td>
+                        <td className="td-center text-sm font-semibold text-[#b45309]">{task.remainingVolume.toLocaleString()}</td>
+                        <td className="td-center">
+                          <div className="flex items-center justify-center gap-3">
                             <div className="h-2.5 w-40 overflow-hidden rounded-full bg-[#ece5d8]">
                               <div className="h-full rounded-full bg-[#1f5c43]" style={{ width: `${task.progress}%` }} />
                             </div>
                             <span className="text-sm font-semibold text-[#334155]">{task.progress.toFixed(0)}%</span>
                           </div>
                         </td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4">
+                        <td className="td-center">
                           <RowBadge className={badgeForStatus(task.status)}>{task.status}</RowBadge>
                         </td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{task.dueDate}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{task.ownerPm}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{task.participants}</td>
-                        <td className="border-b border-[#f0e6d7] px-3 py-4">
+                        <td className="td-center text-sm text-[#334155]">{task.dueDate}</td>
+                        <td className="td-left text-sm text-[#334155]">{task.ownerPm}</td>
+                        <td className="td-center text-sm text-[#334155]">{task.participants}</td>
+                        <td className="td-actions">
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
@@ -478,10 +478,10 @@ export function TaskManagementPage() {
 
                   <div className="rounded-2xl border border-[#eadfcd] bg-white p-4">
                     <SectionHeading label="Participant Progress Table" subtitle="Per-participant progress, quality, and status." />
-                    <div className="overflow-x-auto">
-                      <table className="min-w-[1400px] w-full border-separate border-spacing-0">
+                    <div className="scroll-x-panel">
+                      <table className="data-table min-w-[1400px]">
                         <thead>
-                          <tr className="text-left text-xs uppercase tracking-[0.16em] text-[#6f6256]">
+                          <tr>
                             {[
                               "Participant Name",
                               "Role",
@@ -495,7 +495,7 @@ export function TaskManagementPage() {
                               "Last Update",
                               "Actions",
                             ].map((heading) => (
-                              <th key={heading} className="border-b border-[#eadfcd] px-3 py-3 font-semibold">
+                              <th key={heading} className={["Participant Name", "Role", "Language"].includes(heading) ? "th-left" : "th-center"}>
                                 {heading}
                               </th>
                             ))}
@@ -507,26 +507,26 @@ export function TaskManagementPage() {
                             const progress = formatProgress(participant.completedVolume, participant.assignedVolume);
                             return (
                               <tr key={participant.id}>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4 font-semibold text-[#111827]">{participant.participantName}</td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{participant.role}</td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{participant.language}</td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm font-semibold text-[#111827]">{participant.assignedVolume.toLocaleString()}</td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm font-semibold text-[#1f5c43]">{participant.completedVolume.toLocaleString()}</td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm font-semibold text-[#b45309]">{remaining.toLocaleString()}</td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4">
-                                  <div className="flex items-center gap-3">
+                                <td className="td-left font-semibold text-[#111827]">{participant.participantName}</td>
+                                <td className="td-left text-sm text-[#334155]">{participant.role}</td>
+                                <td className="td-left text-sm text-[#334155]">{participant.language}</td>
+                                <td className="td-center text-sm font-semibold text-[#111827]">{participant.assignedVolume.toLocaleString()}</td>
+                                <td className="td-center text-sm font-semibold text-[#1f5c43]">{participant.completedVolume.toLocaleString()}</td>
+                                <td className="td-center text-sm font-semibold text-[#b45309]">{remaining.toLocaleString()}</td>
+                                <td className="td-center">
+                                  <div className="flex items-center justify-center gap-3">
                                     <div className="h-2.5 w-36 overflow-hidden rounded-full bg-[#ece5d8]">
                                       <div className="h-full rounded-full bg-[#1f5c43]" style={{ width: `${progress}%` }} />
                                     </div>
                                     <span className="text-sm font-semibold text-[#334155]">{progress.toFixed(0)}%</span>
                                   </div>
                                 </td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{participant.qualityScore}</td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4">
+                                <td className="td-center text-sm text-[#334155]">{participant.qualityScore}</td>
+                                <td className="td-center">
                                   <RowBadge className={badgeForStatus(participant.status)}>{participant.status}</RowBadge>
                                 </td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4 text-sm text-[#334155]">{participant.lastUpdate}</td>
-                                <td className="border-b border-[#f0e6d7] px-3 py-4">
+                                <td className="td-center text-sm text-[#334155]">{participant.lastUpdate}</td>
+                                <td className="td-actions">
                                   <button
                                     type="button"
                                     onClick={() => setSelectedTaskId(selectedTask.id)}
@@ -590,7 +590,7 @@ export function TaskManagementPage() {
 
           <aside className="flex min-h-0 flex-col gap-5">
             <div className="rounded-2xl border border-[#e4d7c6] bg-[#fbfaf6] p-4 shadow-[0_12px_28px_rgba(31,41,51,0.06)]">
-              <SectionHeading label="Status Controls" subtitle="Mock visual controls for demo purposes only." />
+              <SectionHeading label="Status Controls" subtitle="Update the selected task status." />
               <div className="space-y-2">
                 <button
                   type="button"

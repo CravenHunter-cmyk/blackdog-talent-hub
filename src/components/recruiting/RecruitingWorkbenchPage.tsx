@@ -11,6 +11,7 @@ import {
   rankRecruitingLanguageOption,
 } from "@/lib/languageOptions";
 import { readLoggedInSession } from "@/lib/currentUser";
+import { canPerform, isClient, readPlatformUser } from "@/lib/permissions";
 import { DEFAULT_LOCAL_ACCOUNTS, getStoredAccounts, updateStoredAccount, type LocalAccount } from "@/lib/localAccounts";
 import {
   getAllRecruitingTaskScripts,
@@ -469,7 +470,7 @@ function makeFallbackAlert(risk: ManagementRiskCandidate): ManagementAlert {
       riskAlert: `${risk.focusItem} has a ${risk.riskLevel.toLowerCase()} language coverage risk.`,
       reason: `Required headcount is ${risk.required ?? 0}, current pool is ${risk.inPool ?? 0}, and ${risk.needed ?? 0} talents are still needed.`,
       businessImpact: "The language pool may not be ready for upcoming delivery if the gap remains unresolved.",
-      recommendedActions: ["Consider creating or expanding a sourcing task for this language.", "Check backup candidates in the Talent Library.", "Assign an HR owner if the language is not covered."],
+      recommendedActions: ["Consider creating or expanding a sourcing task for this language.", "Check backup candidates in the Talent Museum.", "Assign an HR owner if the language is not covered."],
     };
   }
 
@@ -1012,6 +1013,9 @@ type PluginPreviewMessage = {
 };
 
 type PluginPreviewCandidate = {
+  id?: string;
+  profileUrl?: string;
+  chatUrl?: string;
   name: string;
   language: string;
   region: string;
@@ -1276,8 +1280,19 @@ function PluginWorkspacePreview({ scriptOptions }: PluginWorkspacePreviewProps) 
     return "Profile";
   };
 
-  const renderCandidateCard = (candidate: PluginPreviewCandidate, closed = false) => (
-    <article className="rounded-2xl border border-[#d7dccf] bg-[#fbfaf6] p-4 shadow-sm">
+  const candidateCardKey = (candidate: PluginPreviewCandidate, index: number, scope: "active" | "closed") =>
+    [
+      scope,
+      candidate.id || candidate.profileUrl || candidate.chatUrl || candidate.name || "candidate",
+      candidate.language,
+      candidate.region,
+      index,
+    ]
+      .filter(Boolean)
+      .join("-");
+
+  const renderCandidateCard = (candidate: PluginPreviewCandidate, cardKey: string, closed = false) => (
+    <article key={cardKey} className="rounded-2xl border border-[#d7dccf] bg-[#fbfaf6] p-4 shadow-sm">
       <div className="flex items-center justify-between gap-2">
         <strong className="text-sm font-bold text-[#111827]">{candidate.name}</strong>
         <span
@@ -1321,7 +1336,7 @@ function PluginWorkspacePreview({ scriptOptions }: PluginWorkspacePreviewProps) 
   );
 
   return (
-    <div className="overflow-x-auto">
+    <div className="scroll-x-panel">
       <div className={shellClass}>
         <header className={`${cardClass} flex items-center justify-between px-4 py-3`}>
           <strong className="text-[15px] font-extrabold tracking-tight text-[#111827]">BlackDog Helper</strong>
@@ -1465,7 +1480,7 @@ function PluginWorkspacePreview({ scriptOptions }: PluginWorkspacePreviewProps) 
                 <div><h2 className={titleClass}>Candidate Chats</h2></div>
                 <div id="candidate-chats-live-note" className="rounded-xl border border-[#d7dccf] bg-[#fbfaf6] px-3 py-2 text-sm text-[#6f6256]">No active room selected yet.</div>
                 <div className="space-y-3">
-                  {data.activeCandidates.map((candidate) => renderCandidateCard(candidate))}
+                  {data.activeCandidates.map((candidate, index) => renderCandidateCard(candidate, candidateCardKey(candidate, index, "active")))}
                 </div>
                 <div className="rounded-2xl border border-[#d7dccf] bg-white p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -1473,7 +1488,7 @@ function PluginWorkspacePreview({ scriptOptions }: PluginWorkspacePreviewProps) 
                     <button id="clear-closed-chats" className={`${actionBase} ${secondaryAction} ${compactAction}`} type="button">Clear Closed</button>
                   </div>
                   <div className="mt-3 space-y-3">
-                    {data.closedCandidates.map((candidate) => renderCandidateCard(candidate, true))}
+                    {data.closedCandidates.map((candidate, index) => renderCandidateCard(candidate, candidateCardKey(candidate, index, "closed"), true))}
                   </div>
                 </div>
               </section>
@@ -1590,7 +1605,7 @@ function PluginWorkspacePreview({ scriptOptions }: PluginWorkspacePreviewProps) 
   );
 }
 
-export function RecruitingWorkbenchPage() {
+export function RecruitingWorkbenchPage({ hideTopNav = false }: { hideTopNav?: boolean } = {}) {
   const [activeTab, setActiveTab] = useState<PageTab>("Overview");
   const [projectListView] = useState<"Card View" | "Table View">("Table View");
   const [recruitmentProjects, setRecruitmentProjects] = useState<RecruitmentProject[]>([]);
@@ -1628,6 +1643,8 @@ export function RecruitingWorkbenchPage() {
   const taskHrFieldRef = useRef<HTMLDivElement | null>(null);
   const hrAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
+  const platformUser = readPlatformUser();
+  const clientReadOnly = isClient(platformUser);
   const currentHrSession = readLoggedInSession();
   const currentHrName = currentHrSession?.name || "Julie Zhu";
   const currentHrRow = initialHrProgressRows.find((row) => row.hrName === currentHrName) ?? initialHrProgressRows[0];
@@ -2079,7 +2096,7 @@ export function RecruitingWorkbenchPage() {
         ? "Plugin Workspace"
         : activeTab === "Recruiting Tasks"
           ? "Recruiting Tasks"
-          : "Recruiting Hub";
+          : "Sourcing Hub";
 
   const pageSubtitle =
     activeTab === "Personal Center"
@@ -2236,6 +2253,7 @@ export function RecruitingWorkbenchPage() {
   }
 
   function openCreateProjectForm() {
+    if (clientReadOnly || !canPerform(platformUser, "recruiting.createTask")) return
     const currentUserName = readLoggedInSession()?.name || currentHrName
     setEditingProjectId(null)
     setProjectFormDraft({
@@ -2249,6 +2267,7 @@ export function RecruitingWorkbenchPage() {
   }
 
   function openEditProjectForm(project: RecruitmentProject) {
+    if (clientReadOnly || !canPerform(platformUser, "recruiting.editTask")) return
     setEditingProjectId(project.projectId)
     setProjectFormDraft({
       taskName: project.projectName,
@@ -2268,6 +2287,7 @@ export function RecruitingWorkbenchPage() {
   }
 
   function toggleProjectLock(projectId: string) {
+    if (clientReadOnly || !canPerform(platformUser, "recruiting.editTask")) return
     setRecruitmentProjects((current) =>
       current.map((project) => {
         if (project.projectId !== projectId) return project
@@ -2283,6 +2303,7 @@ export function RecruitingWorkbenchPage() {
   }
 
   function deleteProject(projectId: string) {
+    if (clientReadOnly || !canPerform(platformUser, "recruiting.manage")) return
     if (typeof window !== "undefined" && !window.confirm("Delete this recruiting task?")) return
     setRecruitmentProjects((current) => current.filter((project) => project.projectId !== projectId))
     if (editingProjectId === projectId) {
@@ -2291,6 +2312,7 @@ export function RecruitingWorkbenchPage() {
   }
 
   function saveProjectDraft() {
+    if (clientReadOnly || !canPerform(platformUser, editingProjectId ? "recruiting.editTask" : "recruiting.createTask")) return
     const taskName = projectFormDraft.taskName.trim()
     if (!taskName) return
     if (!projectFormDraft.requiredLanguages.length) return
@@ -2358,9 +2380,9 @@ export function RecruitingWorkbenchPage() {
 
   return (
     <main className="min-h-screen bg-transparent text-[#111827]">
-      <TopNav />
+      {hideTopNav ? null : <TopNav />}
 
-      <section className="mx-auto max-w-7xl px-6 py-8">
+      <section className="page-shell pb-24 pt-8">
         <div className="rounded-xl border border-[#e2d8c8] bg-[#fbfaf6] p-6 shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
@@ -2404,12 +2426,12 @@ export function RecruitingWorkbenchPage() {
 
             <SectionCard
               title="Language Coverage & Gap"
-              description="Plan view of required talent by language, current pool coverage, and what is still missing."
+              description="Track required talent, current coverage, and remaining gaps by language."
               contentClassName="p-0"
             >
-              <div className="overflow-x-auto rounded-b-xl">
-                <table className="min-w-[980px] w-full border-collapse text-sm">
-                  <thead className="sticky top-0 z-10 bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+              <div className="scroll-x-panel rounded-b-xl">
+                <table className="data-table min-w-[980px]">
+                  <thead className="sticky top-0 z-10">
                     <tr>
                       {[
                         "Language",
@@ -2420,7 +2442,7 @@ export function RecruitingWorkbenchPage() {
                         "Progress",
                         "Status",
                       ].map((heading) => (
-                        <th key={heading} className="border-b border-[#e2d8c8] px-4 py-3 text-left font-semibold">
+                        <th key={heading} className={["Required", "In Pool", "Needed", "Progress", "Status"].includes(heading) ? "th-center" : "th-left"}>
                           {heading}
                         </th>
                       ))}
@@ -2429,13 +2451,13 @@ export function RecruitingWorkbenchPage() {
                   <tbody>
                     {languageRecruitmentRows.map((row) => (
                       <tr key={`${row.language}-${row.region}`} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
-                        <td className="px-4 py-3 font-semibold text-[#111827]">{row.language}</td>
-                        <td className="px-4 py-3 text-[#6f6256]">{row.region}</td>
-                        <td className="px-4 py-3 font-black tabular-nums text-[#1d4ed8]">{row.requiredTalents}</td>
-                        <td className="px-4 py-3 font-black tabular-nums text-[#1f5c43]">{row.currentTalentPool}</td>
-                        <td className="px-4 py-3 font-black tabular-nums text-[#c85f19]">{row.remainingNeeded}</td>
-                        <td className="px-4 py-3">
-                          <div className="w-full max-w-[220px]">
+                        <td className="td-left font-semibold text-[#111827]">{row.language}</td>
+                        <td className="td-left text-[#6f6256]">{row.region}</td>
+                        <td className="td-center font-black tabular-nums text-[#1d4ed8]">{row.requiredTalents}</td>
+                        <td className="td-center font-black tabular-nums text-[#1f5c43]">{row.currentTalentPool}</td>
+                        <td className="td-center font-black tabular-nums text-[#c85f19]">{row.remainingNeeded}</td>
+                        <td className="td-center">
+                          <div className="mx-auto w-full max-w-[220px]">
                             <div className="h-2 rounded-full bg-[#ece7dc]">
                               <div
                                 className="h-2 rounded-full bg-[#1f5c43]"
@@ -2445,7 +2467,7 @@ export function RecruitingWorkbenchPage() {
                             <div className="mt-1 text-xs font-semibold text-[#6f6256]">{formatPercent(row.progress)}</div>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="td-center">
                           <Badge className={dashboardStatusClass(row.status)}>{row.status}</Badge>
                         </td>
                       </tr>
@@ -2457,7 +2479,7 @@ export function RecruitingWorkbenchPage() {
 
             <SectionCard
               title="Recruiting Task Snapshot"
-              description="View recruiting task progress, assigned HRs, languages, and plugin sync status."
+              description="Monitor task progress, assigned HRs, target languages, and sync status."
             >
               {projectListView === "Card View" ? (
                 <div className="grid gap-4 xl:grid-cols-2">
@@ -2485,6 +2507,7 @@ export function RecruitingWorkbenchPage() {
                           </div>
                           <div className="flex flex-col items-end gap-2">
                             <Badge className={dashboardStatusClass(projectStatus)}>{projectStatus}</Badge>
+                            {canPerform(platformUser, "recruiting.editTask") ? (
                             <div className="flex flex-wrap justify-end gap-2">
                               <button type="button" onClick={() => openEditProjectForm(project)} className={taskEditButtonClass}>
                                 Edit
@@ -2500,6 +2523,7 @@ export function RecruitingWorkbenchPage() {
                                 Delete
                               </button>
                             </div>
+                            ) : null}
                           </div>
                         </div>
 
@@ -2673,12 +2697,12 @@ export function RecruitingWorkbenchPage() {
                   })}
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-b-xl">
-                  <table className="min-w-[980px] w-full border-collapse text-sm">
-                    <thead className="sticky top-0 z-10 bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+                <div className="scroll-x-panel rounded-b-xl">
+                  <table className="data-table min-w-[980px]">
+                    <thead className="sticky top-0 z-10">
                       <tr>
                       {["Task Name", "Assigned HRs", "Language", "Required", "Applicants", "Approved", "Deadline", "Status"].map((heading) => (
-                          <th key={heading} className="border-b border-[#e2d8c8] px-4 py-3 text-left font-semibold">
+                          <th key={heading} className={["Required", "Applicants", "Approved", "Deadline", "Status"].includes(heading) ? "th-center" : "th-left"}>
                             {heading}
                           </th>
                         ))}
@@ -2691,26 +2715,26 @@ export function RecruitingWorkbenchPage() {
                             key={project.taskName}
                             className="border-b border-[#efe6d8] bg-white transition hover:bg-[#f7f5ef]"
                           >
-                            <td className="px-4 py-4 align-top font-semibold leading-6 text-[#111827]">
+                            <td className="td-left align-top font-semibold leading-6 text-[#111827]">
                               <div className="max-w-full break-words">{project.taskName}</div>
                             </td>
-                            <td className="px-4 py-4 align-top text-[#111827]">
+                            <td className="td-left align-top text-[#111827]">
                               <div className="flex flex-wrap gap-1.5">
                                 <Badge className="border-[#d7dccf] bg-[#eef4ee] text-[#1f5c43]">{project.owner || "Not set"}</Badge>
                               </div>
                             </td>
-                            <td className="px-4 py-4 align-top text-[#111827]">
+                            <td className="td-left align-top text-[#111827]">
                               <div className="flex flex-wrap gap-1.5">
                                 <Badge className="border-[#d7dccf] bg-[#f7f5ef] text-[#6f6256]">{project.language}</Badge>
                               </div>
                             </td>
-                            <td className="px-4 py-4 align-top text-center font-black tabular-nums text-[#1d4ed8]">{project.required}</td>
-                            <td className="px-4 py-4 align-top text-center font-black tabular-nums text-[#c85f19]">{project.applicants}</td>
-                            <td className="px-4 py-4 align-top text-center font-black tabular-nums text-[#1f5c43]">{project.approved}</td>
-                            <td className="px-4 py-4 align-top">
+                            <td className="td-center align-top font-black tabular-nums text-[#1d4ed8]">{project.required}</td>
+                            <td className="td-center align-top font-black tabular-nums text-[#c85f19]">{project.applicants}</td>
+                            <td className="td-center align-top font-black tabular-nums text-[#1f5c43]">{project.approved}</td>
+                            <td className="td-center align-top">
                               <div className="text-sm font-semibold text-[#6f6256]">{project.daysLeft ?? "Not set"} days</div>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="td-center">
                               <Badge className={dashboardStatusClass(project.status)}>{project.status}</Badge>
                             </td>
                           </tr>
@@ -2724,12 +2748,12 @@ export function RecruitingWorkbenchPage() {
 
             <SectionCard
               title="HR Recruiting Progress"
-              description="Manager view of how each HR is progressing across assigned tasks and languages."
+              description="Review HR progress across assigned tasks and languages."
               contentClassName="p-0"
             >
-              <div className="overflow-x-auto">
-                <table className="min-w-[1120px] w-full border-collapse text-sm">
-                  <thead className="sticky top-0 z-10 bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+              <div className="scroll-x-panel">
+                <table className="data-table min-w-[1120px]">
+                  <thead className="sticky top-0 z-10">
                     <tr>
                       {[
                         "HR",
@@ -2741,7 +2765,7 @@ export function RecruitingWorkbenchPage() {
                         "Rate",
                         "Status",
                       ].map((heading) => (
-                        <th key={heading} className="border-b border-[#e2d8c8] px-4 py-3 text-left font-semibold whitespace-nowrap">
+                        <th key={heading} className={["Tasks", "Submitted", "Accepted", "Today", "Rate", "Status"].includes(heading) ? "th-center" : "th-left"}>
                           {heading}
                         </th>
                       ))}
@@ -2753,8 +2777,8 @@ export function RecruitingWorkbenchPage() {
                         key={row.hrName}
                         className="border-b border-[#efe6d8] bg-white transition hover:bg-[#f7f5ef]"
                       >
-                        <td className="px-4 py-3 font-semibold text-[#111827]">{row.hrName}</td>
-                        <td className="px-4 py-3 text-[#111827]">
+                        <td className="td-left font-semibold text-[#111827]">{row.hrName}</td>
+                        <td className="td-center text-[#111827]">
                           <details className="group">
                             <summary className="cursor-pointer list-none text-sm font-semibold text-[#111827]">
                               {row.assignedProjects.length} {row.assignedProjects.length === 1 ? "task" : "tasks"}
@@ -2802,7 +2826,7 @@ export function RecruitingWorkbenchPage() {
                             </div>
                           </details>
                         </td>
-                        <td className="px-4 py-3 text-[#111827]">
+                        <td className="td-left text-[#111827]">
                           <div className="flex flex-wrap gap-1.5">
                             {row.assignedLanguages.map((language) => (
                               <Badge key={language} className="border-[#d7dccf] bg-[#eef4ee] text-[#1f5c43]">
@@ -2811,13 +2835,13 @@ export function RecruitingWorkbenchPage() {
                             ))}
                           </div>
                         </td>
-                        <td className="px-4 py-3 font-black tabular-nums text-[#1d4ed8]">{row.submittedProfiles}</td>
-                        <td className="px-4 py-3 font-black tabular-nums text-[#1f5c43]">{row.acceptedProfiles}</td>
-                        <td className="px-4 py-3 font-black tabular-nums text-[#c85f19]">{row.todayAdded}</td>
-                        <td className="px-4 py-3 font-black tabular-nums text-[#111827]">
+                        <td className="td-center font-black tabular-nums text-[#1d4ed8]">{row.submittedProfiles}</td>
+                        <td className="td-center font-black tabular-nums text-[#1f5c43]">{row.acceptedProfiles}</td>
+                        <td className="td-center font-black tabular-nums text-[#c85f19]">{row.todayAdded}</td>
+                        <td className="td-center font-black tabular-nums text-[#111827]">
                           {formatPercent(row.successRate)}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="td-center">
                           <Badge className={dashboardStatusClass(row.status)}>{row.status}</Badge>
                         </td>
                       </tr>
@@ -2829,7 +2853,7 @@ export function RecruitingWorkbenchPage() {
 
             <SectionCard
               title="Top Management Alerts"
-              description="Automatically highlights the most urgent risks across language coverage, recruiting tasks, and HR workload."
+              description="Prioritize risks across language coverage, recruiting tasks, and HR workload."
             >
               <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
                 <div className="text-sm text-[#6f6256]">
@@ -2939,12 +2963,12 @@ export function RecruitingWorkbenchPage() {
                   <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1f5c43]">
                     {managementAlertsTab === "language" ? "Language Risks Top 3" : managementAlertsTab === "project" ? "Project Risks Top 3" : "HR Risks Top 3"}
                   </div>
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="min-w-[980px] w-full border-collapse text-sm">
-                      <thead className="bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+                  <div className="scroll-x-panel mt-4">
+                    <table className="data-table min-w-[980px]">
+                      <thead>
                         <tr>
                           {rankingColumns(managementAlertsTab === "language" ? "Language" : managementAlertsTab === "project" ? "Project" : "HR").map((heading) => (
-                            <th key={heading || "actions"} className="border-b border-[#e2d8c8] px-3 py-3 text-left font-semibold">
+                            <th key={heading || "actions"} className={["", "#", "Risk"].includes(heading) ? "th-center" : "th-left"}>
                               {heading}
                             </th>
                           ))}
@@ -2960,24 +2984,24 @@ export function RecruitingWorkbenchPage() {
                           const cells = rankingCells(risk);
                           return (
                             <tr key={risk.id} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
-                              <td className="px-3 py-3 font-black text-[#6f6256]">{index + 1}</td>
-                              <td className="px-3 py-3"><Badge className={managementRiskTone(risk.riskLevel).badge}>{risk.riskLevel}</Badge></td>
+                              <td className="td-center font-black text-[#6f6256]">{index + 1}</td>
+                              <td className="td-center"><Badge className={managementRiskTone(risk.riskLevel).badge}>{risk.riskLevel}</Badge></td>
                               {cells.map((cell, cellIndex) => (
-                                <td key={`${risk.id}-cell-${cellIndex}`} className="px-3 py-3 text-[#111827]">{cell}</td>
+                                <td key={`${risk.id}-cell-${cellIndex}`} className="td-left text-[#111827]">{cell}</td>
                               ))}
-                              <td className="px-3 py-3 text-[#4b5563]">{rankingReason(risk)}</td>
-                              <td className="px-3 py-3 text-[#4b5563]">{rankingAction(risk)}</td>
+                              <td className="td-left text-[#4b5563]">{rankingReason(risk)}</td>
+                              <td className="td-left text-[#4b5563]">{rankingAction(risk)}</td>
                               {risk.focusType === "Project" ? (
-                                <td className="px-3 py-3">
+                                <td className="td-actions">
                                   <button type="button" onClick={() => openTaskRiskModal(risk)} className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-[#1f5c43] bg-[#1f5c43] px-3 text-[13px] font-semibold text-white transition hover:opacity-90">
                                     Open Task
                                   </button>
                                 </td>
                               ) : risk.focusType === "HR" ? (
-                                <td className="px-3 py-3">
+                                <td className="td-actions">
                                   <button
                                     type="button"
-                                    aria-label={`View HR Workbench for ${risk.focusItem}`}
+                                    aria-label={`View HR Hub for ${risk.focusItem}`}
                                     onClick={() => openHrRiskModal(risk)}
                                     className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-[#d7dccf] bg-[#f7f5ef] px-3 text-[13px] font-semibold text-[#111827] transition hover:bg-[#f0eadc]"
                                   >
@@ -3010,33 +3034,35 @@ export function RecruitingWorkbenchPage() {
 
             <SectionCard
               title="Recruiting Tasks"
-              description="Create and manage recruiting tasks, target languages, assigned HRs, timelines, and fixed scripts."
+              description="Manage recruiting tasks, target languages, assigned HRs, timelines, and fixed scripts."
             >
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6f6256]">Task Management</div>
-                  <p className="mt-1 text-sm text-[#6f6256]">Use mock data for now. Scripts are stored locally for future Plugin Workspace sync.</p>
+                  <p className="mt-1 text-sm text-[#6f6256]">Keep recruiting scripts ready for task execution and extension sync.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (showProjectForm) {
-                      setShowProjectForm(false)
-                      setEditingProjectId(null)
-                      setProjectFormDraft(createEmptyProjectFormDraft())
-                      return
-                    }
-                    openCreateProjectForm()
-                  }}
-                  className="rounded-md border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  {showProjectForm ? "Hide Task Drawer" : "Create Task"}
-                </button>
+                {canPerform(platformUser, "recruiting.createTask") ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (showProjectForm) {
+                        setShowProjectForm(false)
+                        setEditingProjectId(null)
+                        setProjectFormDraft(createEmptyProjectFormDraft())
+                        return
+                      }
+                      openCreateProjectForm()
+                    }}
+                    className="rounded-md border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    {showProjectForm ? "Hide Task Drawer" : "Create Task"}
+                  </button>
+                ) : null}
               </div>
 
               {showProjectForm ? (
                 <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
-                  <div className="h-full w-full max-w-[980px] overflow-y-auto border-l border-[#d7dccf] bg-[#fbfaf6] p-6 shadow-[0_18px_42px_rgba(31,41,51,0.22)]">
+                  <div className="scroll-panel h-full w-full max-w-[980px] border-l border-[#d7dccf] bg-[#fbfaf6] p-6 shadow-[0_18px_42px_rgba(31,41,51,0.22)]">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h3 className="text-2xl font-black text-[#111827]">
@@ -3152,7 +3178,7 @@ export function RecruitingWorkbenchPage() {
                           </div>
                           {taskLanguageDropdownOpen ? (
                             <div className="mt-3 rounded-lg border border-[#e6dccb] bg-[#fbfaf6] p-3">
-                              <div className="grid max-h-60 gap-2 overflow-y-auto">
+                              <div className="scroll-panel grid max-h-60 gap-2">
                                 {filteredRecruitingLanguageOptions.length > 0 ? (
                                   filteredRecruitingLanguageOptions.map((option) => {
                                     const selected = selectedTaskLanguages.includes(option.label)
@@ -3231,7 +3257,7 @@ export function RecruitingWorkbenchPage() {
                           </div>
                           {taskHrDropdownOpen ? (
                             <div className="mt-3 rounded-lg border border-[#e6dccb] bg-[#fbfaf6] p-3">
-                              <div className="grid max-h-52 gap-2 overflow-y-auto">
+                              <div className="scroll-panel grid max-h-52 gap-2">
                                 {filteredHrOptions.length > 0 ? (
                                   filteredHrOptions.map((account) => {
                                     const selected = projectFormDraft.assignedHrAccounts.includes(account.loginAccount)
@@ -3351,6 +3377,7 @@ export function RecruitingWorkbenchPage() {
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <Badge className={dashboardStatusClass(project.status)}>{project.status}</Badge>
+                        {canPerform(platformUser, "recruiting.editTask") ? (
                         <div className="flex flex-wrap justify-end gap-2">
                           <button type="button" onClick={() => openEditProjectForm(project)} className={taskEditButtonClass}>
                             Edit
@@ -3366,6 +3393,7 @@ export function RecruitingWorkbenchPage() {
                             Delete
                           </button>
                         </div>
+                        ) : null}
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -3396,7 +3424,7 @@ export function RecruitingWorkbenchPage() {
 
             <SectionCard
               title="HR Basic Info"
-              description="Current HR account details and assigned workload summary."
+              description="Review account details and assigned recruiting workload."
             >
               <div className="grid gap-5 xl:grid-cols-[minmax(280px,340px)_1fr]">
                 <div className="space-y-3">
@@ -3491,10 +3519,10 @@ export function RecruitingWorkbenchPage() {
 
             <SectionCard
               title="Assigned Recruiting Tasks"
-              description="Read-only view of the tasks currently assigned to this HR."
+              description="Review tasks currently assigned to this HR."
             >
-              <div className="overflow-x-auto rounded-b-xl">
-                <table className="w-full table-fixed border-collapse text-sm">
+              <div className="scroll-x-panel rounded-b-xl">
+                <table className="data-table min-w-[980px] table-fixed">
                   <colgroup>
                     <col className="w-[24%]" />
                     <col className="w-[24%]" />
@@ -3504,15 +3532,13 @@ export function RecruitingWorkbenchPage() {
                     <col className="w-[10%]" />
                     <col className="w-[8%]" />
                   </colgroup>
-                  <thead className="sticky top-0 z-10 bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+                  <thead className="sticky top-0 z-10">
                     <tr>
                       {["Task Name", "Languages", "Start Date", "End Date", "Task Status", "Progress", "Script Status"].map(
                         (heading) => (
                           <th
                             key={heading}
-                            className={`border-b border-[#e2d8c8] px-4 py-3 font-semibold whitespace-nowrap ${
-                              heading === "Task Name" || heading === "Languages" ? "text-left" : "text-center"
-                            }`}
+                            className={heading === "Task Name" || heading === "Languages" ? "th-left" : "th-center"}
                           >
                             {heading}
                           </th>
@@ -3533,10 +3559,10 @@ export function RecruitingWorkbenchPage() {
 
                         return (
                           <tr key={project.projectId} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
-                            <td className="px-4 py-4 align-top font-semibold leading-6 text-[#111827]">
+                            <td className="td-left align-top font-semibold leading-6 text-[#111827]">
                               <div className="max-w-full break-words">{project.projectName}</div>
                             </td>
-                            <td className="px-4 py-4 align-top text-[#111827]">
+                            <td className="td-left align-top text-[#111827]">
                               <div className="flex flex-wrap gap-1.5">
                                 {visibleLanguages.map((languageRow) => (
                                   <Badge
@@ -3575,12 +3601,12 @@ export function RecruitingWorkbenchPage() {
                                 ) : null}
                               </div>
                             </td>
-                            <td className="px-4 py-4 text-center tabular-nums text-[#111827]">{project.startDate}</td>
-                            <td className="px-4 py-4 text-center tabular-nums text-[#111827]">{project.endDate}</td>
-                            <td className="px-4 py-4 text-center">
+                            <td className="td-center tabular-nums text-[#111827]">{project.startDate}</td>
+                            <td className="td-center tabular-nums text-[#111827]">{project.endDate}</td>
+                            <td className="td-center">
                               <Badge className={dashboardStatusClass(project.status)}>{project.status}</Badge>
                             </td>
-                            <td className="px-4 py-4">
+                            <td className="td-center">
                               <div className="mx-auto w-full max-w-[140px]">
                                 <div className="h-2 rounded-full bg-[#ece7dc]">
                                   <div
@@ -3593,7 +3619,7 @@ export function RecruitingWorkbenchPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-4 text-center">
+                            <td className="td-center">
                               <Badge className={taskSyncStatusClass(scriptStatus)}>{scriptStatus}</Badge>
                             </td>
                           </tr>
@@ -3601,7 +3627,7 @@ export function RecruitingWorkbenchPage() {
                       })
                     ) : (
                       <tr>
-                        <td className="px-4 py-6 text-center text-sm text-[#6f6256]" colSpan={7}>
+                        <td className="td-center py-6 text-sm text-[#6f6256]" colSpan={7}>
                           No tasks are assigned to the current HR yet.
                         </td>
                       </tr>
@@ -3613,10 +3639,10 @@ export function RecruitingWorkbenchPage() {
 
             <SectionCard
               title="Language Recruiting Progress"
-              description="Recruiting progress and quality coverage by language for the current HR."
+              description="Track recruiting progress and quality coverage by language."
             >
-              <div className="overflow-x-auto rounded-b-xl">
-                <table className="w-full table-fixed border-collapse text-sm">
+              <div className="scroll-x-panel rounded-b-xl">
+                <table className="data-table min-w-[980px] table-fixed">
                   <colgroup>
                     <col className="w-[24%]" />
                     <col className="w-[9%]" />
@@ -3627,15 +3653,13 @@ export function RecruitingWorkbenchPage() {
                     <col className="w-[8%]" />
                     <col className="w-[13%]" />
                   </colgroup>
-                  <thead className="sticky top-0 z-10 bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+                  <thead className="sticky top-0 z-10">
                     <tr>
                       {["Language", "Required", "Submitted", "Accepted", "Pending", "Remaining", "Rate", "Status"].map(
                         (heading) => (
                           <th
                             key={heading}
-                            className={`border-b border-[#e2d8c8] px-4 py-3 font-semibold whitespace-nowrap ${
-                              heading === "Language" ? "text-left" : "text-center"
-                            }`}
+                            className={heading === "Language" ? "th-left" : "th-center"}
                           >
                             {heading}
                           </th>
@@ -3647,14 +3671,14 @@ export function RecruitingWorkbenchPage() {
                     {personalCenterLanguageRows.length > 0 ? (
                       personalCenterLanguageRows.map((row) => (
                         <tr key={row.language} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
-                          <td className="px-4 py-4 font-semibold leading-6 text-[#111827]">{row.language}</td>
-                          <td className="px-4 py-4 text-center font-black tabular-nums text-[#1d4ed8]">{row.required}</td>
-                          <td className="px-4 py-4 text-center font-black tabular-nums text-[#1f5c43]">{row.submitted}</td>
-                          <td className="px-4 py-4 text-center font-black tabular-nums text-[#111827]">{row.accepted}</td>
-                          <td className="px-4 py-4 text-center font-black tabular-nums text-[#c85f19]">{row.pending}</td>
-                          <td className="px-4 py-4 text-center font-black tabular-nums text-[#c85f19]">{row.remaining}</td>
-                          <td className="px-4 py-4 text-center font-semibold text-[#111827]">{formatPercent(row.rate)}</td>
-                          <td className="px-4 py-4 text-center">
+                          <td className="td-left font-semibold leading-6 text-[#111827]">{row.language}</td>
+                          <td className="td-center font-black tabular-nums text-[#1d4ed8]">{row.required}</td>
+                          <td className="td-center font-black tabular-nums text-[#1f5c43]">{row.submitted}</td>
+                          <td className="td-center font-black tabular-nums text-[#111827]">{row.accepted}</td>
+                          <td className="td-center font-black tabular-nums text-[#c85f19]">{row.pending}</td>
+                          <td className="td-center font-black tabular-nums text-[#c85f19]">{row.remaining}</td>
+                          <td className="td-center font-semibold text-[#111827]">{formatPercent(row.rate)}</td>
+                          <td className="td-center">
                             <Badge
                               className={dashboardStatusClass(
                                 row.status === "Behind" ? "Needs Attention" : row.status === "Active" ? "In Progress" : row.status,
@@ -3667,7 +3691,7 @@ export function RecruitingWorkbenchPage() {
                       ))
                     ) : (
                       <tr>
-                        <td className="px-4 py-6 text-center text-sm text-[#6f6256]" colSpan={8}>
+                        <td className="td-center py-6 text-sm text-[#6f6256]" colSpan={8}>
                           No language recruiting progress available yet.
                         </td>
                       </tr>
@@ -3686,7 +3710,7 @@ export function RecruitingWorkbenchPage() {
       {managementAlertModal ? (() => {
         const alert = makeFallbackAlert(managementAlertModal.risk);
         const closeModal = () => setManagementAlertModal(null);
-        const modalTitle = managementAlertModal.type === "task" ? "Task Risk Detail" : "HR Workbench Preview";
+        const modalTitle = managementAlertModal.type === "task" ? "Task Risk Detail" : "HR Hub Preview";
         const modalSubtitle = managementAlertModal.type === "task" ? alert.focusItem : modalHrRow?.hrName ?? alert.focusItem;
         const profileRows =
           managementAlertModal.type === "hr"
@@ -3727,7 +3751,7 @@ export function RecruitingWorkbenchPage() {
               role="dialog"
               aria-modal="true"
               aria-label={modalTitle}
-              className="max-h-[calc(100vh-64px)] w-full max-w-[720px] overflow-y-auto rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_70px_rgba(17,24,39,0.28)]"
+              className="scroll-panel max-h-[calc(100vh-64px)] w-full max-w-[720px] rounded-3xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_70px_rgba(17,24,39,0.28)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>

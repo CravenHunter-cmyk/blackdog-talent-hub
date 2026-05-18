@@ -172,9 +172,9 @@ const PERMISSION_MODULES: PermissionModule[] = [
   },
   {
     key: "talent-library",
-    label: "Talent Library",
+    label: "Talent Museum",
     permissions: [
-      { key: "viewTalentLibrary", label: "View Talent Library" },
+      { key: "viewTalentLibrary", label: "View Talent Museum" },
       { key: "addTalentRecords", label: "Add Talent Records" },
       { key: "editTalentRecords", label: "Edit Talent Records" },
       { key: "deleteTalentRecords", label: "Delete Talent Records" },
@@ -345,7 +345,7 @@ const INITIAL_ACCOUNTS: AccountRecord[] = [
     assignedTeams: [],
     linkedTalentProfile: undefined,
     lastLogin: "Never",
-    notes: "Locked mock account for login testing.",
+    notes: "Locked account for login testing.",
     createdAt: "2026-04-27 10:22",
     updatedAt: "2026-04-27 10:22",
   },
@@ -848,7 +848,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     }
 
     if (draft.role === "talent" && !draft.linkedTalentProfile.trim()) {
-      setDraftError("Please link a Talent Library profile for this Talent account.");
+      setDraftError("Please link a Talent Museum profile for this Talent account.");
       return;
     }
 
@@ -884,7 +884,6 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       }
       return [nextAccount, ...current];
     });
-    console.log("[BlackDog] account password updated for", nextAccount.loginAccount);
     setSelectedAccountId(nextAccount.id);
     setDraft({
       id: nextAccount.id,
@@ -934,7 +933,6 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
           : account,
       ),
     );
-    console.log("[BlackDog] account password updated for", draft.loginAccount.trim());
     setDraft((current) => ({
       ...current,
       tempPassword: nextPassword,
@@ -1021,12 +1019,12 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f3ed] px-6 py-8 text-[#111827]">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <div className="min-h-screen bg-[#f6f3ed] pb-24 pt-8 text-[#111827]">
+      <div className="page-shell space-y-6">
         <section className="rounded-2xl border border-[#d7dccf] bg-white p-6 shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">Users & Permissions</h1>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">Command</h1>
             </div>
           </div>
 
@@ -1086,11 +1084,11 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
             </div>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-xl border border-[#e3dbcd] bg-white shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
-            <div className="flex justify-center bg-[#faf7ef] px-2 sm:px-4">
+          <div className="scroll-x-panel mt-4 w-full rounded-xl border border-[#e3dbcd] bg-white shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
+            <div className="bg-[#faf7ef] px-2 sm:px-4">
               <div
-                className="grid w-full max-w-[1120px] items-center border-b border-[#e8e0d2] bg-[#faf7ef] text-[11px] font-semibold uppercase tracking-[0.1em] text-[#6f6256]"
-                style={{ gridTemplateColumns: "40px 48px 170px 180px 120px 110px 150px 252px", minHeight: "44px" }}
+                className="grid min-w-[1180px] w-full items-center border-b border-[#e8e0d2] bg-[#faf7ef] text-[11px] font-semibold uppercase tracking-[0.1em] text-[#6f6256]"
+                style={{ gridTemplateColumns: "56px 64px minmax(180px,1.2fr) minmax(180px,1.2fr) 130px 130px 160px 252px", minHeight: "44px" }}
               >
               <div className="flex justify-center">
                 <input
@@ -1108,7 +1106,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
               <div className="text-center">Role</div>
               <div className="text-center">Status</div>
               <div className="text-center">Last Login</div>
-              <div className="pl-24 text-center">Actions</div>
+              <div className="text-center">Actions</div>
             </div>
             </div>
 
@@ -1119,13 +1117,13 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                 return (
                   <div
                     key={account.id}
-                    className={`flex justify-center px-2 sm:px-4 transition-colors hover:bg-[#faf8f1] ${
+                    className={`px-2 transition-colors hover:bg-[#faf8f1] sm:px-4 ${
                       isSelected ? "bg-[#f2f8f4]" : "bg-white"
                     }`}
                   >
                     <div
-                      className="grid w-full max-w-[1120px] items-center"
-                      style={{ gridTemplateColumns: "40px 48px 170px 180px 120px 110px 150px 252px", minHeight: "56px" }}
+                      className="grid min-w-[1180px] w-full items-center"
+                      style={{ gridTemplateColumns: "56px 64px minmax(180px,1.2fr) minmax(180px,1.2fr) 130px 130px 160px 252px", minHeight: "56px" }}
                     >
                       <div className="flex justify-center">
                         <input
@@ -1166,7 +1164,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                         </span>
                       </div>
                       <div className="whitespace-nowrap text-center text-[#374151]">{account.lastLogin}</div>
-                    <div className="flex items-center justify-center pl-24">
+                    <div className="flex items-center justify-center">
                       <div className="flex flex-nowrap items-center justify-center gap-2">
                           <button
                             type="button"
@@ -1205,7 +1203,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       </div>
 
       {editorOpen ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#111827]/40 px-4 py-8">
+        <div className="scroll-panel fixed inset-0 z-50 flex items-start justify-center bg-[#111827]/40 px-4 py-8">
           <div className="mt-4 w-full max-w-6xl overflow-hidden rounded-3xl border border-[#d7dccf] bg-white shadow-[0_24px_60px_rgba(17,24,39,0.22)]">
             <div className="flex items-start justify-between gap-4 border-b border-[#e8e0d2] px-6 py-5">
               <div>
@@ -1263,7 +1261,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                         <img src="/blackdog-mascot.jpg" alt="BlackDog mascot" className="h-16 w-16 rounded-xl object-cover" />
                         <div className="mt-3 text-sm font-semibold text-[#40372f]">No talent profile linked</div>
                         <div className="mt-1 max-w-sm text-xs text-[#6f6256]">
-                          Select a Talent Library profile to sync avatar and resume information.
+                          Select a Talent Museum profile to sync avatar and resume information.
                         </div>
                       </div>
                     )}
@@ -1337,7 +1335,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                         </label>
 
                         {linkedTalentProfileOpen ? (
-                          <div className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-xl border border-[#d7dccf] bg-white shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
+                          <div className="scroll-panel absolute z-20 mt-2 max-h-72 w-full rounded-xl border border-[#d7dccf] bg-white shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
                             {filteredTalentProfiles.length ? (
                               filteredTalentProfiles.map((option) => (
                                 <button
@@ -1422,7 +1420,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                 </div>
               </div>
 
-              <div className="max-h-[75vh] overflow-y-auto p-6">
+              <div className="scroll-panel max-h-[75vh] p-6">
                 <div className="space-y-5">
                   <div className="rounded-xl border border-[#e4dbc9] bg-[#fbfaf6] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1f5c43]">Permission Modules</div>
@@ -1498,18 +1496,18 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                         <div>
                           <div className="text-sm font-bold text-[#111827]">Default Account Type Permission Matrix</div>
                           <div className="mt-1 text-xs text-[#6f6256]">
-                            Talent Accounts are linked to Talent Library profiles and only receive talent-facing permissions by default.
+                            Talent Accounts are linked to Talent Museum profiles and only receive talent-facing permissions by default.
                           </div>
                         </div>
                       </div>
                     </summary>
-                    <div className="overflow-x-auto border-t border-[#eee7db] px-4 py-4">
-                      <table className="min-w-[960px] w-full border-collapse text-sm">
+                    <div className="scroll-x-panel border-t border-[#eee7db] px-4 py-4">
+                      <table className="data-table min-w-[960px]">
                         <thead>
-                          <tr className="border-b border-[#e8e0d2] text-left text-xs uppercase tracking-[0.18em] text-[#6f6256]">
-                            <th className="py-3 pr-3">Account Type</th>
+                          <tr>
+                            <th className="th-left">Account Type</th>
                             {PERMISSION_MODULES.map((group) => (
-                              <th key={group.key} className="py-3 pr-3">
+                              <th key={group.key} className="th-center">
                                 {group.label}
                               </th>
                             ))}
@@ -1518,11 +1516,11 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                         <tbody>
                           {ROLE_SUMMARIES.map((role) => (
                             <tr key={role.role} className="border-b border-[#eee7db] last:border-b-0">
-                              <td className="py-3 pr-3 font-semibold">{role.label}</td>
+                              <td className="td-left font-semibold">{role.label}</td>
                               {PERMISSION_MODULES.map((group) => {
                                 const { enabled, total } = permissionGroupCount(role.role, group);
                                 return (
-                                  <td key={`${role.role}-${group.key}`} className="py-3 pr-3">
+                                  <td key={`${role.role}-${group.key}`} className="td-center">
                                     <span className="rounded-full border border-[#d7dccf] bg-[#fbfaf6] px-2.5 py-1 text-xs font-semibold text-[#1f5c43]">
                                       {role.role === "super_admin" ? "All" : `${enabled}/${total}`}
                                     </span>

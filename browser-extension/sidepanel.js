@@ -589,6 +589,30 @@ function getCandidateKey(room = {}, profile = {}) {
   })
 }
 
+function normalizeCandidateNameKey(value = "") {
+  return safeName(value || "").toLowerCase()
+}
+
+function getCurrentCandidateRoom() {
+  return liveRoom() || activeRoom()
+}
+
+function isSameCandidateRoom(room = {}, currentRoom = getCurrentCandidateRoom()) {
+  if (!room || !currentRoom) return false
+
+  const roomUrl = normalizeRoomUrl(room.roomUrl || room.pageUrl || "")
+  const currentRoomUrl = normalizeRoomUrl(currentRoom.roomUrl || currentRoom.pageUrl || "")
+  if (roomUrl && currentRoomUrl && roomUrl === currentRoomUrl) return true
+
+  const roomKey = getCandidateKey(room, room.talentProfile || {})
+  const currentKey = getCandidateKey(currentRoom, currentRoom.talentProfile || {})
+  if (roomKey && currentKey && roomKey === currentKey) return true
+
+  const roomName = normalizeCandidateNameKey(room.candidateName || "")
+  const currentName = normalizeCandidateNameKey(currentRoom.candidateName || "")
+  return Boolean(roomName && currentName && roomName === currentName)
+}
+
 function rememberCandidateAvatar(room = {}, profile = {}, avatarUrl = "") {
   const candidateKey = getCandidateKey(room, profile)
   const nextAvatarUrl = safeName(avatarUrl || "")
@@ -3049,8 +3073,8 @@ function renderCandidateChats() {
   liveNote.hidden = true
   liveNote.textContent = ""
 
-  const rooms = getRoomsArray()
-  const live = liveRoom()
+  getRoomsArray()
+  const currentCandidateRoom = getCurrentCandidateRoom()
   const isRenderableCandidateRoom = (room) => {
     if (!room || typeof room !== "object") return false
     const candidateName = safeName(room.candidateName || "")
@@ -3058,26 +3082,18 @@ function renderCandidateChats() {
     if (isInvalidCandidateName(candidateName)) return false
     return true
   }
-  const rank = (room) => {
-    const status = room.status || "active"
-    const liveRank = live && room.roomId === live.roomId ? 0 : 1
-    const statusRank = status === "kept" ? 1 : status === "active" ? 2 : 3
-    const timeRank = -new Date(room.lastSyncedAt || 0).getTime()
-    return [liveRank, statusRank, timeRank]
-  }
-  const sortedRooms = rooms.sort((a, b) => {
-    const ra = rank(a)
-    const rb = rank(b)
-    for (let index = 0; index < ra.length; index += 1) {
-      if (ra[index] !== rb[index]) return ra[index] - rb[index]
-    }
-    return 0
-  })
-  const filteredRooms = sortedRooms.filter(isRenderableCandidateRoom)
-  const roomEntries = Object.entries(state.rooms || {}).filter(([, room]) => filteredRooms.includes(room))
-  const activeRoomEntries = roomEntries.filter(([, room]) => (room.status || "active") !== "closed")
+  const roomEntries = Object.entries(state.rooms || {}).filter(([, room]) => isRenderableCandidateRoom(room))
+  const activeRoomEntries = roomEntries
+    .filter(([, room]) => (room.status || "active") !== "closed")
+    .sort(([, aRoom], [, bRoom]) => {
+      const aIsCurrent = isSameCandidateRoom(aRoom, currentCandidateRoom)
+      const bIsCurrent = isSameCandidateRoom(bRoom, currentCandidateRoom)
+      if (aIsCurrent && !bIsCurrent) return -1
+      if (!aIsCurrent && bIsCurrent) return 1
+      return 0
+    })
   const closedRoomEntries = roomEntries.filter(([, room]) => (room.status || "active") === "closed")
-  const totalCandidateCount = filteredRooms.length
+  const totalCandidateCount = roomEntries.length
   if (title) {
     title.textContent = "Candidate Chats"
     const countBadge = card?.querySelector("#candidate-chats-count")
@@ -3085,15 +3101,21 @@ function renderCandidateChats() {
   }
 
   const renderRoomCard = (roomKey, room) => {
+    const isCurrentChat = (room.status || "active") !== "closed" && isSameCandidateRoom(room, currentCandidateRoom)
     const rawProfileSubmitStatus = getRoomProfileSubmitStatus(room)
     const profileSubmitStatus =
       rawProfileSubmitStatus === "success" || rawProfileSubmitStatus === "failed"
         ? rawProfileSubmitStatus
         : "idle"
     const card = document.createElement("article")
-    card.className = `candidate-chat-card ${(room.status || "active") === "closed" ? "closed" : ""} ${
-      roomKey === getActiveRoomKey() ? "selected" : ""
-    }`
+    card.className = [
+      "candidate-chat-card",
+      (room.status || "active") === "closed" ? "closed" : "",
+      roomKey === getActiveRoomKey() ? "selected" : "",
+      isCurrentChat ? "candidate-chat-card--current" : "",
+    ]
+      .filter(Boolean)
+      .join(" ")
     card.dataset.roomId = roomKey
 
     const top = document.createElement("div")
@@ -3103,8 +3125,8 @@ function renderCandidateChats() {
     name.textContent = room.candidateName || "Unknown Candidate"
 
     const badge = document.createElement("span")
-    badge.className = `candidate-status-badge ${(room.status || "active")}`
-    badge.textContent = (room.status || "active").toUpperCase()
+    badge.className = isCurrentChat ? "candidate-status-badge current-chat" : `candidate-status-badge ${(room.status || "active")}`
+    badge.textContent = isCurrentChat ? "CURRENT CHAT" : (room.status || "active").toUpperCase()
 
     top.append(name, badge)
 

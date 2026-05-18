@@ -32,35 +32,35 @@ export function LanguageManagementTeam({ selected }: LanguageManagementTeamProps
         </div>
       </div>
 
-      <div className="w-full overflow-x-auto rounded-lg border border-[#e2d8c8] bg-white shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
-        <table className="w-full min-w-[1120px] border-collapse text-center text-sm">
-          <thead className="bg-[#f1ece3] text-center text-xs uppercase text-[#1e1712]">
+      <div className="scroll-x-panel w-full rounded-lg border border-[#e2d8c8] bg-white shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
+        <table className="data-table min-w-[1120px]">
+          <thead>
             <tr>
-              <th className="border-b border-[#e2d8c8] whitespace-nowrap px-4 py-3">Option</th>
-              <th className="border-b border-[#e2d8c8] whitespace-nowrap px-4 py-3">Coverage</th>
-              <th className="border-b border-[#e2d8c8] whitespace-nowrap px-4 py-3">Project Manager</th>
-              <th className="border-b border-[#e2d8c8] whitespace-nowrap px-4 py-3">Resource Manager</th>
-              <th className="border-b border-[#e2d8c8] whitespace-nowrap px-4 py-3">POC Manager</th>
-              <th className="border-b border-[#e2d8c8] px-4 py-3">Recommended For</th>
-              <th className="border-b border-[#e2d8c8] whitespace-nowrap px-4 py-3">Status</th>
+              <th className="th-left">Option</th>
+              <th className="th-center">Coverage</th>
+              <th className="th-left">Project Manager</th>
+              <th className="th-left">Resource Manager</th>
+              <th className="th-left">POC Manager</th>
+              <th className="th-left">Recommended For</th>
+              <th className="th-center">Status</th>
             </tr>
           </thead>
           <tbody>
             {team.options.map((option) => (
               <tr key={`${option.coverage}-${option.optionName}`} className="border-t border-[#e1e4dd] hover:bg-[#f3f7f0]">
-                <td className="whitespace-nowrap px-4 py-3 font-semibold text-[#111827]">
+                <td className="td-left whitespace-nowrap font-semibold text-[#111827]">
                   {option.optionName}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-[#6f6256]">{option.coverage}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-[#6f6256]">
+                <td className="td-center whitespace-nowrap text-[#6f6256]">{option.coverage}</td>
+                <td className="td-left whitespace-nowrap text-[#6f6256]">
                   {option.projectManager}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-[#6f6256]">
+                <td className="td-left whitespace-nowrap text-[#6f6256]">
                   {option.resourceManager}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-[#6f6256]">{option.pocManager}</td>
-                <td className="px-4 py-3 text-[#6f6256]">{option.recommendedFor}</td>
-                <td className="whitespace-nowrap px-4 py-3">
+                <td className="td-left whitespace-nowrap text-[#6f6256]">{option.pocManager}</td>
+                <td className="td-left text-[#6f6256]">{option.recommendedFor}</td>
+                <td className="td-center whitespace-nowrap">
                   <span className="rounded-md border border-[#1f5c43] bg-[#f3f7f0] px-2 py-1 text-xs font-bold text-[#1f5c43]">
                     {option.status}
                   </span>

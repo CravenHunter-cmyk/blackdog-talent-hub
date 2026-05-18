@@ -21,6 +21,8 @@ import type {
   AnalyzeProjectResult,
   ChatReplySuggestionInput,
   ExtractProfileInput,
+  GenerateWorkTemplateInput,
+  GenerateWorkTemplateResult,
   TranslateMessageInput,
 } from "./types";
 
@@ -177,6 +179,137 @@ function buildTranslateMessagePrompt(input: TranslateMessageInput): { system: st
         instruction: "Return only the translated message in translatedText. Do not explain.",
         outputShape: {
           translatedText: "string",
+        },
+      },
+      null,
+      2,
+    ),
+  };
+}
+
+export function createFallbackWorkTemplate(input: GenerateWorkTemplateInput = {}): GenerateWorkTemplateResult {
+  return {
+    templateName: input.projectName ? `${input.projectName} Template` : "Multimodal Image Evaluation Template",
+    taskType: input.taskType || "Multimodal Evaluation",
+    inputSchema: [
+      { key: "sessionId", label: "session id", type: "text", sourceColumn: "session id", readonly: true },
+      { key: "promptId", label: "prompt id", type: "text", sourceColumn: "prompt id", readonly: true },
+      { key: "roundNumber", label: "round_number", type: "number", sourceColumn: "round_number", readonly: true },
+      { key: "caseType", label: "Single/Multi", type: "text", sourceColumn: "Single/Multi", readonly: true },
+      { key: "language", label: "Language", type: "text", sourceColumn: "Language", readonly: true },
+      { key: "modality", label: "Input-Output Modality", type: "text", sourceColumn: "Input-Output Modality", readonly: true },
+      { key: "textPrompt", label: "Text Prompt", type: "textarea", sourceColumn: "Text Prompt", readonly: true },
+      { key: "translationTextPrompt", label: "Translation_Text Prompt", type: "textarea", sourceColumn: "Translation_Text Prompt", readonly: true },
+      { key: "imagePrompt1", label: "Image Prompt1", type: "image_url", sourceColumn: "Image Prompt1", readonly: true },
+      { key: "imagePrompt2", label: "Image Prompt2", type: "image_url", sourceColumn: "Image Prompt2", readonly: true },
+      { key: "imageResponse", label: "Image Response", type: "image_url", sourceColumn: "Image Response", readonly: true },
+      { key: "textResponse", label: "Text Response", type: "textarea", sourceColumn: "Text Response", readonly: true },
+    ],
+    outputSchema: [
+      { key: "finalDCG", label: "final DCG", type: "select", options: ["0", "1", "2", "3", "4"], required: true, targetColumn: "final DCG" },
+      { key: "frsDCG", label: "FRS DCG", type: "select", options: ["0", "1", "2", "3"], targetColumn: "FRS DCG" },
+      { key: "finalPT", label: "final PT", type: "select", options: ["Main demand not met", "Secondary demand not met", "Structural Integrity", "Prompt following issue"], targetColumn: "final PT" },
+      { key: "finalStabilityNeeded", label: "final stability needed?", type: "select", options: ["No", "Yes"], targetColumn: "final stability needed?" },
+      { key: "finalStability", label: "final stablity", type: "select", options: ["Stable", "Unstable"], targetColumn: "final stablity" },
+      { key: "reason", label: "reason", type: "textarea", required: true, targetColumn: "reason" },
+      { key: "done", label: "done", type: "select", options: ["done"], targetColumn: "done" },
+      { key: "subjectiveScore", label: "subjective score?", type: "select", options: ["-", "0", "1"], targetColumn: "subjective score?" },
+      { key: "subjectiveScoreReason", label: "subj score reason", type: "textarea", targetColumn: "subj score reason" },
+    ],
+    uiLayout: {
+      leftPanel: "Case Queue grouped by session / enc_section_id",
+      centerPanel: "Prompt, response, image review, timeline, demand analysis, and QC history",
+      rightPanel: "Evaluation form with scoring, PT, stability, reason, draft, and submit actions",
+    },
+    validationRules: [
+      "final DCG required",
+      "reason required",
+      "FRS DCG only for final round of multi-round tasks",
+      "subjective score only for single-round tasks",
+      "final stability required only when stability needed = Yes",
+    ],
+    workflowRules: [
+      "Labeler submit one case at a time",
+      "QC required",
+      "Recheck optional",
+      "PM final delivery sync",
+    ],
+    rolePermissions: {
+      pm: ["create projects", "generate templates", "assign team", "view all progress", "delivery sync"],
+      teamLeader: ["view assigned task packages", "assign cases to labelers", "track team progress"],
+      labeler: ["view my cases", "save drafts", "submit cases", "revise returned cases"],
+      qc: ["review submitted cases", "pass or return cases", "write QC feedback"],
+      rechecker: ["review disputes and samples", "final pass", "return with recheck feedback"],
+    },
+    exportMapping: {
+      finalDCG: "final DCG",
+      frsDCG: "FRS DCG",
+      finalPT: "final PT",
+      finalStabilityNeeded: "final stability needed?",
+      finalStability: "final stablity",
+      reason: "reason",
+      done: "done",
+      subjectiveScore: "subjective score?",
+      subjectiveScoreReason: "subj score reason",
+    },
+  };
+}
+
+function buildGenerateWorkTemplatePrompt(input: GenerateWorkTemplateInput): { system: string; user: string } {
+  return {
+    system:
+      "You are BlackDog Work Center's project template architect. Generate a structured task execution template from PM instructions, source data, and SOP notes. Return JSON only with no markdown or extra text.",
+    user: JSON.stringify(
+      {
+        projectName: input.projectName || "",
+        taskType: input.taskType || "",
+        filesSummary: input.filesSummary || "",
+        sampleColumns: input.sampleColumns || [],
+        sopSummary: input.sopSummary || "",
+        userInstruction: input.userInstruction || "",
+        outputShape: {
+          templateName: "string",
+          taskType: "string",
+          inputSchema: [
+            {
+              key: "string",
+              label: "string",
+              type: "text | image_url | number | select | textarea",
+              sourceColumn: "string",
+              readonly: true,
+            },
+          ],
+          outputSchema: [
+            {
+              key: "string",
+              label: "string",
+              type: "text | number | select | textarea",
+              options: ["string"],
+              required: true,
+              targetColumn: "string",
+            },
+          ],
+          uiLayout: {
+            leftPanel: "string",
+            centerPanel: "string",
+            rightPanel: "string",
+          },
+          validationRules: ["string"],
+          workflowRules: ["string"],
+          rolePermissions: {
+            pm: ["string"],
+            teamLeader: ["string"],
+            labeler: ["string"],
+            qc: ["string"],
+            rechecker: ["string"],
+          },
+          exportMapping: {
+            finalDCG: "final DCG",
+            frsDCG: "FRS DCG",
+            finalPT: "final PT",
+            reason: "reason",
+            done: "done",
+          },
         },
       },
       null,
@@ -559,6 +692,60 @@ async function runJsonGatewayTask<TTask extends keyof AIGatewayTaskResultMap>(
   }
 }
 
+async function generateWorkTemplateWithGateway(input: GenerateWorkTemplateInput, options?: { provider?: string; model?: string }) {
+  const provider = resolveAIGatewayProvider(options?.provider);
+  const model = provider === "deepseek" ? resolveDeepSeekModel(options?.model) : resolveOpenAIModel(options?.model);
+  const startedAt = Date.now();
+  const fallback = createFallbackWorkTemplate(input);
+
+  try {
+    const prompt = buildGenerateWorkTemplatePrompt(input);
+    const result =
+      provider === "deepseek"
+        ? await callDeepSeekJsonTask<GenerateWorkTemplateResult>(prompt, model, 0.2, 1800)
+        : await callOpenAIJsonTask<GenerateWorkTemplateResult>(prompt, model, 0.2);
+
+    if (!result.ok) {
+      logGateway("generate_work_template", provider, model, false, Date.now() - startedAt);
+      return {
+        ok: true,
+        task: "generate_work_template",
+        provider,
+        model,
+        text: "Fallback template generated because the AI provider response was unavailable or invalid.",
+        result: fallback,
+      } satisfies AIGatewayTaskSuccess<"generate_work_template">;
+    }
+
+    logGateway("generate_work_template", provider, result.model, true, Date.now() - startedAt);
+    return {
+      ok: true,
+      task: "generate_work_template",
+      provider,
+      model: result.model,
+      text: result.text,
+      result: {
+        ...fallback,
+        ...result.result,
+        uiLayout: { ...fallback.uiLayout, ...(result.result.uiLayout || {}) },
+        rolePermissions: { ...fallback.rolePermissions, ...(result.result.rolePermissions || {}) },
+        exportMapping: { ...fallback.exportMapping, ...(result.result.exportMapping || {}) },
+      },
+    } satisfies AIGatewayTaskSuccess<"generate_work_template">;
+  } catch (error) {
+    const message = getErrorMessage(error, "Template generation failed.", process.env.DEEPSEEK_API_KEY);
+    logGateway("generate_work_template", provider, model, false, Date.now() - startedAt);
+    return {
+      ok: true,
+      task: "generate_work_template",
+      provider,
+      model,
+      text: `Fallback template generated. ${message}`,
+      result: fallback,
+    } satisfies AIGatewayTaskSuccess<"generate_work_template">;
+  }
+}
+
 async function callOpenAIHealth(model?: string): Promise<AIGatewayHealthSuccess | AIGatewayHealthFailure> {
   if (!hasOpenAIKey()) {
     return {
@@ -707,6 +894,8 @@ export async function runAIGatewayTask(request: AIGatewayRequest) {
         { provider, model: request.options?.model },
         (input) => buildManagementFocusPrompt(input),
       );
+    case "generate_work_template":
+      return generateWorkTemplateWithGateway(request.input as GenerateWorkTemplateInput, { provider, model: request.options?.model });
     case "match_talents":
     case "generate_recruiting_task":
     case "generate_script":

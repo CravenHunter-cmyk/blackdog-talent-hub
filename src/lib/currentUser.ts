@@ -1,4 +1,4 @@
-export type AppRole = "super_admin" | "hr" | "viewer" | "talent"
+export type AppRole = "root_owner" | "super_admin" | "executive" | "hr" | "viewer" | "talent" | "client"
 
 export type AppUser = {
   id: string
@@ -10,7 +10,7 @@ export type AppUser = {
 export type LoggedInSession = {
   loginAccount: string
   name: string
-  role: "Super Admin" | "HR User" | "Talent"
+  role: string
   status: "Invited" | "Active" | "Locked"
   linkedTalentProfileId?: string
   avatarUrl?: string
@@ -32,9 +32,12 @@ function normalizeList(value: unknown) {
 
 function normalizeRole(value: unknown): AppRole {
   const input = String(value || "").trim().toLowerCase()
+  if (input === "root_owner" || input === "root owner") return "root_owner"
   if (input === "super_admin" || input === "super admin") return "super_admin"
+  if (input === "executive") return "executive"
   if (input === "hr" || input === "hr user" || input === "hr_user") return "hr"
   if (input === "talent") return "talent"
+  if (input === "client") return "client"
   return "viewer"
 }
 
@@ -75,7 +78,13 @@ export function normalizeCurrentUser(raw: Partial<AppUser> | null | undefined): 
 
 export function canManageTalentLibrary(user: Partial<AppUser> | null | undefined = DEFAULT_CURRENT_USER) {
   const normalized = normalizeCurrentUser(user)
-  return normalized.role === "super_admin" || normalized.permissions.includes("talent_library:manage")
+  return (
+    normalized.role === "root_owner" ||
+    normalized.role === "super_admin" ||
+    normalized.role === "hr" ||
+    normalized.permissions.includes("talent_library:manage") ||
+    normalized.permissions.includes("talentLibrary.manage")
+  )
 }
 
 export function readCurrentUser(): AppUser {
@@ -105,11 +114,10 @@ export function readLoggedInSession(): LoggedInSession | null {
   const validStatus = statusValue === "Invited" || statusValue === "Active" || statusValue === "Locked" ? statusValue : "Active"
   if (!loginAccount || !name || !roleValue) return null
 
-  const validRole = roleValue === "Super Admin" || roleValue === "HR User" || roleValue === "Talent" ? roleValue : "HR User"
   return {
     loginAccount,
     name,
-    role: validRole,
+    role: roleValue,
     status: validStatus,
     linkedTalentProfileId: String(session.linkedTalentProfileId || "").trim() || undefined,
     avatarUrl: String(session.avatarUrl || "").trim() || undefined,

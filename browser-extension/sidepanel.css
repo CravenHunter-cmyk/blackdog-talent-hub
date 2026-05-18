@@ -816,6 +816,12 @@ body {
   box-shadow: 0 0 0 1px rgba(31, 92, 67, 0.12), 0 10px 22px rgba(31, 41, 51, 0.08);
 }
 
+.candidate-chat-card--current {
+  border-color: #1f6b4a;
+  background: #eef7f1;
+  box-shadow: 0 10px 24px rgba(31, 107, 74, 0.12);
+}
+
 .candidate-chat-card.closed {
   background: #f7f7f4;
   opacity: 0.85;
@@ -857,6 +863,12 @@ body {
 .candidate-status-badge.closed {
   background: #eceff1;
   color: #5f6b7a;
+}
+
+.candidate-status-badge.current-chat {
+  background: #dcefe4;
+  color: #1f6b4a;
+  border: 1px solid rgba(31, 107, 74, 0.2);
 }
 
 .candidate-chat-meta {

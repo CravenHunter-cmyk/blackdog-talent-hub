@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
+import { AccessGate } from "@/components/auth/AccessGate"
 import { TopNav } from "@/components/layout/TopNav"
 import { TalentLibraryPage } from "@/components/talent-pool/TalentLibraryPage"
 import { loadTalentLibraryProfiles } from "@/data/talentPoolStore"
 
 export const metadata: Metadata = {
-  title: "BlackDog Talent Library",
-  description: "BlackDog admin talent library and submitted candidate profiles.",
+  title: "BlackDog Talent Museum",
+  description: "BlackDog admin talent museum and submitted candidate profiles.",
 }
 
 export default async function Page() {
@@ -13,7 +14,9 @@ export default async function Page() {
   return (
     <>
       <TopNav />
-      <TalentLibraryPage initialProfiles={profiles} />
+      <AccessGate route="/talent-library">
+        <TalentLibraryPage initialProfiles={profiles} />
+      </AccessGate>
     </>
   )
 }

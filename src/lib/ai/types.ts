@@ -5,6 +5,7 @@ export type AIGatewayTask =
   | "analyze_project"
   | "match_talents"
   | "generate_recruiting_task"
+  | "generate_work_template"
   | "generate_script"
   | "extract_profile"
   | "summarize_chat"
@@ -90,6 +91,56 @@ export type TranslateMessageResult = {
   translatedText: string;
 };
 
+export type GenerateWorkTemplateInput = {
+  projectName?: string;
+  taskType?: string;
+  filesSummary?: string;
+  sampleColumns?: string[];
+  sopSummary?: string;
+  userInstruction?: string;
+};
+
+export type WorkTemplateFieldType = "text" | "image_url" | "number" | "select" | "textarea";
+
+export type WorkTemplateInputField = {
+  key: string;
+  label: string;
+  type: WorkTemplateFieldType;
+  sourceColumn?: string;
+  readonly?: boolean;
+};
+
+export type WorkTemplateOutputField = {
+  key: string;
+  label: string;
+  type: WorkTemplateFieldType;
+  options?: string[];
+  required?: boolean;
+  targetColumn?: string;
+};
+
+export type GenerateWorkTemplateResult = {
+  templateName: string;
+  taskType: string;
+  inputSchema: WorkTemplateInputField[];
+  outputSchema: WorkTemplateOutputField[];
+  uiLayout: {
+    leftPanel: string;
+    centerPanel: string;
+    rightPanel: string;
+  };
+  validationRules: string[];
+  workflowRules: string[];
+  rolePermissions: {
+    pm: string[];
+    teamLeader: string[];
+    labeler: string[];
+    qc: string[];
+    rechecker: string[];
+  };
+  exportMapping: Record<string, string>;
+};
+
 export type ManagementFocusAlertResult = {
   focusAlerts: {
     language?: {
@@ -150,6 +201,7 @@ export type AIGatewayAnalyzeSuccess = {
 export type AIGatewayTaskResultMap = {
   chat_reply_suggestion: ChatReplySuggestionResult;
   extract_profile: ExtractProfileResult;
+  generate_work_template: GenerateWorkTemplateResult;
   translate_message: TranslateMessageResult;
   analyze_management_focus: ManagementFocusAlertResult;
 };

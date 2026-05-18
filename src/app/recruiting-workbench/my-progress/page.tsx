@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next"
+import { AccessGate } from "@/components/auth/AccessGate"
 import { TopNav } from "@/components/layout/TopNav"
 import { loadMyProgressEntries } from "@/data/talentPoolStore"
 
@@ -27,9 +28,10 @@ export default async function Page() {
   return (
     <>
       <TopNav />
-      <main className="min-h-screen bg-[#f6f3ed] px-6 py-8 text-[#111827]">
-        <div className="mx-auto max-w-6xl">
-          <h1 className="text-3xl font-black tracking-tight">Recruiting Workbench · My Progress</h1>
+      <AccessGate route="/recruiting-workbench/my-progress">
+        <main className="min-h-screen bg-[#f6f3ed] pb-24 pt-8 text-[#111827]">
+          <div className="page-shell">
+            <h1 className="text-3xl font-black tracking-tight">Sourcing Hub · My Progress</h1>
 
           <section className="mt-6 rounded-xl border border-[#d7dccf] bg-white p-6 shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[#6f6256]">
@@ -43,14 +45,14 @@ export default async function Page() {
               <h2 className="text-xl font-bold">Recent Submissions</h2>
             </div>
 
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
+            <div className="scroll-x-panel mt-4">
+              <table className="data-table min-w-[900px]">
                 <thead>
-                  <tr className="border-b border-[#e8e0d2] text-left text-xs uppercase tracking-[0.18em] text-[#6f6256]">
-                    <th className="py-3 pr-3">Photo</th>
-                    <th className="py-3 pr-3">Candidate Name</th>
-                    <th className="py-3 pr-3">Language</th>
-                    <th className="py-3 pr-3">Upwork Chat URL</th>
+                  <tr>
+                    <th className="th-center w-20">Photo</th>
+                    <th className="th-left">Candidate Name</th>
+                    <th className="th-left">Language</th>
+                    <th className="th-left">Upwork Chat URL</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -64,7 +66,7 @@ export default async function Page() {
                       const chatUrl = profile?.upworkChatUrl || submission.upworkChatUrl
                       return (
                         <tr key={submission.talentId} className="border-b border-[#eee7db] last:border-b-0">
-                          <td className="py-3 pr-3 align-middle">
+                          <td className="td-center align-middle">
                             <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#eef4ee] text-sm font-black text-[#1f5c43]">
                               {avatarUrl ? (
                                 <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
@@ -73,9 +75,9 @@ export default async function Page() {
                               )}
                             </div>
                           </td>
-                          <td className="py-3 pr-3 font-semibold">{name}</td>
-                          <td className="py-3 pr-3 text-[#374151]">{language || "—"}</td>
-                          <td className="py-3 pr-3">
+                          <td className="td-left font-semibold">{name}</td>
+                          <td className="td-left text-[#374151]">{language || "—"}</td>
+                          <td className="td-left">
                             {chatUrl ? (
                               <a href={chatUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1f5c43] underline">
                                 Open Chat
@@ -98,8 +100,9 @@ export default async function Page() {
               </table>
             </div>
           </section>
-        </div>
-      </main>
+          </div>
+        </main>
+      </AccessGate>
     </>
   )
 }

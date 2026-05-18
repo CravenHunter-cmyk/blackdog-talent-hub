@@ -60,27 +60,29 @@ export function TalentMapPage() {
     <main className="min-h-screen bg-transparent text-[#111827]">
       <TopNav />
 
-      <section className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-6 grid gap-6 lg:grid-cols-[1.45fr_0.75fr]">
-          <div>
-            <h1 className="text-5xl font-black leading-tight tracking-tight text-[#111827] md:text-6xl">
-              Global Native Talent Coverage
+      <section className="page-shell pb-24 pt-8">
+        <div className="mb-3 grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.65fr)]">
+          <div className="pt-4 lg:pt-7">
+            <h1 className="max-w-[900px] text-5xl font-black leading-[1.02] tracking-[-0.012em] text-[#111827] lg:whitespace-nowrap xl:text-[58px]">
+              Global Native Talent Network
             </h1>
-            <p className="mt-5 max-w-3xl border-l-4 border-[#d49a3a] pl-4 text-xl font-bold leading-8 text-[#1f5c43]">
-              True global talent capability is not a static list. It is real-time visibility,
-              trackable progress, and deployable delivery capacity.
-            </p>
-            <p className="mt-4 max-w-3xl text-base font-medium leading-7 text-[#64748b]">
-              BlackDog Talent Hub turns global native talent resources into a visualized,
-              trackable, and deployable delivery network, helping multilingual AI data, model
-              evaluation, and localization projects assess coverage, match teams, and launch
-              faster.
-            </p>
+            <div className="ml-0 sm:ml-8">
+              <p className="mt-7 max-w-[650px] border-l-4 border-[#d49a3a] py-1 pl-5 text-xl font-bold leading-[1.45] text-[#1f5c43]">
+                True global talent capability is not a static list. It is real-time visibility,
+                trackable progress, and deployable delivery capacity.
+              </p>
+              <p className="mt-7 max-w-[690px] text-base font-medium leading-[1.7] text-[#64748b]">
+                BlackDog Talent Hub turns global native talent resources into a visualized,
+                trackable, and deployable delivery network, helping multilingual AI data, model
+                evaluation, and localization projects assess coverage, match teams, and launch
+                faster.
+              </p>
+            </div>
           </div>
 
-          <div className="mx-auto w-full max-w-[400px] rounded-xl border border-[#e2d8c8] bg-[#fbfaf6] p-4 shadow-[0_10px_24px_rgba(31,41,51,0.08)]">
-            <div className="mx-auto flex w-full max-w-[152px] items-center justify-center overflow-hidden rounded-2xl border border-[#d8ccb8] bg-[#f7f3ea] shadow-[0_6px_16px_rgba(31,41,51,0.06)]">
-              <div className="relative aspect-square w-full max-w-[152px]">
+          <div className="mx-auto w-full max-w-[370px] rounded-xl border border-[#e2d8c8] bg-[#fbfaf6] p-3.5 shadow-[0_10px_24px_rgba(31,41,51,0.08)]">
+            <div className="mx-auto flex w-full max-w-[136px] items-center justify-center overflow-hidden rounded-2xl border border-[#d8ccb8] bg-[#f7f3ea] shadow-[0_6px_16px_rgba(31,41,51,0.06)]">
+              <div className="relative aspect-square w-full max-w-[136px]">
                 {mascotImageFailed ? (
                   <div className="flex h-full w-full items-center justify-center bg-[#1f5c43] text-white">
                     <div className="text-center">
@@ -95,8 +97,8 @@ export function TalentMapPage() {
                   <img
                     src="/blackdog-mascot.jpg"
                     alt="BlackDog mascot"
-                    width="152"
-                    height="152"
+                    width="136"
+                    height="136"
                     onError={() => setMascotImageFailed(true)}
                     className="h-full w-full object-cover"
                   />
@@ -104,12 +106,12 @@ export function TalentMapPage() {
               </div>
             </div>
 
-            <div className="mt-3 text-center">
-              <div className="text-xl font-bold text-[#111827]">BlackDog Talent Hub</div>
+            <div className="mt-2.5 text-center">
+              <div className="text-lg font-bold text-[#111827]">BlackDog Talent Hub</div>
               <div className="mt-1 text-sm font-medium text-[#6f6256]">Global Native Talent Network</div>
             </div>
 
-            <div className="mt-4 border-t border-[#e2d8c8] pt-4 text-sm">
+            <div className="mt-3 border-t border-[#e2d8c8] pt-3 text-sm">
               <div className="flex items-center justify-between gap-4 py-1.5">
                 <span className="text-[#6f6256]">Email</span>
                 <span className="font-semibold text-[#1e1712]">yinxz.personal@gmail.com</span>

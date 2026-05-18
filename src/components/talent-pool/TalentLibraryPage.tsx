@@ -374,9 +374,9 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f3ed] px-6 py-8 text-[#111827]">
-      <div className="mx-auto max-w-7xl">
-        <h1 className="text-3xl font-black tracking-tight">BlackDog Talent Library</h1>
+    <main className="min-h-screen bg-[#f6f3ed] pb-24 pt-8 text-[#111827]">
+      <div className="page-shell">
+        <h1 className="text-3xl font-black tracking-tight">BlackDog Talent Museum</h1>
         <p className="mt-2 text-sm text-[#6f6256]">Submitted candidate profiles for admin review.</p>
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
@@ -394,100 +394,106 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
           </div>
         </section>
 
-        <section className="mt-6 rounded-xl border border-[#d7dccf] bg-white p-5 shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
-          <div className="grid gap-3 md:grid-cols-3">
-            <label className="block">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Search</div>
-              <input
-                className="w-full rounded-md border border-[#d7dde2] px-3 py-2 text-sm outline-none focus:border-[#1f5c43]"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Candidate Name"
-              />
-            </label>
-            <label className="block">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Native Language</div>
-              <select
-                className="w-full rounded-md border border-[#d7dde2] px-3 py-2 text-sm outline-none focus:border-[#1f5c43]"
-                value={language}
-                onChange={(event) => setLanguage(event.target.value)}
-              >
-                <option value="">All</option>
-                {languageOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Skill</div>
-              <select
-                className="w-full rounded-md border border-[#d7dde2] px-3 py-2 text-sm outline-none focus:border-[#1f5c43]"
-                value={skill}
-                onChange={(event) => setSkill(event.target.value)}
-              >
-                <option value="">All</option>
-                {skillOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+        <section className="mt-6 rounded-xl border border-[#d7dccf] bg-white px-5 py-4 shadow-[0_10px_24px_rgba(31,41,51,0.07)]">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="block w-full sm:w-[340px] lg:w-[380px]">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6f6256]">Search</div>
+                  <input
+                    className="h-10 w-full rounded-md border border-[#d7dde2] bg-[#fffdf8] px-3 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search candidate"
+                  />
+                </label>
+                <label className="block w-full sm:w-[230px]">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6f6256]">Native Language</div>
+                  <select
+                    className="h-10 w-full rounded-md border border-[#d7dde2] bg-[#fffdf8] px-3 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
+                    value={language}
+                    onChange={(event) => setLanguage(event.target.value)}
+                  >
+                    <option value="">All</option>
+                    {languageOptions.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block w-full sm:w-[230px]">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6f6256]">Skill</div>
+                  <select
+                    className="h-10 w-full rounded-md border border-[#d7dde2] bg-[#fffdf8] px-3 text-sm outline-none focus:border-[#1f5c43] focus:ring-2 focus:ring-[#d6eadc]"
+                    value={skill}
+                    onChange={(event) => setSkill(event.target.value)}
+                  >
+                    <option value="">All</option>
+                    {skillOptions.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-[#6f6256]">
-              <input
-                type="checkbox"
-                aria-label="Select all visible profiles"
-                checked={allVisibleSelected}
-                ref={(node) => {
-                  if (node) node.indeterminate = someVisibleSelected
-                }}
-                onChange={(event) => toggleAllVisible(event.target.checked)}
-              />
-              <span>Select all visible</span>
-            </label>
-            <div className="text-sm font-semibold text-[#6f6256]">
-              {selectedCount ? `${selectedCount} selected` : `${filteredProfiles.length} shown`}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[#e4d7c6] bg-[#fbfaf6] px-3 py-1.5 text-xs font-bold text-[#6f6256]">
+                  {selectedCount ? `${selectedCount} selected` : `${filteredProfiles.length} shown`}
+                </span>
+                <div className="inline-flex rounded-lg border border-[#d7dccf] bg-[#fbfaf6] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("card")}
+                    className={
+                      viewMode === "card"
+                        ? "rounded-md border border-[#1f5c43] bg-[#1f5c43] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(31,92,67,0.18)]"
+                        : "rounded-md border border-transparent px-3 py-1.5 text-xs font-semibold text-[#374151] hover:bg-white hover:text-[#1f5c43]"
+                    }
+                  >
+                    Card View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("table")}
+                    className={
+                      viewMode === "table"
+                        ? "rounded-md border border-[#1f5c43] bg-[#1f5c43] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(31,92,67,0.18)]"
+                        : "rounded-md border border-transparent px-3 py-1.5 text-xs font-semibold text-[#374151] hover:bg-white hover:text-[#1f5c43]"
+                    }
+                  >
+                    Table View
+                  </button>
+                </div>
+              </div>
             </div>
-            {canManage ? (
-              <button
-                type="button"
-                className="rounded-md border border-[#b7791f] bg-[#fbf4e7] px-3 py-2 text-sm font-semibold text-[#b7791f] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!selectedVisibleIds.length}
-                onClick={() => requestDeleteTalentIds(selectedVisibleIds)}
-              >
-                Delete Selected
-              </button>
-            ) : null}
-          </div>
 
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setViewMode("card")}
-              className={
-                viewMode === "card"
-                  ? "rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(31,92,67,0.18)]"
-                  : "rounded-full border border-[#d7dde2] bg-white px-4 py-2 text-sm font-semibold text-[#374151] hover:border-[#1f5c43] hover:text-[#1f5c43]"
-              }
-            >
-              Card View
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={
-                viewMode === "table"
-                  ? "rounded-full border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(31,92,67,0.18)]"
-                  : "rounded-full border border-[#d7dde2] bg-white px-4 py-2 text-sm font-semibold text-[#374151] hover:border-[#1f5c43] hover:text-[#1f5c43]"
-              }
-            >
-              Table View
-            </button>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#efe6d8] pt-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-[#6f6256]">
+                <input
+                  type="checkbox"
+                  aria-label="Select all visible profiles"
+                  checked={allVisibleSelected}
+                  ref={(node) => {
+                    if (node) node.indeterminate = someVisibleSelected
+                  }}
+                  onChange={(event) => toggleAllVisible(event.target.checked)}
+                />
+                <span>Select all visible</span>
+              </label>
+              {canManage ? (
+                <button
+                  type="button"
+                  className="rounded-md border border-[#c58d65] bg-[#fff7ef] px-3 py-1.5 text-xs font-semibold text-[#a15c2e] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!selectedVisibleIds.length}
+                  onClick={() => requestDeleteTalentIds(selectedVisibleIds)}
+                >
+                  Delete Selected
+                </button>
+              ) : null}
+            </div>
           </div>
         </section>
 
@@ -609,11 +615,11 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
             )
           ) : (
             <div className="overflow-hidden rounded-2xl border border-[#d7dccf] bg-white shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-collapse text-sm">
+              <div className="scroll-x-panel">
+                <table className="data-table min-w-[1180px]">
                   <thead>
-                    <tr className="border-b border-[#e8e0d2] text-left text-xs uppercase tracking-[0.18em] text-[#6f6256]">
-                      <th className="px-4 py-3">
+                    <tr>
+                      <th className="th-center w-14">
                         {canManage ? (
                           <input
                             type="checkbox"
@@ -626,14 +632,14 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                           />
                         ) : null}
                       </th>
-                      <th className="px-4 py-3">No.</th>
-                      <th className="px-4 py-3">Candidate</th>
-                      <th className="px-4 py-3">Native Language</th>
-                      <th className="px-4 py-3">Second Language</th>
-                      <th className="px-4 py-3">Skill</th>
-                      <th className="px-4 py-3">Availability</th>
-                      <th className="px-4 py-3">Submitted</th>
-                      <th className="px-4 py-3">Actions</th>
+                      <th className="th-center w-16">No.</th>
+                      <th className="th-left min-w-[220px]">Candidate</th>
+                      <th className="th-left min-w-[150px]">Native Language</th>
+                      <th className="th-left min-w-[150px]">Second Language</th>
+                      <th className="th-left min-w-[150px]">Skill</th>
+                      <th className="th-left min-w-[190px]">Availability</th>
+                      <th className="th-center min-w-[190px]">Submitted</th>
+                      <th className="th-center w-[240px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -648,7 +654,7 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                         const submittedBy = [profile.submittedByHrName, submittedAt].filter(Boolean).join(" · ")
                         return (
                           <tr key={profile.talentId} className={`border-b border-[#eee7db] last:border-b-0 ${selected ? "bg-[#fbfaf6]" : ""}`}>
-                            <td className="px-4 py-4 align-middle">
+                            <td className="td-center">
                               {canManage ? (
                                 <input
                                   type="checkbox"
@@ -658,8 +664,8 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                                 />
                               ) : null}
                             </td>
-                            <td className="px-4 py-4 font-semibold tabular-nums">{index + 1}</td>
-                            <td className="px-4 py-4">
+                            <td className="td-center font-semibold tabular-nums">{index + 1}</td>
+                            <td className="td-left">
                               <div className="flex min-w-0 items-center gap-3">
                                 <TalentAvatar
                                   avatarUrl={avatarUrl}
@@ -671,12 +677,12 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-4 text-[#374151]">{profile.nativeLanguage || "—"}</td>
-                            <td className="px-4 py-4 text-[#374151]">{profile.secondLanguage || "—"}</td>
-                            <td className="px-4 py-4 text-[#374151]">{profile.mainSkill || "—"}</td>
-                            <td className="px-4 py-4 text-[#374151]">{availability || "—"}</td>
-                            <td className="px-4 py-4 text-[#374151]">{submittedBy || "—"}</td>
-                            <td className="px-4 py-4">
+                            <td className="td-left text-[#374151]">{profile.nativeLanguage || "—"}</td>
+                            <td className="td-left text-[#374151]">{profile.secondLanguage || "—"}</td>
+                            <td className="td-left text-[#374151]">{profile.mainSkill || "—"}</td>
+                            <td className="td-left text-[#374151]">{availability || "—"}</td>
+                            <td className="td-center text-[#374151]">{submittedBy || "—"}</td>
+                            <td className="td-actions">
                               <div className="flex flex-wrap gap-2">
                                 <button
                                   type="button"
@@ -794,7 +800,7 @@ export function TalentLibraryPage({ initialProfiles }: { initialProfiles: Talent
                 </div>
               </div>
 
-              <div className="min-h-0 overflow-y-auto p-6">
+              <div className="scroll-panel p-6">
                 <div className="space-y-5">
                   {editError ? (
                     <div className="rounded-xl border border-[#f5c2c7] bg-[#fdecec] px-4 py-3 text-sm text-[#b42318]">

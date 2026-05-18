@@ -9,6 +9,7 @@ export function MetricCards({ resources }: MetricCardsProps) {
     {
       label: "Total Resources",
       value: resources.reduce((sum, item) => sum + item.totalResources, 0).toLocaleString(),
+      description: "Verified global talent profiles",
       tone: {
         accent: "bg-[#1f4d3a]",
         border: "border-[#cdd9cf]",
@@ -21,6 +22,7 @@ export function MetricCards({ resources }: MetricCardsProps) {
     {
       label: "Active Talents",
       value: resources.reduce((sum, item) => sum + item.activeTalents, 0).toLocaleString(),
+      description: "Available for current projects",
       tone: {
         accent: "bg-[#2f7d57]",
         border: "border-[#c9dfd0]",
@@ -33,6 +35,7 @@ export function MetricCards({ resources }: MetricCardsProps) {
     {
       label: "Language Pools",
       value: resources.length.toString(),
+      description: "Native language networks",
       tone: {
         accent: "bg-[#2f6f73]",
         border: "border-[#c8dcdd]",
@@ -45,6 +48,7 @@ export function MetricCards({ resources }: MetricCardsProps) {
     {
       label: "Managed Pools",
       value: resources.length.toString(),
+      description: "Operated delivery groups",
       tone: {
         accent: "bg-[#9a6a35]",
         border: "border-[#e2cfb4]",
@@ -57,6 +61,7 @@ export function MetricCards({ resources }: MetricCardsProps) {
     {
       label: "Online Now",
       value: resources.reduce((sum, item) => sum + item.onlineNow, 0).toLocaleString(),
+      description: "Ready for live coordination",
       tone: {
         accent: "bg-[#16a34a]",
         border: "border-[#bfe4cc]",
@@ -69,30 +74,46 @@ export function MetricCards({ resources }: MetricCardsProps) {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-      {metrics.map((metric) => (
-        <div
-          key={metric.label}
-          className={`relative overflow-hidden rounded-xl border bg-[#fbfaf6] p-4 ${metric.tone.border} ${metric.tone.glow}`}
-        >
-          <div className={`absolute inset-x-0 top-0 h-1 ${metric.tone.accent}`} />
-          <div className="mb-2 flex items-center gap-2">
-            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${metric.tone.iconBg} ${metric.tone.iconText}`}>
-              <MetricIcon label={metric.label} />
-            </div>
-            <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold leading-5 text-[#5f665c] xl:text-sm">
-              {metric.label === "Online Now" ? (
-                <span className="h-2 w-2 shrink-0 rounded-full bg-[#16a34a] shadow-[0_0_0_3px_rgba(22,163,74,0.14)]" />
-              ) : null}
-              <span className="min-w-0 whitespace-nowrap">{metric.label}</span>
-            </div>
-          </div>
-          <div className={`mt-2 font-mono text-2xl font-black tabular-nums ${metric.tone.valueText}`}>
-            {metric.value}
-          </div>
+    <section aria-labelledby="platform-snapshot-title">
+      <div className="mb-2.5 flex flex-col gap-1 md:flex-row md:items-baseline md:gap-3">
+        <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-3">
+          <h2 id="platform-snapshot-title" className="text-sm font-semibold text-[#1f5c43]">
+            Platform Snapshot
+          </h2>
+          <p className="max-w-xl text-sm font-medium leading-5 text-[#7a8178]">
+            Live talent network status.
+          </p>
         </div>
-      ))}
-    </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {metrics.map((metric) => (
+          <div
+            key={metric.label}
+            className={`relative min-h-[138px] overflow-hidden rounded-xl border bg-[#fbfaf6] p-4 shadow-[0_14px_30px_rgba(31,41,51,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(31,41,51,0.12)] ${metric.tone.border} ${metric.tone.glow}`}
+          >
+            <div className={`absolute inset-x-0 top-0 h-1.5 ${metric.tone.accent}`} />
+            <div className="mb-3 flex items-center gap-2.5">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${metric.tone.iconBg} ${metric.tone.iconText}`}>
+                <MetricIcon label={metric.label} />
+              </div>
+              <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold leading-5 text-[#5f665c] xl:text-sm">
+                {metric.label === "Online Now" ? (
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-[#16a34a] shadow-[0_0_0_3px_rgba(22,163,74,0.14)]" />
+                ) : null}
+                <span className="min-w-0 whitespace-nowrap">{metric.label}</span>
+              </div>
+            </div>
+            <div className={`font-mono text-[28px] font-black leading-none tabular-nums ${metric.tone.valueText}`}>
+              {metric.value}
+            </div>
+            <p className="mt-3 text-[13px] font-medium leading-5 text-[#7a8178]">
+              {metric.description}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

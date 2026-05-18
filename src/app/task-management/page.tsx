@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AccessGate } from "@/components/auth/AccessGate";
 import { TopNav } from "@/components/layout/TopNav";
 import { TaskManagementPage } from "@/components/task-management/TaskManagementPage";
 
@@ -11,7 +12,9 @@ export default function Page() {
   return (
     <>
       <TopNav />
-      <TaskManagementPage />
+      <AccessGate route="/task-management">
+        <TaskManagementPage />
+      </AccessGate>
     </>
   );
 }

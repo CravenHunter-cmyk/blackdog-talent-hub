@@ -508,7 +508,7 @@ function buildTalentPool(initialProfiles: TalentProfileRecord[]) {
       availability: profile.dailyAvailability || "Available",
       weekendAvailability: profile.weekendAvailability || "—",
       currentStatus: "Submitted",
-      sourceLabel: "Talent Library",
+      sourceLabel: "Talent Museum",
       submittedByHrName: profile.submittedByHrName || "—",
       submittedAt: profile.submittedAt || profile.createdAt || "",
       currentAssignedTasks: [],
@@ -897,7 +897,7 @@ function ModalFrame({
   widthClassName?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#111827]/50 px-4 py-6">
+    <div className="scroll-panel fixed inset-0 z-50 flex items-start justify-center bg-[#111827]/50 px-4 py-6">
       <div className={`w-full ${widthClassName} overflow-hidden rounded-3xl border border-[#e2d8c8] bg-[#f8f5ec] shadow-[0_24px_60px_rgba(15,23,42,0.18)]`}>
         <div className="flex items-start justify-between gap-4 border-b border-[#e2d8c8] bg-[#fffdf8] px-6 py-5">
           <div>
@@ -915,7 +915,7 @@ function ModalFrame({
             </button>
           </div>
         </div>
-        <div className="max-h-[calc(100vh-9rem)] overflow-y-auto px-6 py-6">{children}</div>
+        <div className="scroll-panel max-h-[calc(100vh-9rem)] px-6 py-6">{children}</div>
       </div>
     </div>
   );
@@ -1511,8 +1511,8 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f5ec] px-4 py-6 text-[#111827] sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <main className="min-h-screen bg-[#f8f5ec] pb-24 pt-6 text-[#111827]">
+      <div className="page-shell flex flex-col gap-6">
         <header className="rounded-3xl border border-[#e2d8c8] bg-[#fffdf8] px-6 py-6 shadow-[0_10px_30px_rgba(31,41,51,0.06)]">
           <div className="flex flex-col gap-3">
             <div className="text-3xl font-black tracking-tight text-[#111827]">BlackDog Brain</div>
@@ -1533,7 +1533,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
 
         <SectionCard
           title="AI Gateway Status"
-          description="Test the OpenAI connection before wiring page-level AI calls through the centralized gateway."
+          description="Check the AI gateway status before running project analysis."
           actions={
             <button
               type="button"
@@ -1576,7 +1576,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
 
         <SectionCard
           title="Client Project List"
-          description="Manage client projects, review matching readiness, and open a project to see the detailed AI analysis."
+          description="Review project readiness, matching coverage, and recruiting gaps."
           actions={
             <button
               type="button"
@@ -1588,8 +1588,8 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
           }
         >
           {projectRows.length ? (
-            <div className="overflow-x-auto rounded-2xl border border-[#e7ddd0]">
-              <table className="min-w-full table-fixed border-collapse text-sm">
+            <div className="scroll-x-panel rounded-2xl border border-[#e7ddd0]">
+              <table className="data-table min-w-[1280px] table-fixed">
                 <colgroup>
                   <col className="w-[22%]" />
                   <col className="w-[12%]" />
@@ -1602,10 +1602,10 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                   <col className="w-[8%]" />
                   <col className="w-[15%]" />
                 </colgroup>
-                <thead className="bg-[#f1ece3] text-[11px] uppercase tracking-[0.12em] text-[#1e1712]">
+                <thead>
                   <tr>
                     {["Project Name", "Client", "Type", "Required", "In Pool", "Recruiting", "Matched", "ETA", "Status", "Actions"].map((heading) => (
-                      <th key={heading} className="border-b border-[#e2d8c8] px-3 py-2.5 text-center font-semibold whitespace-nowrap">
+                      <th key={heading} className={["Project Name", "Actions"].includes(heading) ? (heading === "Actions" ? "th-center" : "th-left") : "th-center"}>
                         {heading}
                       </th>
                     ))}
@@ -1614,28 +1614,28 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                 <tbody>
                   {projectRows.map((row) => (
                     <tr key={row.record.brainProjectId} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef] align-middle">
-                      <td className="px-3 py-3 font-semibold leading-5 text-[#111827]">{row.record.projectName}</td>
-                      <td className="px-3 py-3 text-center whitespace-nowrap text-[#111827]">{row.record.clientName || <span className="text-[#a69b8c]">—</span>}</td>
-                      <td className="px-3 py-3 text-center whitespace-nowrap text-[#111827]">{row.record.projectType}</td>
-                      <td className="px-3 py-3 text-center whitespace-nowrap tabular-nums font-semibold text-[#1d4ed8]">
+                      <td className="td-left font-semibold leading-5 text-[#111827]">{row.record.projectName}</td>
+                      <td className="td-center whitespace-nowrap text-[#111827]">{row.record.clientName || <span className="text-[#a69b8c]">—</span>}</td>
+                      <td className="td-center whitespace-nowrap text-[#111827]">{row.record.projectType}</td>
+                      <td className="td-center whitespace-nowrap tabular-nums font-semibold text-[#1d4ed8]">
                         {row.required || <span className="text-[#a69b8c]">—</span>}
                       </td>
-                      <td className="px-3 py-3 text-center whitespace-nowrap tabular-nums font-semibold text-[#1f5c43]">
+                      <td className="td-center whitespace-nowrap tabular-nums font-semibold text-[#1f5c43]">
                         {row.inPool || <span className="text-[#a69b8c]">—</span>}
                       </td>
-                      <td className="px-3 py-3 text-center whitespace-nowrap tabular-nums font-semibold text-[#b45309]">
+                      <td className="td-center whitespace-nowrap tabular-nums font-semibold text-[#b45309]">
                         {row.recruiting || <span className="text-[#a69b8c]">—</span>}
                       </td>
-                      <td className="px-3 py-3 text-center whitespace-nowrap tabular-nums font-semibold text-[#111827]">
+                      <td className="td-center whitespace-nowrap tabular-nums font-semibold text-[#111827]">
                         {row.matched || <span className="text-[#a69b8c]">—</span>}
                       </td>
-                      <td className="px-3 py-3 text-center whitespace-nowrap text-[#111827]">{row.eta}</td>
-                      <td className="px-3 py-3 text-center whitespace-nowrap">
+                      <td className="td-center whitespace-nowrap text-[#111827]">{row.eta}</td>
+                      <td className="td-center whitespace-nowrap">
                         <Chip tone={formatProjectStatusTone(row.status)}>
                           {row.status}
                         </Chip>
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="td-actions">
                         <div className="flex flex-wrap items-center justify-center gap-1.5">
                           <button
                             type="button"
@@ -1857,7 +1857,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
       {selectedProjectRow ? (
         <ModalFrame
           title={selectedProjectRow.record.projectName || "Project Detail"}
-          description="Project overview, AI analysis, talent matching, gap planning, and recruiting task generation."
+          description="Review project requirements, talent matches, gaps, and recruiting actions."
           onClose={closeProjectDetail}
           actions={
             <>
@@ -1888,7 +1888,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
           <div className="space-y-6">
             <SectionCard
               title="Project Overview"
-              description="The project record, portfolio readiness, and current matching summary."
+              description="Project requirements, readiness, and matching summary."
             >
               <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
                 <div className="rounded-2xl border border-[#e7ddd0] bg-[#fefdfa] p-4">
@@ -1934,7 +1934,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
 
             <SectionCard
               title="AI Requirement Analysis"
-              description="Gateway analysis based on the project detail, with local preview data shown until analysis is saved."
+              description="AI analysis based on project details and current matching context."
             >
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <MetricCard label="Project Difficulty" value={selectedProjectAnalysis?.projectDifficulty || "—"} tone="text-[#111827]" />
@@ -2027,8 +2027,8 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
               title="Language & Headcount Plan"
               description="Plan recruiting coverage by language and headcount, with room for bilingual or shared coverage."
             >
-              <div className="overflow-x-auto rounded-2xl border border-[#e7ddd0]">
-                <table className="min-w-full table-fixed border-collapse text-sm">
+              <div className="scroll-x-panel rounded-2xl border border-[#e7ddd0]">
+                <table className="data-table min-w-[1120px] table-fixed">
                   <colgroup>
                     <col className="w-[18%]" />
                     <col className="w-[16%]" />
@@ -2039,7 +2039,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                     <col className="w-[10%]" />
                     <col className="w-[14%]" />
                   </colgroup>
-                  <thead className="bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+                  <thead>
                     <tr>
                       {[
                         "Language",
@@ -2051,7 +2051,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                         "Priority",
                         "Notes",
                       ].map((heading) => (
-                        <th key={heading} className="border-b border-[#e2d8c8] px-4 py-3 text-center font-semibold whitespace-nowrap">
+                        <th key={heading} className={["Language", "Notes"].includes(heading) ? "th-left" : "th-center"}>
                           {heading}
                         </th>
                       ))}
@@ -2060,16 +2060,16 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                   <tbody>
                     {selectedProjectLanguagePlan.map((row) => (
                       <tr key={row.languageLabel} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
-                        <td className="px-4 py-4 font-semibold text-[#111827]">{row.language}</td>
-                        <td className="px-4 py-4 text-center text-[#111827]">{row.region}</td>
-                        <td className="px-4 py-4 text-center font-black tabular-nums text-[#1d4ed8]">{row.requiredHeadcount}</td>
-                        <td className="px-4 py-4 text-center text-[#111827]">{row.requiredHoursPerDay}</td>
-                        <td className="px-4 py-4 text-center text-[#111827]">{row.canShareWithOtherLanguage ? "Yes" : "No"}</td>
-                        <td className="px-4 py-4 text-center font-black tabular-nums text-[#1f5c43]">{row.suggestedTalentCount}</td>
-                        <td className="px-4 py-4 text-center">
+                        <td className="td-left font-semibold text-[#111827]">{row.language}</td>
+                        <td className="td-center text-[#111827]">{row.region}</td>
+                        <td className="td-center font-black tabular-nums text-[#1d4ed8]">{row.requiredHeadcount}</td>
+                        <td className="td-center text-[#111827]">{row.requiredHoursPerDay}</td>
+                        <td className="td-center text-[#111827]">{row.canShareWithOtherLanguage ? "Yes" : "No"}</td>
+                        <td className="td-center font-black tabular-nums text-[#1f5c43]">{row.suggestedTalentCount}</td>
+                        <td className="td-center">
                           <Chip tone={row.priority === "Urgent" ? "red" : row.priority === "High Priority" ? "amber" : "default"}>{row.priority}</Chip>
                         </td>
-                        <td className="px-4 py-4 text-[#111827]">{row.notes}</td>
+                        <td className="td-left text-[#111827]">{row.notes}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2079,7 +2079,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
 
             <SectionCard
               title="Talent Match Results"
-              description="Mock matching against the current Talent Library dataset and fallback talent pool."
+              description="Match project needs against the Talent Museum and available talent pool."
             >
               <div className="grid gap-4">
                 {selectedProjectTalentMatches.map((profile) => (
@@ -2134,11 +2134,11 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
 
             <SectionCard
               title="Talent Gap & Recruiting Task Suggestions"
-              description="Create Draft recruiting tasks when the available talent pool does not cover the target language demand."
+              description="Create recruiting tasks when current coverage does not meet demand."
             >
               {selectedProjectGapRows.length > 0 ? (
-                <div className="overflow-x-auto rounded-2xl border border-[#e7ddd0]">
-                  <table className="min-w-full table-fixed border-collapse text-sm">
+                <div className="scroll-x-panel rounded-2xl border border-[#e7ddd0]">
+                  <table className="data-table min-w-[1280px] table-fixed">
                     <colgroup>
                       <col className="w-[13%]" />
                       <col className="w-[12%]" />
@@ -2150,7 +2150,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                       <col className="w-[6%]" />
                       <col className="w-[10%]" />
                     </colgroup>
-                    <thead className="bg-[#f1ece3] text-[11px] uppercase tracking-[0.18em] text-[#1e1712]">
+                    <thead>
                       <tr>
                         {[
                           "Missing Language",
@@ -2163,7 +2163,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                           "Priority",
                           "Action",
                         ].map((heading) => (
-                          <th key={heading} className="border-b border-[#e2d8c8] px-4 py-3 text-center font-semibold whitespace-nowrap">
+                          <th key={heading} className={["Missing Language", "Reason", "Suggested Recruiting Task", "Suggested HR"].includes(heading) ? "th-left" : "th-center"}>
                             {heading}
                           </th>
                         ))}
@@ -2172,17 +2172,17 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
                     <tbody>
                       {selectedProjectGapRows.map((row) => (
                         <tr key={row.languageLabel} className="border-b border-[#efe6d8] bg-white hover:bg-[#f7f5ef]">
-                          <td className="px-4 py-4 font-semibold text-[#111827]">{row.languageLabel}</td>
-                          <td className="px-4 py-4 text-center tabular-nums text-[#111827]">{row.requiredHeadcount}</td>
-                          <td className="px-4 py-4 text-center tabular-nums text-[#1f5c43]">{row.matchedTalentCount}</td>
-                          <td className="px-4 py-4 text-center tabular-nums font-black text-[#b42318]">{row.gapCount}</td>
-                          <td className="px-4 py-4 text-[#111827]">{row.reason}</td>
-                          <td className="px-4 py-4 text-[#111827]">{row.suggestedRecruitingTask}</td>
-                          <td className="px-4 py-4 text-[#111827]">{row.suggestedHr}</td>
-                          <td className="px-4 py-4 text-center">
+                          <td className="td-left font-semibold text-[#111827]">{row.languageLabel}</td>
+                          <td className="td-center tabular-nums text-[#111827]">{row.requiredHeadcount}</td>
+                          <td className="td-center tabular-nums text-[#1f5c43]">{row.matchedTalentCount}</td>
+                          <td className="td-center tabular-nums font-black text-[#b42318]">{row.gapCount}</td>
+                          <td className="td-left text-[#111827]">{row.reason}</td>
+                          <td className="td-left text-[#111827]">{row.suggestedRecruitingTask}</td>
+                          <td className="td-left text-[#111827]">{row.suggestedHr}</td>
+                          <td className="td-center">
                             <Chip tone={row.priority === "Urgent" ? "red" : row.priority === "High Priority" ? "amber" : "default"}>{row.priority}</Chip>
                           </td>
-                          <td className="px-4 py-4 text-center">
+                          <td className="td-actions">
                             <button
                               type="button"
                               onClick={() => handleGenerateRecruitingTask(row)}
@@ -2205,7 +2205,7 @@ export function BlackDogBrainPage({ initialProfiles }: { initialProfiles: Talent
 
             <SectionCard
               title="Matching Brain Rules"
-              description="This editable knowledge file guides the future AI matching engine. It is stored locally for now."
+              description="Maintain matching rules, scoring guidance, and reusable project knowledge."
             >
               <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
                 <textarea
