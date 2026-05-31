@@ -1,16 +1,19 @@
 import type { YoutubeUserRole } from "@/db/schema";
+import { YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID } from "@/lib/tools/toolRegistry";
 import { NextResponse } from "next/server";
 
 export type YoutubeActor = {
   id: string;
   email: string;
   role: YoutubeUserRole;
+  toolPermissions?: Record<string, boolean>;
 };
 
 const DEV_ACTOR: YoutubeActor = {
   id: "dev-user",
   email: "dev@blackdog.local",
   role: "admin",
+  toolPermissions: { [YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID]: true },
 };
 
 export class YoutubeAuthError extends Error {
@@ -26,17 +29,49 @@ function normalizeRole(value: string | null | undefined): YoutubeUserRole {
   return "member";
 }
 
+function parseToolAccessHeader(value: string | null | undefined): Record<string, boolean> {
+  if (!value) return {};
+  const trimmed = value.trim();
+  if (!trimmed) return {};
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.fromEntries(
+        Object.entries(parsed as Record<string, unknown>)
+          .map(([toolId, enabled]) => [toolId.trim(), Boolean(enabled)] as const)
+          .filter(([toolId]) => Boolean(toolId)),
+      );
+    }
+  } catch {
+    // Fall back to comma-separated tool ids.
+  }
+
+  return Object.fromEntries(
+    trimmed
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((toolId) => [toolId, true] as const),
+  );
+}
+
 export function getCurrentYoutubeUser(request?: Request): YoutubeActor {
   const headers = request?.headers;
   const id = headers?.get("x-blackdog-user-id")?.trim();
   const email = headers?.get("x-blackdog-user-email")?.trim();
   const roleHeader = headers?.get("x-blackdog-user-role");
+  const toolPermissions = {
+    ...parseToolAccessHeader(headers?.get("x-blackdog-tool-access")),
+    ...parseToolAccessHeader(headers?.get("x-blackdog-tool-permissions")),
+  };
 
   if (id && email) {
     return {
       id,
       email,
       role: normalizeRole(roleHeader),
+      toolPermissions,
     };
   }
 
@@ -46,7 +81,11 @@ export function getCurrentYoutubeUser(request?: Request): YoutubeActor {
 }
 
 export function getRequiredYoutubeUser(request?: Request): YoutubeActor {
-  return getCurrentYoutubeUser(request);
+  const actor = getCurrentYoutubeUser(request);
+  if (!hasYoutubeToolAccess(actor)) {
+    throw new YoutubePermissionError("You do not have access to this tool.");
+  }
+  return actor;
 }
 
 export function youtubeApiErrorResponse(error: unknown, fallbackMessage: string, fallbackStatus = 400) {
@@ -61,6 +100,11 @@ export function youtubeApiErrorResponse(error: unknown, fallbackMessage: string,
 
 export function isYoutubeAdmin(actor: YoutubeActor) {
   return actor.role === "admin";
+}
+
+export function hasYoutubeToolAccess(actor: YoutubeActor) {
+  if (isYoutubeAdmin(actor)) return true;
+  return Boolean(actor.toolPermissions?.[YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID]);
 }
 
 export function isYoutubeReviewer(actor: YoutubeActor) {

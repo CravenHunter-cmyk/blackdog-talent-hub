@@ -12,6 +12,7 @@ export type LocalAccount = {
   password: string
   linkedTalentProfileId?: string
   permissions: Record<string, boolean>
+  toolPermissions?: Record<string, boolean>
   createdAt: string
   updatedAt: string
   lastLogin?: string
@@ -22,6 +23,20 @@ export type LocalAccount = {
 }
 
 const STORAGE_KEY = "blackdog_accounts"
+const AUDIT_STORAGE_KEY = "blackdog_account_audit_logs"
+
+export type LocalAccountAuditLog = {
+  id: string
+  action: "account_created" | "account_updated" | "tool_access_granted" | "tool_access_revoked"
+  actorId?: string
+  actorEmail?: string
+  targetAccountId: string
+  targetEmail?: string
+  toolId?: string
+  before?: Record<string, unknown>
+  after?: Record<string, unknown>
+  createdAt: string
+}
 
 function normalize(value = "") {
   return String(value || "").replace(/\s+/g, " ").trim()
@@ -48,6 +63,7 @@ export const DEFAULT_LOCAL_ACCOUNTS: LocalAccount[] = [
     status: "Active",
     password: "123456",
     permissions: {},
+    toolPermissions: {},
     createdAt: "2026-04-12T09:10:00.000Z",
     updatedAt: "2026-04-27T10:22:00.000Z",
     lastLogin: "2026-04-27T08:15:00.000Z",
@@ -63,6 +79,7 @@ export const DEFAULT_LOCAL_ACCOUNTS: LocalAccount[] = [
     status: "Active",
     password: "123456",
     permissions: {},
+    toolPermissions: {},
     createdAt: "2026-04-16T08:30:00.000Z",
     updatedAt: "2026-04-24T14:05:00.000Z",
     lastLogin: "2026-04-26T17:32:00.000Z",
@@ -79,6 +96,7 @@ export const DEFAULT_LOCAL_ACCOUNTS: LocalAccount[] = [
     password: "123456",
     linkedTalentProfileId: "tal_tanchanok-pearl_b7e9e2143200",
     permissions: {},
+    toolPermissions: {},
     createdAt: "2026-04-18T10:15:00.000Z",
     updatedAt: "2026-04-27T09:30:00.000Z",
     lastLogin: "2026-04-27T09:05:00.000Z",
@@ -94,6 +112,7 @@ export const DEFAULT_LOCAL_ACCOUNTS: LocalAccount[] = [
     password: "123456",
     linkedTalentProfileId: "tal_nayara-ribeiro_preview",
     permissions: {},
+    toolPermissions: {},
     createdAt: "2026-04-18T12:20:00.000Z",
     updatedAt: "2026-04-27T10:22:00.000Z",
     lastLogin: "2026-04-27T10:20:00.000Z",
@@ -108,6 +127,7 @@ export const DEFAULT_LOCAL_ACCOUNTS: LocalAccount[] = [
     status: "Locked",
     password: "123456",
     permissions: {},
+    toolPermissions: {},
     createdAt: "2026-04-27T10:22:00.000Z",
     updatedAt: "2026-04-27T10:22:00.000Z",
     notes: "Locked mock account for login testing.",
@@ -142,6 +162,7 @@ function normalizeStoredAccount(record: Partial<LocalAccount> & { accountId?: st
     password,
     linkedTalentProfileId: normalize(record.linkedTalentProfileId || "") || undefined,
     permissions: clonePermissions(record.permissions),
+    toolPermissions: clonePermissions(record.toolPermissions),
     createdAt: normalize(record.createdAt || nowIso()) || nowIso(),
     updatedAt: normalize(record.updatedAt || nowIso()) || nowIso(),
     lastLogin: normalize(record.lastLogin || "") || undefined,
@@ -155,7 +176,11 @@ function normalizeStoredAccount(record: Partial<LocalAccount> & { accountId?: st
 }
 
 export function initializeDefaultAccounts() {
-  return DEFAULT_LOCAL_ACCOUNTS.map((account) => ({ ...account, permissions: clonePermissions(account.permissions) }))
+  return DEFAULT_LOCAL_ACCOUNTS.map((account) => ({
+    ...account,
+    permissions: clonePermissions(account.permissions),
+    toolPermissions: clonePermissions(account.toolPermissions),
+  }))
 }
 
 export function getStoredAccounts(): LocalAccount[] {
@@ -199,6 +224,16 @@ export function saveStoredAccounts(accounts: LocalAccount[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts))
 }
 
+export function appendLocalAccountAuditLogs(logs: LocalAccountAuditLog[]) {
+  if (typeof window === "undefined" || !logs.length) return
+  try {
+    const existing = JSON.parse(window.localStorage.getItem(AUDIT_STORAGE_KEY) || "[]") as LocalAccountAuditLog[]
+    window.localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify([...logs, ...existing].slice(0, 500)))
+  } catch {
+    window.localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(logs.slice(0, 500)))
+  }
+}
+
 export function findAccountByLogin(loginAccount: string) {
   const normalizedLogin = normalizeLogin(loginAccount)
   return getStoredAccounts().find((account) => normalizeLogin(account.loginAccount) === normalizedLogin) || null
@@ -221,6 +256,7 @@ export function updateStoredAccount(accountId: string, patch: Partial<LocalAccou
     linkedTalentProfileId:
       patch.linkedTalentProfileId !== undefined ? normalize(patch.linkedTalentProfileId) || undefined : next[index].linkedTalentProfileId,
     permissions: patch.permissions ? clonePermissions(patch.permissions) : clonePermissions(next[index].permissions),
+    toolPermissions: patch.toolPermissions ? clonePermissions(patch.toolPermissions) : clonePermissions(next[index].toolPermissions),
     createdAt: patch.createdAt !== undefined ? normalize(patch.createdAt) : next[index].createdAt,
     updatedAt: patch.updatedAt !== undefined ? normalize(patch.updatedAt) : next[index].updatedAt,
     lastLogin: patch.lastLogin !== undefined ? normalize(patch.lastLogin) || undefined : next[index].lastLogin,

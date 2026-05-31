@@ -4,7 +4,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TalentProfileRecord } from "@/types/talent-pool";
-import { getStoredAccounts, saveStoredAccounts, type LocalAccount } from "@/lib/localAccounts";
+import { appendLocalAccountAuditLogs, getStoredAccounts, saveStoredAccounts, type LocalAccount, type LocalAccountAuditLog } from "@/lib/localAccounts";
+import { blackDogTools } from "@/lib/tools/toolRegistry";
 
 type RoleKey = "super_admin" | "hr_user" | "talent";
 
@@ -72,6 +73,7 @@ type AccountRecord = {
   status: "Active" | "Invited" | "Locked";
   password: string;
   permissions: PermissionState;
+  toolPermissions: Record<string, boolean>;
   assignedTeams: string[];
   linkedTalentProfile?: string;
   lastLogin: string;
@@ -90,6 +92,7 @@ type AccountDraft = {
   role: RoleKey;
   status: AccountRecord["status"];
   permissions: PermissionState;
+  toolPermissions: Record<string, boolean>;
   assignedTeams: string;
   linkedTalentProfile: string;
   linkedTalentProfileManuallySelected: boolean;
@@ -266,6 +269,7 @@ const INITIAL_ACCOUNTS: AccountRecord[] = [
     status: "Active",
     password: "123456",
     permissions: buildPermissionState("super_admin"),
+    toolPermissions: buildToolPermissionState("super_admin"),
     assignedTeams: ["Global Operations", "Platform"],
     lastLogin: "2026-04-27 08:15",
     notes: "Owner of the main recruiting workspace.",
@@ -285,6 +289,7 @@ const INITIAL_ACCOUNTS: AccountRecord[] = [
       viewTalentLibrary: true,
       viewHrPerformance: true,
     },
+    toolPermissions: buildToolPermissionState("hr_user"),
     assignedTeams: ["Chinese Coverage", "Plugin Workflow"],
     lastLogin: "2026-04-26 17:32",
     notes: "HR coverage for Chinese and plugin submissions.",
@@ -303,6 +308,7 @@ const INITIAL_ACCOUNTS: AccountRecord[] = [
       ...buildPermissionState("talent"),
       viewTalentMessages: true,
     },
+    toolPermissions: buildToolPermissionState("talent"),
     assignedTeams: ["TikTok LLM Evaluation"],
     linkedTalentProfile: "tal_tanchanok-pearl_b7e9e2143200",
     lastLogin: "2026-04-27 09:05",
@@ -323,6 +329,7 @@ const INITIAL_ACCOUNTS: AccountRecord[] = [
       viewTalentMessages: true,
       sendMessages: true,
     },
+    toolPermissions: buildToolPermissionState("talent"),
     assignedTeams: ["Native LLM Evaluator Recruitment"],
     linkedTalentProfile: "tal_nayara-ribeiro_preview",
     lastLogin: "2026-04-27 10:20",
@@ -342,6 +349,7 @@ const INITIAL_ACCOUNTS: AccountRecord[] = [
       ...buildPermissionState("talent"),
       viewTalentMessages: true,
     },
+    toolPermissions: buildToolPermissionState("talent"),
     assignedTeams: [],
     linkedTalentProfile: undefined,
     lastLogin: "Never",
@@ -366,6 +374,10 @@ function buildPermissionState(role: RoleKey): PermissionState {
   return next;
 }
 
+function buildToolPermissionState(role: RoleKey): Record<string, boolean> {
+  return Object.fromEntries(blackDogTools.map((tool) => [tool.id, role === "super_admin"])) as Record<string, boolean>;
+}
+
 function createDefaultDraft(role: RoleKey, isNew = true): AccountDraft {
   return {
     id: `acc-${Date.now()}`,
@@ -377,6 +389,7 @@ function createDefaultDraft(role: RoleKey, isNew = true): AccountDraft {
     role,
     status: "Invited",
     permissions: buildPermissionState(role),
+    toolPermissions: buildToolPermissionState(role),
     assignedTeams: "",
     linkedTalentProfile: "",
     linkedTalentProfileManuallySelected: false,
@@ -477,6 +490,12 @@ function mapStoredAccountToUiAccount(account: LocalAccount): AccountRecord {
     ...buildPermissionState(account.role),
     ...account.permissions,
   }
+  const toolPermissions = account.role === "super_admin"
+    ? buildToolPermissionState(account.role)
+    : {
+        ...buildToolPermissionState(account.role),
+        ...(account.toolPermissions || {}),
+      }
 
   return {
     id: account.accountId,
@@ -487,6 +506,7 @@ function mapStoredAccountToUiAccount(account: LocalAccount): AccountRecord {
     status: account.status,
     password: account.password,
     permissions,
+    toolPermissions,
     assignedTeams: account.assignedTeams || [],
     linkedTalentProfile: account.linkedTalentProfileId,
     lastLogin: formatAccountDate(account.lastLogin || ""),
@@ -506,6 +526,7 @@ function mapUiAccountToStoredAccount(account: AccountRecord): LocalAccount {
     password: account.password.trim(),
     linkedTalentProfileId: account.linkedTalentProfile?.trim() || undefined,
     permissions: { ...account.permissions },
+    toolPermissions: { ...account.toolPermissions },
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
     lastLogin: account.lastLogin || undefined,
@@ -603,6 +624,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
           ...current,
           ...uiAccounts[0],
           assignedTeams: uiAccounts[0].assignedTeams.join(", "),
+          toolPermissions: { ...uiAccounts[0].toolPermissions },
           isNew: false,
           tempPassword: "",
           loginAccount: uiAccounts[0].loginAccount,
@@ -649,6 +671,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       role: account.role,
       status: account.status,
       permissions: { ...account.permissions },
+      toolPermissions: { ...account.toolPermissions },
       assignedTeams: account.assignedTeams.join(", "),
       linkedTalentProfile,
       linkedTalentProfileManuallySelected: Boolean(linkedTalentProfile),
@@ -676,7 +699,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     setEditorOpen(true);
   }
 
-  function updateDraftField(field: keyof Omit<AccountDraft, "permissions" | "isNew">, value: string) {
+  function updateDraftField(field: keyof Omit<AccountDraft, "permissions" | "toolPermissions" | "isNew">, value: string) {
     setDraft((current) => {
       const nextDraft = {
         ...current,
@@ -740,6 +763,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       ...current,
       role,
       permissions: buildPermissionState(role),
+      toolPermissions: role === "super_admin" ? buildToolPermissionState(role) : current.toolPermissions,
       linkedTalentProfile: role === "talent" ? current.linkedTalentProfile : "",
       linkedTalentProfileManuallySelected: role === "talent" ? current.linkedTalentProfileManuallySelected : false,
       ...(role === "talent" && current.linkedTalentProfile && !current.displayNameTouched
@@ -818,6 +842,25 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     });
   }
 
+  function updateToolPermission(toolId: string, checked: boolean) {
+    if (draft.role === "super_admin") return;
+    setDraft((current) => ({
+      ...current,
+      toolPermissions: {
+        ...current.toolPermissions,
+        [toolId]: checked,
+      },
+    }));
+  }
+
+  function setAllToolPermissions(checked: boolean) {
+    if (draft.role === "super_admin") return;
+    setDraft((current) => ({
+      ...current,
+      toolPermissions: Object.fromEntries(blackDogTools.map((tool) => [tool.id, checked])) as Record<string, boolean>,
+    }));
+  }
+
   function saveDraft() {
     const cleanedLoginAccount = draft.loginAccount.trim();
     const cleanedDisplayName = draft.displayName.trim();
@@ -856,6 +899,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
 
     const originalAccount = accounts.find((account) => account.id === draft.id);
     const nextPassword = cleanedPassword || originalAccount?.password || selectedAccount?.password || "";
+    const updatedAt = new Date().toISOString().slice(0, 16).replace("T", " ");
 
     const nextAccount: AccountRecord = {
       id: draft.id,
@@ -866,6 +910,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       status: draft.status,
       password: nextPassword,
       permissions: { ...draft.permissions },
+      toolPermissions: draft.role === "super_admin" ? buildToolPermissionState("super_admin") : { ...draft.toolPermissions },
       assignedTeams: draft.assignedTeams
         .split(",")
         .map((item) => item.trim())
@@ -873,9 +918,40 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       linkedTalentProfile: draft.role === "talent" ? draft.linkedTalentProfile.trim() : undefined,
       lastLogin: draft.isNew ? "Never" : selectedAccount?.lastLogin || "Never",
       notes: draft.notes.trim(),
-      createdAt: draft.isNew ? new Date().toISOString().slice(0, 16).replace("T", " ") : selectedAccount?.createdAt || new Date().toISOString().slice(0, 16).replace("T", " "),
-      updatedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+      createdAt: draft.isNew ? updatedAt : selectedAccount?.createdAt || updatedAt,
+      updatedAt,
     };
+
+    const auditLogs: LocalAccountAuditLog[] = [
+      {
+        id: `audit-${Date.now()}-${draft.isNew ? "created" : "updated"}`,
+        action: draft.isNew ? "account_created" : "account_updated",
+        actorId: "local-admin-ui",
+        targetAccountId: nextAccount.id,
+        targetEmail: nextAccount.email || undefined,
+        before: originalAccount ? { role: originalAccount.role, status: originalAccount.status, toolPermissions: originalAccount.toolPermissions } : undefined,
+        after: { role: nextAccount.role, status: nextAccount.status, toolPermissions: nextAccount.toolPermissions },
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    blackDogTools.forEach((tool) => {
+      const beforeGranted = originalAccount?.role === "super_admin" ? true : Boolean(originalAccount?.toolPermissions?.[tool.id]);
+      const afterGranted = nextAccount.role === "super_admin" ? true : Boolean(nextAccount.toolPermissions[tool.id]);
+      if (beforeGranted === afterGranted) return;
+      auditLogs.push({
+        id: `audit-${Date.now()}-${tool.id}-${afterGranted ? "granted" : "revoked"}`,
+        action: afterGranted ? "tool_access_granted" : "tool_access_revoked",
+        actorId: "local-admin-ui",
+        targetAccountId: nextAccount.id,
+        targetEmail: nextAccount.email || undefined,
+        toolId: tool.id,
+        before: { granted: beforeGranted },
+        after: { granted: afterGranted },
+        createdAt: new Date().toISOString(),
+      });
+    });
+    appendLocalAccountAuditLogs(auditLogs);
 
     setAccounts((current) => {
       const exists = current.some((account) => account.id === nextAccount.id);
@@ -894,6 +970,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       role: nextAccount.role,
       status: nextAccount.status,
       permissions: { ...nextAccount.permissions },
+      toolPermissions: { ...nextAccount.toolPermissions },
       assignedTeams: nextAccount.assignedTeams.join(", "),
       linkedTalentProfile: nextAccount.linkedTalentProfile || "",
       linkedTalentProfileManuallySelected: Boolean(nextAccount.linkedTalentProfile),
@@ -909,6 +986,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     setDraft((current) => ({
       ...current,
       permissions: buildPermissionState(current.role),
+      toolPermissions: buildToolPermissionState(current.role),
       linkedTalentProfile: current.role === "talent" ? current.linkedTalentProfile : "",
     }));
   }
@@ -1422,6 +1500,65 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
 
               <div className="scroll-panel max-h-[75vh] p-6">
                 <div className="space-y-5">
+                  <div className="rounded-xl border border-[#e4dbc9] bg-[#fbfaf6] p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1f5c43]">BlackDog Tools Access</div>
+                        <p className="mt-2 text-xs font-medium leading-5 text-[#6f6256]">
+                          Select which tools this account can use.
+                        </p>
+                      </div>
+                      {draft.role === "super_admin" ? (
+                        <span className="rounded-full border border-[#c9dfd0] bg-[#edf8f1] px-3 py-1.5 text-xs font-bold text-[#1f5c43]">
+                          All tools enabled
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAllToolPermissions(true)}
+                            className="rounded-md border border-[#d7dccf] bg-white px-3 py-1.5 text-xs font-semibold text-[#40372f]"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAllToolPermissions(false)}
+                            className="rounded-md border border-[#d7dccf] bg-white px-3 py-1.5 text-xs font-semibold text-[#40372f]"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {draft.role === "super_admin" ? (
+                      <p className="mt-4 rounded-lg border border-[#d7dccf] bg-white px-3 py-2 text-sm font-semibold text-[#40372f]">
+                        Admin accounts have access to all tools.
+                      </p>
+                    ) : (
+                      <div className="mt-4 grid gap-2">
+                        {blackDogTools.map((tool) => (
+                          <label
+                            key={tool.id}
+                            className="flex items-start gap-3 rounded-lg border border-[#ebe3d5] bg-white p-3"
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4 rounded border-[#c4b49c] text-[#1f5c43]"
+                              checked={Boolean(draft.toolPermissions[tool.id])}
+                              onChange={(event) => updateToolPermission(tool.id, event.target.checked)}
+                            />
+                            <span>
+                              <span className="block text-sm font-semibold text-[#111827]">{tool.name}</span>
+                              <span className="mt-1 block text-xs leading-5 text-[#6f6256]">{tool.description}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="rounded-xl border border-[#e4dbc9] bg-[#fbfaf6] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1f5c43]">Permission Modules</div>
 

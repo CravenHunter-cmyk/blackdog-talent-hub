@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export type ToolTaskStatus = "Draft" | "Running" | "Paused" | "Reviewing" | "Completed" | "Archived" | "Deleted";
 export type ToolSearchBatchStatus = "Pending" | "Running" | "Succeeded" | "Failed" | "Cancelled";
@@ -8,6 +8,8 @@ export type YoutubeCollectionUnitStatus = "Pending" | "Ready" | "Running" | "Pau
 export type PrimaryUnitSetBy = "system" | "user";
 export type YoutubeDuplicateGroupStatus = "Open" | "Reviewed" | "Ignored" | "Keep Separate" | "Applied";
 export type YoutubeUserRole = "admin" | "reviewer" | "member";
+export type BlackDogAccountRole = "admin" | "reviewer" | "member";
+export type BlackDogAccountStatus = "Active" | "Invited" | "Locked" | "Deleted";
 
 export const toolTasks = pgTable(
   "tool_tasks",
@@ -287,5 +289,66 @@ export const youtubeAuditLogs = pgTable(
     index("youtube_audit_logs_action_idx").on(table.action),
     index("youtube_audit_logs_actor_id_idx").on(table.actorId),
     index("youtube_audit_logs_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const blackDogAccounts = pgTable(
+  "blackdog_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").notNull(),
+    name: text("name"),
+    role: text("role").$type<BlackDogAccountRole>().notNull().default("member"),
+    status: text("status").$type<BlackDogAccountStatus>().notNull().default("Active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("blackdog_accounts_email_unique_idx").on(table.email),
+    index("blackdog_accounts_role_idx").on(table.role),
+    index("blackdog_accounts_status_idx").on(table.status),
+    index("blackdog_accounts_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const blackDogToolPermissions = pgTable(
+  "blackdog_tool_permissions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    accountId: uuid("account_id").notNull().references(() => blackDogAccounts.id),
+    toolId: text("tool_id").notNull(),
+    granted: boolean("granted").notNull().default(true),
+    grantedBy: text("granted_by"),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("blackdog_tool_permissions_account_tool_unique_idx").on(table.accountId, table.toolId),
+    index("blackdog_tool_permissions_account_id_idx").on(table.accountId),
+    index("blackdog_tool_permissions_tool_id_idx").on(table.toolId),
+    index("blackdog_tool_permissions_granted_idx").on(table.granted),
+  ],
+);
+
+export const blackDogAuditLogs = pgTable(
+  "blackdog_audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    action: text("action").notNull(),
+    actorId: text("actor_id"),
+    actorEmail: text("actor_email"),
+    targetAccountId: uuid("target_account_id").references(() => blackDogAccounts.id),
+    targetEmail: text("target_email"),
+    toolId: text("tool_id"),
+    before: jsonb("before").$type<Record<string, unknown> | null>(),
+    after: jsonb("after").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("blackdog_audit_logs_action_idx").on(table.action),
+    index("blackdog_audit_logs_actor_id_idx").on(table.actorId),
+    index("blackdog_audit_logs_target_account_id_idx").on(table.targetAccountId),
+    index("blackdog_audit_logs_tool_id_idx").on(table.toolId),
+    index("blackdog_audit_logs_created_at_idx").on(table.createdAt),
   ],
 );

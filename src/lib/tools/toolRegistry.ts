@@ -8,9 +8,11 @@ export type BlackDogTool = {
   href: string;
 };
 
+export const YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID = "youtube_speech_link_collector";
+
 export const blackDogTools: BlackDogTool[] = [
   {
-    id: "youtube-speech-link-collector",
+    id: YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID,
     name: "YouTube Speech Link Collector",
     status: "Active",
     description: "Search public YouTube video links by language, domain, and search targets.",
@@ -38,3 +40,7 @@ export const blackDogTools: BlackDogTool[] = [
     href: "/workspace/tools?tool=resource-matcher",
   },
 ];
+
+export function getBlackDogTool(toolId: string) {
+  return blackDogTools.find((tool) => tool.id === toolId) || null;
+}

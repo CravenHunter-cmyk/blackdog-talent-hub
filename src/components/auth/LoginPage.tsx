@@ -51,6 +51,7 @@ export function LoginPage() {
     status: MockAccountStatus
     linkedTalentProfileId?: string
     avatarUrl?: string
+    toolPermissions?: Record<string, boolean>
   }) {
     const loggedInAt = new Date().toISOString()
     const session = {
@@ -60,6 +61,7 @@ export function LoginPage() {
       status: user.status,
       linkedTalentProfileId: user.linkedTalentProfileId,
       avatarUrl: user.avatarUrl,
+      toolPermissions: user.toolPermissions || {},
       loggedInAt,
     }
 
@@ -71,6 +73,7 @@ export function LoginPage() {
         name: user.name,
         role: user.role === "Super Admin" ? "super_admin" : user.role === "HR User" ? "hr" : "talent",
         permissions: [],
+        toolPermissions: user.toolPermissions || {},
       }),
     )
     window.localStorage.setItem(
@@ -80,6 +83,7 @@ export function LoginPage() {
         name: user.name,
         role: user.role === "Super Admin" ? "super_admin" : user.role === "HR User" ? "hr" : "talent",
         permissions: [],
+        toolPermissions: user.toolPermissions || {},
       }),
     )
   }
@@ -139,6 +143,7 @@ export function LoginPage() {
         status: user.status === "Invited" ? "Active" : user.status,
         linkedTalentProfileId: user.linkedTalentProfileId,
         avatarUrl: user.avatarUrl,
+        toolPermissions: user.toolPermissions || {},
       } as {
         loginAccount: string
         name: string
@@ -146,6 +151,7 @@ export function LoginPage() {
         status: MockAccountStatus
         linkedTalentProfileId?: string
         avatarUrl?: string
+        toolPermissions?: Record<string, boolean>
       }
       persistSession(nextUser)
       router.replace(roleToRedirect(nextUser.role))

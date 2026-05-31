@@ -1,5 +1,7 @@
 "use client";
 
+import { YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID } from "@/lib/tools/toolRegistry";
+
 export type PlatformRole = "root_owner" | "super_admin" | "executive" | "hr" | "talent" | "client";
 
 export type PermissionKey =
@@ -62,6 +64,7 @@ export type PlatformUser = {
   projectIds?: string[] | "all";
   clientId?: string;
   permissions: PermissionKey[];
+  toolPermissions?: Record<string, boolean>;
 };
 
 export const MOCK_PLATFORM_USERS: Array<PlatformUser | null> = [
@@ -232,6 +235,16 @@ export function hasPermission(user: PlatformUser | null, permission: PermissionK
   return user.permissions.includes(permission);
 }
 
+export function isPlatformAdmin(user: PlatformUser | null) {
+  return Boolean(user?.isRootOwner || user?.permissions.includes("platform.admin.full") || user?.role === "root_owner" || user?.role === "super_admin");
+}
+
+export function hasBlackDogToolAccess(user: PlatformUser | null, toolId: string) {
+  if (!user) return false;
+  if (isPlatformAdmin(user)) return true;
+  return Boolean(user.toolPermissions?.[toolId]);
+}
+
 export function isRootOwner(user: PlatformUser | null) {
   return Boolean(user?.isRootOwner || user?.role === "root_owner");
 }
@@ -255,13 +268,17 @@ export function canPerform(user: PlatformUser | null, action: PermissionKey) {
 export function canAccessRoute(user: PlatformUser | null, route: string) {
   if (route === "/" || route === "/login") return true;
   if (!user) return false;
-  if (isRootOwner(user) || user.permissions.includes("platform.admin.full")) return true;
+  if (isPlatformAdmin(user)) return true;
   if (route.startsWith("/recruiting")) return hasPermission(user, "recruiting.view") && user.role !== "talent";
   if (route.startsWith("/talent-library")) return hasPermission(user, "talentLibrary.view") && user.role !== "talent";
   if (route.startsWith("/talent-messages")) return hasPermission(user, "talentHub.view");
   if (route.startsWith("/team-hub")) return hasPermission(user, "platform.private.view") || hasPermission(user, "client.project.view");
   if (route.startsWith("/work-center")) return hasPermission(user, "workCenter.view");
   if (route.startsWith("/blackdog-brain")) return hasPermission(user, "brain.view") && user.role !== "talent";
+  if (route.startsWith("/workspace/tools/youtube-speech-link-collector")) {
+    return hasPermission(user, "platform.private.view") && hasBlackDogToolAccess(user, YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID);
+  }
+  if (route.startsWith("/workspace/tools")) return hasPermission(user, "platform.private.view");
   if (route.startsWith("/users-permissions") || route.startsWith("/settings")) return hasPermission(user, "settings.view");
   return hasPermission(user, "platform.private.view");
 }
@@ -304,6 +321,7 @@ export function persistMockUser(user: PlatformUser | null) {
     projectIds: user.projectIds,
     clientId: user.clientId,
     permissions: user.permissions,
+    toolPermissions: user.toolPermissions || {},
     loggedInAt: new Date().toISOString(),
   };
   const rawSession = JSON.stringify(session);
@@ -325,6 +343,15 @@ function normalizeRole(value: unknown): PlatformRole {
 
 function normalizePermissions(value: unknown): PermissionKey[] {
   return Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) as PermissionKey[] : [];
+}
+
+function normalizeToolPermissions(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, enabled]) => [String(key).trim(), Boolean(enabled)] as const)
+      .filter(([key]) => Boolean(key)),
+  );
 }
 
 export function readPlatformUser(): PlatformUser | null {
@@ -357,6 +384,10 @@ export function readPlatformUser(): PlatformUser | null {
       projectIds: parsed.projectIds || matched?.projectIds,
       clientId: parsed.clientId || matched?.clientId,
       permissions: normalizePermissions(parsed.permissions).length ? normalizePermissions(parsed.permissions) : matched?.permissions || [],
+      toolPermissions: {
+        ...(matched?.toolPermissions || {}),
+        ...normalizeToolPermissions(parsed.toolPermissions),
+      },
     };
     cachedPlatformUserRaw = raw;
     cachedPlatformUserSnapshot = nextSnapshot;

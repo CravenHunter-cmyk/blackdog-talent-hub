@@ -12,17 +12,22 @@ type AccessGateProps = {
   children: ReactNode;
 };
 
-export function PermissionFallback({ type }: { type: "access-required" | "no-permission" }) {
+export function PermissionFallback({ type, route }: { type: "access-required" | "no-permission"; route?: string }) {
   const router = useRouter();
   const isAccessRequired = type === "access-required";
   const [user, setUser] = useState<PlatformUser | null>(null);
   const clientBlocked = !isAccessRequired && isClient(user);
-  const title = isAccessRequired ? "Access Required" : "No Permission";
+  const isToolRoute = Boolean(route?.startsWith("/workspace/tools/"));
+  const title = isAccessRequired ? "Access Required" : isToolRoute ? "No Tool Access" : "No Permission";
   const description = isAccessRequired
-    ? "Please log in with an authorized BlackDog account to access this workspace."
+    ? isToolRoute
+      ? "Sign in required to use this tool."
+      : "Please log in with an authorized BlackDog account to access this workspace."
     : clientBlocked
       ? "Client accounts are read-only and cannot access personal workspaces, internal communication, or system command."
-      : "Your current account does not have permission to access this workspace.";
+      : isToolRoute
+        ? "You do not have access to this tool. Contact your administrator to request access."
+        : "Your current account does not have permission to access this workspace.";
   const helperText = isAccessRequired ? "Need access? Please contact the BlackDog team." : "";
 
   useEffect(() => {
@@ -86,5 +91,5 @@ export function AccessGate({ route, module, children }: AccessGateProps) {
 
   const fallback = routeFallbackType(user, route);
   if (fallback === "allowed" && (!module || canAccessModule(user, module))) return <>{children}</>;
-  return <PermissionFallback type={fallback === "allowed" ? "no-permission" : fallback} />;
+  return <PermissionFallback type={fallback === "allowed" ? "no-permission" : fallback} route={route} />;
 }

@@ -107,7 +107,7 @@ After the modification is complete and verified, commit and push only after expl
 
 The `/` route is the more customer-facing public page. The other routes are more workspace, internal, or login-protected functional areas. Future development must not place internal candidate privacy information on the homepage by mistake.
 
-Top navigation currently uses this order: BlackDog Brain, BlackDog Tools, Talent Map, BlackDog Talent Museum, Talent Hub, PM Hub, Sourcing Hub, Command, Account/Login. AI Diagnosis should not appear as a separate top-level navigation item; AI model evaluation diagnosis capabilities are organized under BlackDog Brain.
+Top navigation currently uses this order: Talent Map, BlackDog Brain, BlackDog Tools, BlackDog Talent Museum, Talent Hub, PM Hub, Sourcing Hub, Command, Account/Login. Talent Map must remain first, BlackDog Brain second, and BlackDog Tools third. AI Diagnosis should not appear as a separate top-level navigation item; AI model evaluation diagnosis capabilities are organized under BlackDog Brain.
 
 BlackDog Brain now has two strategic tracks:
 
@@ -118,7 +118,7 @@ BlackDog Tools is an internal workspace area. The YouTube Speech Link Collector 
 
 BlackDog Tools database direction: use Drizzle ORM with Neon serverless driver. Database schema lives in `src/db/schema.ts`, database client lives in `src/db/index.ts`, and Drizzle config lives in `drizzle.config.ts`. The first database tables are `tool_tasks`, `tool_search_batches`, `youtube_results`, `youtube_result_matches`, and `tool_exports`.
 
-YouTube Speech Link Collector auth direction: `src/lib/tools/youtubeAuth.ts` is the single adapter entry point for tool user identity. Local development may fall back to a dev admin user for testing, but production / preview must not use a dev admin fallback. Production access requires real auth headers or a future session integration, and unauthenticated requests should return `401` with `Sign in required to use this tool.`
+YouTube Speech Link Collector auth direction: `src/lib/tools/youtubeAuth.ts` is the single adapter entry point for tool user identity. Local development may fall back to a dev admin user for testing, but production / preview must not use a dev admin fallback. Production access requires real auth headers or a future session integration, and unauthenticated requests should return `401` with `Sign in required to use this tool.` BlackDog Tools also require tool-level permission. The canonical YouTube tool id is `youtube_speech_link_collector`; admin users pass automatically, while reviewer/member users require explicit tool access. Future real auth/session work should feed user identity, role, and tool permissions into this adapter rather than bypassing it.
 
 BlackDog product UI should be English-only by default. Avoid bilingual labels, Chinese UI copy, verbose helper text, and marketing-style explanations in workspace tools.
 
