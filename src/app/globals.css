@@ -44,8 +44,20 @@ html {
 }
 
 .page-shell {
-  width: min(92vw, 1440px);
+  width: min(calc(100vw - 40px), 1520px);
   margin-inline: auto;
+}
+
+@media (max-width: 1400px) {
+  .page-shell {
+    width: calc(100vw - 32px);
+  }
+}
+
+@media (min-width: 1920px) {
+  .page-shell {
+    width: min(calc(100vw - 96px), 1600px);
+  }
 }
 
 .data-table {

@@ -23,6 +23,8 @@ import type {
   ExtractProfileInput,
   GenerateWorkTemplateInput,
   GenerateWorkTemplateResult,
+  GenerateYoutubeKeywordsInput,
+  ParseYoutubeTaskBriefInput,
   TranslateMessageInput,
 } from "./types";
 
@@ -35,6 +37,14 @@ function safeJsonParse<T>(value: string): T | null {
     return JSON.parse(value) as T;
   } catch {
     const trimmed = normalizeText(value);
+    if (trimmed.startsWith("[")) {
+      const lastBracket = trimmed.lastIndexOf("]");
+      try {
+        return JSON.parse(trimmed.slice(0, lastBracket + 1)) as T;
+      } catch {
+        return null;
+      }
+    }
     const firstBrace = trimmed.indexOf("{");
     const lastBrace = trimmed.lastIndexOf("}");
     if (firstBrace >= 0 && lastBrace > firstBrace) {
@@ -46,6 +56,135 @@ function safeJsonParse<T>(value: string): T | null {
     }
     return null;
   }
+}
+
+function buildGenerateYoutubeKeywordsPrompt(input: GenerateYoutubeKeywordsInput): { system: string; user: string } {
+  const searchTargets = Array.isArray(input.searchTargets) && input.searchTargets.length
+    ? input.searchTargets
+    : input.speechType
+      ? [input.speechType]
+      : [];
+  const keywordGroups = Array.isArray(input.keywordGroups) ? input.keywordGroups : [];
+
+  return {
+    system:
+      "You are a YouTube search keyword generator. Return JSON only. Return an array of objects. Do not explain.",
+    user: JSON.stringify(
+      {
+        language: input.language || "",
+        domain: input.domain || "",
+        searchTargets,
+        keywordGroups,
+        existingKeywords: Array.isArray(input.existingKeywords) ? input.existingKeywords : [],
+        instruction: [
+          "The user may select multiple languages, domains, and search targets.",
+          "Generate keywords separately for each single keywordGroups item.",
+          "Do not merge multiple domains into one keyword.",
+          "Do not merge multiple search targets into one keyword.",
+          "Each keyword must belong to exactly one language, one domain, and one search target.",
+          "Do not repeat existingKeywords within the same group.",
+          "Avoid highly similar keywords.",
+          "Keywords must be suitable for YouTube search.",
+          "Prioritize natural speech content such as monologue, interview, podcast, dialogue, teaching, commentary, and vlog.",
+          "Do not generate download, cracked, pirated, reupload, music, movie, or overly broad keywords.",
+          "Return 2-3 new keywords per group, capped at 20 total keywords.",
+          "Return a JSON array only. Each item must be an object with keyword, language, domain, searchTarget, and groupKey.",
+          "If the target language has native expressions, include a few local-language search phrases.",
+        ],
+        outputExample: [
+          {
+            keyword: "Brazilian Portuguese cooking vlog",
+            language: "Portuguese - Brazil",
+            domain: "Food / Cooking",
+            searchTarget: "Single Speaker",
+            groupKey: "Portuguese - Brazil__Food / Cooking__Single Speaker",
+          },
+          {
+            keyword: "Brazilian Portuguese travel conversation",
+            language: "Portuguese - Brazil",
+            domain: "Travel / Culture",
+            searchTarget: "Dialogue",
+            groupKey: "Portuguese - Brazil__Travel / Culture__Dialogue",
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+  };
+}
+
+function buildParseYoutubeTaskBriefPrompt(input: ParseYoutubeTaskBriefInput): { system: string; user: string } {
+  return {
+    system:
+      "You parse YouTube speech collection task briefs for BlackDog Tools. Return JSON only. Do not explain.",
+    user: JSON.stringify(
+      {
+        brief: input.brief || "",
+        allowedValues: {
+          languages: input.languageOptions || [],
+          domains: input.domainOptions || [],
+          searchTargets: input.searchTargetOptions || [],
+          preferredVideoQuality: input.preferredVideoQualityOptions || [],
+        },
+        instruction: [
+          "Extract a collection task configuration from the brief.",
+          "All returned languages, domains, searchTargets, and preferredVideoQuality must be selected exactly from allowedValues.",
+          "Do not invent values outside allowedValues.",
+          "Map Brazilian Portuguese to Portuguese - Brazil.",
+          "Map Mexican Spanish to Spanish - Mexico.",
+          "Map food, cooking, recipes, meals, cuisine to Food / Cooking.",
+          "Map travel, culture, destination, trip to Travel / Culture.",
+          "Map business, finance, investing, market to Finance / Business.",
+          "Map commentary, review, reaction, opinion to Review / Commentary when appropriate.",
+          "Map natural speech, talking, monologue, solo speaker to Single Speaker.",
+          "Map conversation, two speakers, discussion, chat to Dialogue.",
+          "In speech collection, map multiplayer to Dialogue unless the context clearly means the Gaming domain.",
+          "Map 720p to 720p+, 1080p to 1080p+, 2K or 1440p to 2K+, and 4K or 2160p to 4K+.",
+          "If quantity is missing, set targetUniqueResults to null.",
+          "If hours are mentioned, extract targetHours. Examples: 50H, 50 hours, 50小时 all mean targetHours 50.",
+          "If the user says each domain needs 5-7 hours, set allocationMode to Even by Domain and unitTargetHoursHint min 5, max 7, suggested midpoint.",
+          "If the user gives search target ratios, return allocationRatios keyed by allowed search target names. Example: 30% singles and 70% multiplayer means allocationRatios {\"Single Speaker\": 0.3, \"Dialogue\": 0.7}.",
+          "If the user says multi-domain but does not name domains, keep domains empty and warn that domains are not specified.",
+          "If target hours are present but target result count is not, set targetUniqueResults to null.",
+          "Extract publication date requirements when present.",
+          "Map past month or last month to publishedDateRange {\"mode\":\"preset\",\"months\":1,\"label\":\"Past 1 month\"}.",
+          "Map within 6 months or past 6 months to months 6.",
+          "Map past 1 year to months 12, past 2 years to months 24, and past 3 years to months 36.",
+          "Map custom month counts such as past 18 months or 最近18个月 to publishedDateRange {\"mode\":\"custom\",\"months\":18,\"label\":\"Past 18 months\"}.",
+          "If the brief says any time, all time, or no date restriction, set publishedDateRange {\"mode\":\"any\",\"months\":null,\"label\":\"Any time\"}.",
+          "If no publication date requirement is mentioned, set publishedDateRange to Any time. Do not guess.",
+          "If batch size is missing, set batchTargetResults to 100 when targetUniqueResults <= 500, 500 when <= 2000, and 1000 when > 2000.",
+          "Set useAIKeywordExpansion to true unless the brief explicitly says no AI expansion or manual keywords only.",
+          "If language, domain, or search target is unclear, return an empty array for that field and add a short warning.",
+          "Return only this JSON object shape: taskName, languages, domains, searchTargets, targetUniqueResults, targetHours, allocationMode, allocationRatios, unitTargetHoursHint, publishedDateRange, batchTargetResults, preferredVideoQuality, useAIKeywordExpansion, confidence, warnings.",
+        ],
+        outputExample: {
+          taskName: "Brazilian Portuguese Food and Travel Speech Collection",
+          languages: ["Portuguese - Brazil"],
+          domains: ["Food / Cooking", "Travel / Culture"],
+          searchTargets: ["Single Speaker", "Dialogue"],
+          targetUniqueResults: 500,
+          targetHours: null,
+          allocationMode: "Even by Unit",
+          allocationRatios: {},
+          unitTargetHoursHint: null,
+          publishedDateRange: {
+            mode: "preset",
+            months: 6,
+            label: "Past 6 months",
+          },
+          batchTargetResults: 100,
+          preferredVideoQuality: "1080p+",
+          useAIKeywordExpansion: true,
+          confidence: 0.87,
+          warnings: [],
+        },
+      },
+      null,
+      2,
+    ),
+  };
 }
 
 function logGateway(task: string, provider: AIGatewayProvider, model: string, success: boolean, durationMs: number) {
@@ -896,6 +1035,20 @@ export async function runAIGatewayTask(request: AIGatewayRequest) {
       );
     case "generate_work_template":
       return generateWorkTemplateWithGateway(request.input as GenerateWorkTemplateInput, { provider, model: request.options?.model });
+    case "generate_youtube_keywords":
+      return runJsonGatewayTask<"generate_youtube_keywords">(
+        "generate_youtube_keywords",
+        request.input,
+        { provider, model: request.options?.model },
+        (input) => buildGenerateYoutubeKeywordsPrompt(input as GenerateYoutubeKeywordsInput),
+      );
+    case "parse_youtube_task_brief":
+      return runJsonGatewayTask<"parse_youtube_task_brief">(
+        "parse_youtube_task_brief",
+        request.input,
+        { provider, model: request.options?.model },
+        (input) => buildParseYoutubeTaskBriefPrompt(input as ParseYoutubeTaskBriefInput),
+      );
     case "match_talents":
     case "generate_recruiting_task":
     case "generate_script":

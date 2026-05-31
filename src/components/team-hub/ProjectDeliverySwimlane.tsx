@@ -4,8 +4,17 @@ import Image from "next/image";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 
 type OwnerTone = "poc" | "pm" | "resource";
+type WorkflowNodeId =
+  | "client-request"
+  | "requirement-alignment"
+  | "pilot-clarification"
+  | "workflow-finalization"
+  | "team-formation"
+  | "project-execution"
+  | "delivery-review";
 
 type WorkflowStep = {
+  id: WorkflowNodeId;
   step: string;
   name: string;
   lead: string;
@@ -26,15 +35,26 @@ type DragState = {
   offsetY: number;
 };
 
-const VIEWBOX_WIDTH = 1320;
-const VIEWBOX_HEIGHT = 680;
+type WorkflowConnectionRoute = "default" | "formation-arc";
+
+type WorkflowConnection = {
+  sourceId: WorkflowNodeId;
+  targetId: WorkflowNodeId;
+  route?: WorkflowConnectionRoute;
+};
+
+const DESIGN_CANVAS_WIDTH = 1320;
+const DESIGN_CANVAS_HEIGHT = 680;
+const VIEWBOX_WIDTH = DESIGN_CANVAS_WIDTH;
+const VIEWBOX_HEIGHT = DESIGN_CANVAS_HEIGHT;
 const NODE_WIDTH = 202;
 const NODE_HEIGHT = 78;
 const EDGE_GAP = 14;
-const LAYOUT_STORAGE_KEY = "blackdog-project-delivery-workflow-layout";
+const WORKFLOW_LAYOUT_STORAGE_KEY = "blackdog.workflowDiagram.layout.v1";
 
 const workflowSteps: WorkflowStep[] = [
   {
+    id: "client-request",
     step: "01",
     name: "Client Request",
     lead: "POC Manager",
@@ -44,6 +64,7 @@ const workflowSteps: WorkflowStep[] = [
     tone: "poc",
   },
   {
+    id: "requirement-alignment",
     step: "02",
     name: "Requirement Alignment",
     lead: "POC Manager",
@@ -53,6 +74,7 @@ const workflowSteps: WorkflowStep[] = [
     tone: "poc",
   },
   {
+    id: "pilot-clarification",
     step: "03",
     name: "Pilot & Clarification",
     lead: "Project Manager",
@@ -62,6 +84,7 @@ const workflowSteps: WorkflowStep[] = [
     tone: "pm",
   },
   {
+    id: "workflow-finalization",
     step: "04",
     name: "Workflow Finalization",
     lead: "Project Manager",
@@ -71,6 +94,7 @@ const workflowSteps: WorkflowStep[] = [
     tone: "pm",
   },
   {
+    id: "team-formation",
     step: "05",
     name: "Team Formation",
     lead: "Resource Manager",
@@ -80,6 +104,7 @@ const workflowSteps: WorkflowStep[] = [
     tone: "resource",
   },
   {
+    id: "project-execution",
     step: "06",
     name: "Project Execution",
     lead: "Project Manager",
@@ -89,6 +114,7 @@ const workflowSteps: WorkflowStep[] = [
     tone: "pm",
   },
   {
+    id: "delivery-review",
     step: "07",
     name: "Delivery & Review",
     lead: "POC Manager",
@@ -99,15 +125,28 @@ const workflowSteps: WorkflowStep[] = [
   },
 ];
 
-const defaultDiagramNodes: DiagramNode[] = [
-  { x: 450, y: 62 },
-  { x: 224, y: 238 },
-  { x: 436, y: 388 },
-  { x: 713, y: 340 },
-  { x: 686, y: 510 },
-  { x: 950, y: 382 },
-  { x: 898, y: 116 },
+const DEFAULT_WORKFLOW_NODE_POSITIONS: Record<WorkflowNodeId, DiagramNode> = {
+  "client-request": { x: 280, y: 68 },
+  "requirement-alignment": { x: 130, y: 250 },
+  "pilot-clarification": { x: 245, y: 480 },
+  "workflow-finalization": { x: 560, y: 488 },
+  "team-formation": { x: 560, y: 266 },
+  "project-execution": { x: 930, y: 410 },
+  "delivery-review": { x: 950, y: 112 },
+};
+
+const WORKFLOW_CONNECTIONS: WorkflowConnection[] = [
+  { sourceId: "client-request", targetId: "requirement-alignment" },
+  { sourceId: "requirement-alignment", targetId: "pilot-clarification" },
+  { sourceId: "pilot-clarification", targetId: "workflow-finalization" },
+  { sourceId: "workflow-finalization", targetId: "team-formation", route: "formation-arc" },
+  { sourceId: "team-formation", targetId: "project-execution" },
+  { sourceId: "project-execution", targetId: "delivery-review" },
 ];
+
+function getDefaultDiagramNodes() {
+  return workflowSteps.map((step) => ({ ...DEFAULT_WORKFLOW_NODE_POSITIONS[step.id] }));
+}
 
 const stepThemes = [
   {
@@ -171,8 +210,9 @@ function normalizeLayout(value: unknown): DiagramNode[] | null {
   const nodes = "nodes" in value ? (value as { nodes?: unknown }).nodes : value;
   if (!nodes || typeof nodes !== "object") return null;
 
-  const nextNodes = workflowSteps.map((_, index) => {
-    const rawNode = (nodes as Record<string, unknown>)[String(index + 1)] ?? (nodes as Record<string, unknown>)[`step-${index + 1}`];
+  const nodeMap = nodes as Record<string, unknown>;
+  const nextNodes = workflowSteps.map((step, index) => {
+    const rawNode = nodeMap[step.id] ?? nodeMap[String(index + 1)] ?? nodeMap[`step-${index + 1}`];
     if (!rawNode || typeof rawNode !== "object") return null;
     const { x, y } = rawNode as { x?: unknown; y?: unknown };
     if (typeof x !== "number" || typeof y !== "number") return null;
@@ -192,10 +232,19 @@ function toLayoutExport(nodes: DiagramNode[]) {
     nodeSize: { width: NODE_WIDTH, height: NODE_HEIGHT },
     lineStrategy: "auto edge-to-edge cubic paths with a dashed 7-to-1 closure loop",
     nodes: nodes.reduce<Record<string, DiagramNode>>((acc, node, index) => {
-      acc[String(index + 1)] = { x: Math.round(node.x), y: Math.round(node.y) };
+      acc[workflowSteps[index].id] = { x: Math.round(node.x), y: Math.round(node.y) };
       return acc;
     }, {}),
   };
+}
+
+function saveDiagramLayout(nodes: DiagramNode[]) {
+  try {
+    localStorage.setItem(WORKFLOW_LAYOUT_STORAGE_KEY, JSON.stringify(toLayoutExport(nodes)));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getPointerPosition(event: PointerEvent, element: HTMLDivElement) {
@@ -267,6 +316,28 @@ function buildConnectionPath(source: DiagramNode, target: DiagramNode, loop = fa
   return `M${start.x} ${start.y} C${controlOne.x} ${controlOne.y} ${controlTwo.x} ${controlTwo.y} ${end.x} ${end.y}`;
 }
 
+function buildFormationArcPath(source: DiagramNode, target: DiagramNode) {
+  const start = {
+    x: source.x + NODE_WIDTH * 0.72,
+    y: source.y - EDGE_GAP,
+  };
+  const end = {
+    x: target.x + NODE_WIDTH * 0.3,
+    y: target.y + NODE_HEIGHT + EDGE_GAP,
+  };
+  const bend = Math.max(140, Math.abs(start.y - end.y) * 0.82);
+
+  return `M${start.x} ${start.y} C${start.x + bend} ${start.y - bend * 0.72} ${end.x + bend} ${end.y + bend * 0.5} ${end.x} ${end.y}`;
+}
+
+function buildWorkflowConnectionPath(source: DiagramNode, target: DiagramNode, route: WorkflowConnectionRoute = "default") {
+  if (route === "formation-arc") {
+    return buildFormationArcPath(source, target);
+  }
+
+  return buildConnectionPath(source, target);
+}
+
 function toneClasses(tone: OwnerTone) {
   if (tone === "pm") {
     return {
@@ -296,27 +367,38 @@ export function ProjectDeliverySwimlane() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isEditingLayout, setIsEditingLayout] = useState(false);
-  const [diagramNodes, setDiagramNodes] = useState<DiagramNode[]>(defaultDiagramNodes);
+  const [diagramNodes, setDiagramNodes] = useState<DiagramNode[]>(getDefaultDiagramNodes);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [layoutNotice, setLayoutNotice] = useState("");
   const diagramRef = useRef<HTMLDivElement | null>(null);
   const activeStep = workflowSteps[currentStep];
   const activeTone = toneClasses(activeStep.tone);
-  const diagramLines = diagramNodes.slice(0, -1).map((node, index) => ({
-    d: buildConnectionPath(node, diagramNodes[index + 1]),
-    target: index + 1,
-    loop: false,
-  }));
+  const diagramLines = WORKFLOW_CONNECTIONS.map((connection) => {
+    const sourceIndex = workflowSteps.findIndex((step) => step.id === connection.sourceId);
+    const targetIndex = workflowSteps.findIndex((step) => step.id === connection.targetId);
+
+    return {
+      key: `${connection.sourceId}-${connection.targetId}`,
+      d: buildWorkflowConnectionPath(diagramNodes[sourceIndex], diagramNodes[targetIndex], connection.route),
+      target: targetIndex,
+      loop: false,
+    };
+  });
   const loopLine = {
+    key: "delivery-review-client-request-loop",
     d: buildConnectionPath(diagramNodes[workflowSteps.length - 1], diagramNodes[0], true),
     target: workflowSteps.length - 1,
     loop: true,
   };
   const allDiagramLines = [...diagramLines, loopLine];
+  const visibleDiagramLines = allDiagramLines.map((line) => ({
+    ...line,
+    isActive: line.target <= currentStep,
+  }));
 
   useEffect(() => {
     try {
-      const rawLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
+      const rawLayout = localStorage.getItem(WORKFLOW_LAYOUT_STORAGE_KEY);
       if (!rawLayout) return;
       const savedLayout = normalizeLayout(JSON.parse(rawLayout));
       if (savedLayout) {
@@ -382,6 +464,7 @@ export function ProjectDeliverySwimlane() {
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragState || !diagramRef.current) return;
+    event.preventDefault();
     const pointer = getPointerPosition(event, diagramRef.current);
     const nextNode = {
       x: clamp(pointer.x - dragState.offsetX, 0, VIEWBOX_WIDTH - NODE_WIDTH),
@@ -391,18 +474,30 @@ export function ProjectDeliverySwimlane() {
   };
 
   const handlePointerUp = () => {
+    if (dragState) {
+      setDiagramNodes((nodes) => {
+        const saved = saveDiagramLayout(nodes);
+        setLayoutNotice(saved ? "Layout saved to localStorage." : "Layout could not be saved locally.");
+        return nodes;
+      });
+    }
     setDragState(null);
   };
 
   const handleSaveLayout = () => {
-    localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(toLayoutExport(diagramNodes)));
-    setLayoutNotice("Layout saved to localStorage.");
+    const saved = saveDiagramLayout(diagramNodes);
+    setLayoutNotice(saved ? "Layout saved to localStorage." : "Layout could not be saved locally.");
   };
 
   const handleResetLayout = () => {
-    localStorage.removeItem(LAYOUT_STORAGE_KEY);
-    setDiagramNodes(defaultDiagramNodes);
-    setLayoutNotice("Layout reset to default.");
+    let layoutCleared = true;
+    try {
+      localStorage.removeItem(WORKFLOW_LAYOUT_STORAGE_KEY);
+    } catch {
+      layoutCleared = false;
+    }
+    setDiagramNodes(getDefaultDiagramNodes());
+    setLayoutNotice(layoutCleared ? "Layout reset to default." : "Default layout is shown for this session.");
   };
 
   const handleCopyLayout = async () => {
@@ -526,14 +621,18 @@ export function ProjectDeliverySwimlane() {
           </div>
         ) : null}
         <div
-          ref={diagramRef}
-          className="relative min-h-[560px] overflow-hidden rounded-xl border border-[#e2d8c8] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+          className="relative overflow-hidden rounded-xl border border-[#e2d8c8] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] xl:p-5"
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           style={diagramBackground}
         >
-          <div className="pointer-events-none absolute right-4 top-4 z-20 flex items-center gap-2.5 rounded-xl border border-[#1f5c43]/15 bg-white/72 px-2.5 py-1.5 shadow-[0_12px_28px_rgba(31,41,51,0.09)] backdrop-blur">
+          <div
+            ref={diagramRef}
+            className="relative mx-auto aspect-[1320/680] w-full max-w-[1320px]"
+            data-workflow-diagram-canvas="true"
+          >
+          <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-center gap-2.5 rounded-xl border border-[#1f5c43]/15 bg-white/72 px-2.5 py-1.5 shadow-[0_12px_28px_rgba(31,41,51,0.09)] backdrop-blur xl:right-4 xl:top-4">
             <Image src="/blackdog-mascot.jpg" alt="BlackDog mascot" width={36} height={36} className="h-9 w-9 rounded-full border border-white object-cover shadow-sm" />
             <div>
               <div className="text-[11px] font-black text-[#111827]">BlackDog Delivery OS</div>
@@ -543,10 +642,10 @@ export function ProjectDeliverySwimlane() {
               </div>
             </div>
           </div>
-          <div className="pointer-events-none absolute left-5 top-5 z-10 rounded-full border border-[#d7cec0]/80 bg-white/55 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#6f6256] backdrop-blur">
+          <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-full border border-[#d7cec0]/80 bg-white/55 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#6f6256] backdrop-blur xl:left-5 xl:top-5">
             BlackDog Workflow Engine
           </div>
-          <svg viewBox="0 0 1320 680" preserveAspectRatio="none" className="absolute inset-5 h-[calc(100%-2.5rem)] w-[calc(100%-2.5rem)]">
+          <svg viewBox={`0 0 ${DESIGN_CANVAS_WIDTH} ${DESIGN_CANVAS_HEIGHT}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
             <defs>
               <filter id="activeWorkflowGlow" x="-20%" y="-20%" width="140%" height="140%">
                 <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#1f5c43" floodOpacity="0.22" />
@@ -558,18 +657,18 @@ export function ProjectDeliverySwimlane() {
                 <path d="M0,0 L13,6.5 L0,13 Z" fill="#1f5c43" />
               </marker>
             </defs>
-            {allDiagramLines.map((line) => (
+            {visibleDiagramLines.map((line) => (
               <path
-                key={line.d}
+                key={line.key}
                 d={line.d}
                 fill="none"
-                stroke={line.target <= currentStep ? "#1f5c43" : "#d7cec0"}
-                strokeWidth={line.loop ? (line.target <= currentStep ? 2.8 : 1.9) : line.target <= currentStep ? 3.5 : 2.2}
+                stroke={line.isActive ? "#1f5c43" : "#d7cec0"}
+                strokeWidth={line.loop ? (line.isActive ? 2.8 : 1.9) : line.isActive ? 3.5 : 2.2}
                 strokeLinecap="round"
-                markerEnd={line.target <= currentStep ? "url(#workflowArrowActive)" : "url(#workflowArrow)"}
+                markerEnd={line.isActive ? "url(#workflowArrowActive)" : "url(#workflowArrow)"}
                 strokeDasharray={line.loop ? "14 12" : undefined}
-                filter={line.target <= currentStep ? "url(#activeWorkflowGlow)" : undefined}
-                opacity={line.loop ? (line.target <= currentStep ? 0.72 : 0.34) : line.target <= currentStep ? 0.9 : 0.58}
+                filter={line.isActive ? "url(#activeWorkflowGlow)" : undefined}
+                opacity={line.loop ? (line.isActive ? 0.72 : 0.34) : line.isActive ? 0.9 : 0.58}
               />
             ))}
           </svg>
@@ -585,15 +684,17 @@ export function ProjectDeliverySwimlane() {
 
             return (
               <button
-                key={step.step}
+                key={step.id}
                 type="button"
+                data-workflow-node="true"
+                data-workflow-node-id={step.id}
                 onPointerDown={(event) => handlePointerDown(event, index)}
                 onClick={() => {
                   if (isEditingLayout) return;
                   setIsPlaying(false);
                   setCurrentStep(index);
                 }}
-                className={`absolute z-10 flex h-[76px] w-[16%] min-w-[188px] max-w-[212px] flex-col justify-center rounded-xl border px-3.5 py-2.5 text-left shadow-sm transition ${
+                className={`absolute z-10 flex min-w-0 flex-col justify-center rounded-xl border px-3 py-2 text-left shadow-sm transition xl:px-3.5 xl:py-2.5 ${
                   isCurrent
                     ? "bd-current-node"
                     : isDone
@@ -607,7 +708,9 @@ export function ProjectDeliverySwimlane() {
                   height: `${(NODE_HEIGHT / VIEWBOX_HEIGHT) * 100}%`,
                   borderColor: nodeBorder,
                   backgroundColor: nodeBackground,
-                  cursor: isEditingLayout ? "grab" : "pointer",
+                  cursor: isEditingLayout ? (dragState?.index === index ? "grabbing" : "grab") : "pointer",
+                  touchAction: isEditingLayout ? "none" : "auto",
+                  userSelect: isEditingLayout ? "none" : "auto",
                 }}
               >
                 <div className="flex w-full items-center gap-2">
@@ -637,11 +740,12 @@ export function ProjectDeliverySwimlane() {
               </button>
             );
           })}
+          </div>
         </div>
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {workflowSteps.map((step, index) => (
             <button
-              key={step.step}
+              key={step.id}
               type="button"
               onClick={() => {
                 setIsPlaying(false);

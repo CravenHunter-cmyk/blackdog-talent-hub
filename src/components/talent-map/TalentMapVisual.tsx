@@ -40,7 +40,7 @@ export function TalentMapVisual({ resources, selectedId, onSelect, detail }: Tal
   }, [resources]);
 
   return (
-    <section className="rounded-xl border border-[#e2d8c8] bg-[#fbfaf6] p-5 shadow-[0_18px_48px_rgba(31,41,51,0.08)]">
+    <section className="rounded-xl border border-[#e2d8c8] bg-[#fbfaf6] p-4 shadow-[0_18px_48px_rgba(31,41,51,0.08)] xl:p-5">
       <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
           <h2 className="text-xl font-bold text-[#111827]">Global Talent Map</h2>
@@ -55,8 +55,8 @@ export function TalentMapVisual({ resources, selectedId, onSelect, detail }: Tal
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="relative h-[540px] overflow-hidden rounded-xl border border-[#e2d8c8] bg-[#f7f5ef] shadow-[0_12px_28px_rgba(31,41,51,0.07)] lg:h-[660px]">
+      <div className="grid gap-4 xl:gap-5 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="relative h-[520px] overflow-hidden rounded-xl border border-[#e2d8c8] bg-[#f7f5ef] shadow-[0_12px_28px_rgba(31,41,51,0.07)] lg:h-[600px] xl:h-[660px]">
           <LeafletTalentMap
             resources={resources}
             selectedId={selectedId}

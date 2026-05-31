@@ -11,7 +11,9 @@ export type AIGatewayTask =
   | "summarize_chat"
   | "translate_message"
   | "analyze_management_focus"
-  | "chat_reply_suggestion";
+  | "chat_reply_suggestion"
+  | "generate_youtube_keywords"
+  | "parse_youtube_task_brief";
 
 export type AIGatewayRequest = {
   task: AIGatewayTask;
@@ -98,6 +100,65 @@ export type GenerateWorkTemplateInput = {
   sampleColumns?: string[];
   sopSummary?: string;
   userInstruction?: string;
+};
+
+export type GenerateYoutubeKeywordsInput = {
+  language?: string;
+  domain?: string;
+  searchTargets?: string[];
+  speechType?: string;
+  existingKeywords?: string[];
+  keywordGroups?: Array<{
+    groupKey: string;
+    language: string;
+    domain: string;
+    searchTarget: string;
+    existingKeywords?: string[];
+  }>;
+};
+
+export type GenerateYoutubeKeywordResult = {
+  unitId?: string;
+  unitLabel?: string;
+  keyword: string;
+  language: string;
+  domain: string;
+  searchTarget: string;
+  groupKey?: string;
+};
+
+export type ParseYoutubeTaskBriefInput = {
+  brief?: string;
+  languageOptions?: string[];
+  domainOptions?: string[];
+  searchTargetOptions?: string[];
+  preferredVideoQualityOptions?: string[];
+};
+
+export type ParseYoutubeTaskBriefResult = {
+  taskName: string;
+  languages: string[];
+  domains: string[];
+  searchTargets: string[];
+  targetUniqueResults: number | null;
+  targetHours?: number | null;
+  batchTargetResults: number;
+  allocationMode?: "Even by Unit" | "Even by Domain" | "Custom";
+  allocationRatios?: Record<string, number>;
+  unitTargetHoursHint?: {
+    min?: number | null;
+    max?: number | null;
+    suggested?: number | null;
+  } | null;
+  publishedDateRange?: {
+    mode?: "any" | "preset" | "custom";
+    months?: number | null;
+    label?: string;
+  } | null;
+  preferredVideoQuality: string;
+  useAIKeywordExpansion: boolean;
+  confidence: number;
+  warnings: string[];
 };
 
 export type WorkTemplateFieldType = "text" | "image_url" | "number" | "select" | "textarea";
@@ -204,6 +265,8 @@ export type AIGatewayTaskResultMap = {
   generate_work_template: GenerateWorkTemplateResult;
   translate_message: TranslateMessageResult;
   analyze_management_focus: ManagementFocusAlertResult;
+  generate_youtube_keywords: GenerateYoutubeKeywordResult[];
+  parse_youtube_task_brief: ParseYoutubeTaskBriefResult;
 };
 
 export type AIGatewayTaskSuccess<TTask extends keyof AIGatewayTaskResultMap = keyof AIGatewayTaskResultMap> = {

@@ -19,6 +19,17 @@ type Team =
 type ProjectStatus = "Preparing" | "In Progress" | "Moderating" | "QA" | "Recheck" | "Finished" | "Closed";
 type ProjectTab = "Overview" | "Records" | "Task Workspace" | "Assignment" | "Review" | "QA / Recheck" | "Export" | "Activity Log";
 type SetupStep = 1 | 2 | 3 | 4 | 5 | 6;
+type DiagnosisModuleKey = "brain-studio" | "project-lab" | "talent-workspace" | "diagnosis-flow" | "deployment-center";
+
+type DiagnosisModule = {
+  id: DiagnosisModuleKey;
+  name: string;
+  positioning: string;
+  roles: string[];
+  features: string[];
+  description: string;
+  actionLabel: string;
+};
 
 type WorkProject = {
   id: string;
@@ -79,7 +90,7 @@ const adminModules: Array<{ id: AdminModuleKey; label: string; description: stri
   { id: "assignments", label: "Assignments", description: "Role ownership and access" },
   { id: "accounts", label: "Accounts & Roles", description: "Work accounts and permissions" },
   { id: "teams", label: "Teams", description: "Team structure and access" },
-  { id: "delivery", label: "Delivery", description: "Exports, sync, and closure" },
+  { id: "delivery", label: "Deployment Center", description: "Exports, sync, and secure handover" },
   { id: "admin-tools", label: "Admin Tools", description: "Import and validation tools" },
 ];
 
@@ -91,6 +102,54 @@ const teamModules: Array<{ id: TeamModuleKey; label: string; description: string
   { id: "returned", label: "Returned Cases", description: "Feedback and revision work" },
   { id: "members", label: "Team Members", description: "Team accounts and ownership" },
   { id: "team-progress", label: "Team Progress", description: "Execution progress by person" },
+];
+
+const diagnosisModules: DiagnosisModule[] = [
+  {
+    id: "brain-studio",
+    name: "Brain Studio",
+    positioning: "PM and BlackDog Brain collaboration space for turning client needs into executable diagnosis plans.",
+    roles: ["PM", "Solution Designer", "BlackDog Brain"],
+    features: ["Requirement Interpreter", "Capability Breakdown", "Rule Drafting", "Workflow Designer", "QC Standard Designer", "Delivery Format Designer"],
+    description: "For PMs and solution designers. Turn client requirements into diagnosis workflows, scoring rules, workbench fields, QC standards, and delivery formats.",
+    actionLabel: "Open AI Template Builder",
+  },
+  {
+    id: "project-lab",
+    name: "Project Lab",
+    positioning: "Project creation space for converting diagnosis plans into real workbench pages and launch-ready projects.",
+    roles: ["PM", "Reviewer", "Client"],
+    features: ["Project Setup", "Workbench Builder", "Pilot Batch", "Calibration Room", "Guideline Versioning", "Launch Checklist"],
+    description: "Convert diagnosis plans into executable projects. Build the workbench, run pilot batches, align standards, version guidelines, and prepare for launch.",
+    actionLabel: "Open Project Setup",
+  },
+  {
+    id: "talent-workspace",
+    name: "Talent Workspace",
+    positioning: "Evaluator, reviewer, and resource team workspace for matching talent and completing model diagnosis tasks.",
+    roles: ["Evaluator", "Reviewer", "Resource Team", "PM"],
+    features: ["Talent Matching", "Assignment Board", "Task Workbench", "Guideline Room", "Calibration Training", "Review & Feedback", "Quality Scorecard", "Payment / Workload Records"],
+    description: "Match expert talent to each diagnosis project and provide a dedicated workspace for task execution, calibration, feedback, quality tracking, and workload records.",
+    actionLabel: "Open Task Workbench",
+  },
+  {
+    id: "diagnosis-flow",
+    name: "Diagnosis Flow",
+    positioning: "Client-visible progress layer for tracking intake, calibration, production, QC, decisions, and delivery.",
+    roles: ["Client", "PM", "Reviewer", "QC"],
+    features: ["Project Timeline", "Milestone Tracker", "Production Dashboard", "QC Dashboard", "Issue & Decision Log", "Client Confirmation", "Final Delivery Package"],
+    description: "Make every step visible to clients and delivery teams, from intake and calibration to production, QC, client confirmation, and final model-ready delivery.",
+    actionLabel: "Open Project Timeline",
+  },
+  {
+    id: "deployment-center",
+    name: "Deployment Center",
+    positioning: "Deployment and integration layer for hosted operations, client-side deployment, API connection, and secure handover.",
+    roles: ["Client", "PM", "Engineering", "Security"],
+    features: ["Hosted on BlackDog", "Client-side Deployment", "API Connection", "Data Security Settings", "Export Schema", "Handover Package"],
+    description: "Support both BlackDog-hosted operations and client-side deployment. When data cannot leave the client environment, BlackDog can provide dedicated workbench interfaces, API connection support, and expert talent operations.",
+    actionLabel: "Open Export / Sync",
+  },
 ];
 
 const teams: Team[] = [
@@ -429,6 +488,7 @@ export function WorkCenterPage() {
   const [activeSection, setActiveSection] = useState<WorkCenterSection>("admin");
   const [activeAdminModule, setActiveAdminModule] = useState<AdminModuleKey>("projects");
   const [activeTeamModule, setActiveTeamModule] = useState<TeamModuleKey>("my-tasks");
+  const [activeDiagnosisModule, setActiveDiagnosisModule] = useState<DiagnosisModuleKey>("brain-studio");
   const [currentTeam, setCurrentTeam] = useState<Team>("BlackDog Internal Team");
   const [role, setRole] = useState<Role>("PM");
   const [statusFilter, setStatusFilter] = useState<"All" | ProjectStatus>("All");
@@ -526,7 +586,7 @@ export function WorkCenterPage() {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle title="Projects" subtitle="Project lifecycle, status, and delivery actions." />
+          <SectionTitle title="Projects" subtitle="Diagnosis project lifecycle, status, and delivery actions." />
           {role === "PM" && canPerform(platformUser, "project.create") ? (
             <button type="button" onClick={() => openSetup(1)} className="rounded-md border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white">
               Create Project
@@ -902,7 +962,7 @@ export function WorkCenterPage() {
     return (
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="rounded-lg border border-[#e4d7c6] bg-[#fbfaf6] p-4">
-          <SectionTitle title="Ready for Delivery" subtitle="Completed records ready for export or sync." />
+          <SectionTitle title="Ready for Model-ready Delivery" subtitle="Completed records ready for export, sync, or client handover." />
           <div className="mt-4 space-y-2">
             {workCenterProjects.filter((project) => project.status === "Finished").map((project) => (
               <div key={project.id} className="rounded-lg border border-[#eadfcd] bg-white p-3">
@@ -913,15 +973,15 @@ export function WorkCenterPage() {
           </div>
         </div>
         <aside className="rounded-lg border border-[#e4d7c6] bg-[#fbfaf6] p-4">
-          <SectionTitle title="Export / Sync" subtitle={canOperate ? "Export and sync actions." : "Delivery status is read-only."} />
+          <SectionTitle title="Export / Sync" subtitle={canOperate ? "Export, sync, and deployment handover actions." : "Deployment status is read-only."} />
           <div className="mt-4 space-y-3">
             <Field label="Export Excel" value="final fields mapped to client columns" />
             <Field label="Sync to Lark" value="Not connected yet" />
-            <Field label="Delivery History" value="2026-05-14 export generated" />
+            <Field label="Handover History" value="2026-05-14 export generated" />
             {canOperate ? (
               <>
                 <button type="button" onClick={() => setNotice({ tone: "info", message: "Export is not connected yet." })} className="w-full rounded-md border border-[#1f5c43] bg-[#1f5c43] px-4 py-2 text-sm font-semibold text-white">Export Excel</button>
-                <button type="button" onClick={() => setNotice({ tone: "info", message: "Delivery sync is not connected yet." })} className="w-full rounded-md border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563]">Sync to Lark</button>
+                <button type="button" onClick={() => setNotice({ tone: "info", message: "Deployment sync is not connected yet." })} className="w-full rounded-md border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563]">Sync to Lark</button>
                 <button type="button" onClick={() => setNotice({ tone: "info", message: "Close Project is not connected yet." })} className="w-full rounded-md border border-[#d7cec0] bg-white px-4 py-2 text-sm font-semibold text-[#4b5563]">Close Project</button>
               </>
             ) : null}
@@ -956,7 +1016,7 @@ export function WorkCenterPage() {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle title="Accounts & Roles" subtitle="Delivery Hub working accounts and project permissions." />
+          <SectionTitle title="Accounts & Roles" subtitle="AI Diagnosis working accounts and project permissions." />
           {role === "PM" && canPerform(platformUser, "user.create") ? (
             <div className="flex flex-wrap gap-2">
               {["Create Account", "Invite User", "Assign Role", "Disable Account"].map((action) => (
@@ -993,7 +1053,7 @@ export function WorkCenterPage() {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle title="Teams" subtitle="Delivery teams and active project access." />
+          <SectionTitle title="Teams" subtitle="Diagnosis teams and active project access." />
           {role === "PM" && canPerform(platformUser, "project.assign") ? (
             <div className="flex flex-wrap gap-2">
               {["Create Team", "Assign Team Leader", "Add Members"].map((action) => (
@@ -1198,21 +1258,159 @@ export function WorkCenterPage() {
     );
   }
 
+  function openDiagnosisModule(moduleId: DiagnosisModuleKey) {
+    setActiveDiagnosisModule(moduleId);
+    setSelectedProjectId(null);
+
+    if (moduleId === "brain-studio") {
+      setActiveSection("admin");
+      setActiveAdminModule("ai-template");
+      return;
+    }
+    if (moduleId === "project-lab") {
+      setActiveSection("admin");
+      setActiveAdminModule("project-setup");
+      return;
+    }
+    if (moduleId === "talent-workspace") {
+      setActiveSection("team");
+      setActiveTeamModule("task-workspace");
+      return;
+    }
+    if (moduleId === "diagnosis-flow") {
+      setActiveSection("admin");
+      setActiveAdminModule("projects");
+      return;
+    }
+
+    setActiveSection("admin");
+    setActiveAdminModule("delivery");
+  }
+
   const breadcrumb = selectedProject
-    ? `Home / Delivery Hub / Projects / ${selectedProject.name}`
+    ? `Home / AI Diagnosis / Projects / ${selectedProject.name}`
     : activeSection === "admin"
-      ? `Home / Delivery Hub / Admin / ${adminModules.find((item) => item.id === activeAdminModule)?.label || "Projects"}`
-      : `Home / Delivery Hub / Team / ${teamModules.find((item) => item.id === activeTeamModule)?.label || "My Tasks"}`;
+      ? `Home / AI Diagnosis / Admin / ${adminModules.find((item) => item.id === activeAdminModule)?.label || "Projects"}`
+      : `Home / AI Diagnosis / Team / ${teamModules.find((item) => item.id === activeTeamModule)?.label || "My Tasks"}`;
+  const activeDiagnosis = diagnosisModules.find((module) => module.id === activeDiagnosisModule) ?? diagnosisModules[0];
 
   return (
     <main className="min-h-screen bg-[#f6f0e6] pb-24 pt-6 text-[#1f2937]">
-      <div className="mx-auto w-[min(98vw,1880px)]">
+      <div className="page-shell space-y-6">
+        <section className="overflow-hidden rounded-2xl border border-[#d0c3b3] bg-[#fbfaf6] shadow-[0_18px_46px_rgba(31,41,51,0.10)]">
+          <div className="grid gap-0 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
+            <div className="border-b border-[#e2d8c8] p-5 sm:p-6 xl:border-b-0 xl:border-r">
+              <div className="inline-flex rounded-full border border-[#d7cec0] bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#9a6a35]">
+                Loyal to the task. Sharp with the standard. Reliable through delivery.
+              </div>
+              <h1 className="mt-5 text-3xl font-black tracking-tight text-[#111827] md:text-4xl">
+                AI Capability Diagnosis
+              </h1>
+              <div className="mt-2 text-sm font-black uppercase tracking-[0.14em] text-[#1f5c43]">
+                Powered by BlackDog Model Diagnosis Engine
+              </div>
+              <p className="mt-5 max-w-4xl text-lg font-bold leading-7 text-[#1f5c43]">
+                Diagnose model capabilities, design evaluation workflows, match expert talent, and deliver model-ready results through one transparent workspace.
+              </p>
+              <p className="mt-4 max-w-4xl text-sm font-medium leading-6 text-[#6f6256]">
+                BlackDog turns AI model evaluation expertise into structured diagnosis workflows, dedicated workbenches, expert talent operations, and transparent delivery flows.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {[
+                  ["Diagnosis workflows", "Reusable scoring, rules, QC, and delivery design"],
+                  ["Expert operations", "Talent matching, calibration, review, and workload tracking"],
+                  ["Transparent delivery", "Client-visible progress, risks, decisions, and final packages"],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-[#e2d8c8] bg-white px-4 py-3 shadow-[0_10px_22px_rgba(31,41,51,0.05)]">
+                    <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6f6256]">{label}</div>
+                    <div className="mt-2 text-sm font-semibold leading-5 text-[#111827]">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-5 sm:p-6">
+              <div className="mb-4 text-xs font-black uppercase tracking-[0.16em] text-[#6f6256]">Diagnosis operating loop</div>
+              <div className="grid gap-2">
+                {diagnosisModules.map((module, index) => (
+                  <button
+                    key={module.id}
+                    type="button"
+                    onClick={() => openDiagnosisModule(module.id)}
+                    className={`grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+                      activeDiagnosisModule === module.id
+                        ? "border-[#1f5c43] bg-[#edf8f1] shadow-[0_12px_24px_rgba(31,92,67,0.12)]"
+                        : "border-[#e2d8c8] bg-white hover:border-[#c9dfd0] hover:bg-[#f7fbf8]"
+                    }`}
+                  >
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-full font-mono text-xs font-black ${
+                      activeDiagnosisModule === module.id ? "bg-[#1f5c43] text-white" : "bg-[#fbfaf6] text-[#6f6256]"
+                    }`}>
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-black text-[#111827]">{module.name}</span>
+                      <span className="mt-0.5 block truncate text-xs font-medium text-[#6f6256]">{module.positioning}</span>
+                    </span>
+                    <span className="text-xs font-black text-[#1f5c43]">Open</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-[#e2d8c8] bg-white/60 p-5 sm:p-6">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="rounded-xl border border-[#e2d8c8] bg-white p-5 shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[#6f6256]">Active module</div>
+                <h2 className="mt-2 text-2xl font-black text-[#111827]">{activeDiagnosis.name}</h2>
+                <p className="mt-3 text-sm font-medium leading-6 text-[#6f6256]">{activeDiagnosis.description}</p>
+                {activeDiagnosis.id === "talent-workspace" ? (
+                  <p className="mt-3 rounded-lg border border-[#c9dfd0] bg-[#edf8f1] px-3 py-2 text-sm font-bold leading-6 text-[#1f5c43]">
+                    Let evaluators focus on judgment, while BlackDog handles formats, required fields, validation, guideline prompts, QA feedback, and export-ready outputs.
+                  </p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {activeDiagnosis.roles.map((roleItem) => (
+                    <span key={roleItem} className="rounded-full border border-[#d7cec0] bg-[#fbfaf6] px-3 py-1 text-xs font-bold text-[#6f6256]">
+                      {roleItem}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#e2d8c8] bg-[#fbfaf6] p-5 shadow-[0_10px_24px_rgba(31,41,51,0.05)]">
+                <div className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-[#6f6256]">Core capabilities</div>
+                    <div className="mt-1 text-sm font-semibold text-[#111827]">{activeDiagnosis.positioning}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openDiagnosisModule(activeDiagnosis.id)}
+                    className="w-fit rounded-md border border-[#1f5c43] bg-[#1f5c43] px-3 py-1.5 text-xs font-bold text-white shadow-[0_8px_18px_rgba(31,92,67,0.18)]"
+                  >
+                    {activeDiagnosis.actionLabel}
+                  </button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {activeDiagnosis.features.map((feature) => (
+                    <div key={feature} className="rounded-lg border border-[#e2d8c8] bg-white px-3 py-2 text-sm font-semibold text-[#374151]">
+                      {feature}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="overflow-hidden rounded-xl border border-[#d0c3b3] bg-[#fbfaf6] shadow-[0_14px_32px_rgba(31,41,51,0.08)]">
           <div className="grid min-h-[860px] lg:grid-cols-[260px_minmax(0,1fr)]">
             <aside className="border-r border-[#d8cdbc] bg-[#1f2b24] p-4 text-white">
               <div className="mb-5 rounded-lg border border-white/10 bg-white/8 p-3">
-                <div className="text-lg font-black">Delivery Hub</div>
-                <div className="mt-1 text-xs leading-5 text-white/65">Admin / Team console</div>
+                <div className="text-lg font-black">AI Diagnosis</div>
+                <div className="mt-1 text-xs leading-5 text-white/65">Diagnosis workspace</div>
               </div>
               <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-white/8 p-1">
                 {(["admin", "team"] as WorkCenterSection[]).map((section) => (
@@ -1251,9 +1449,9 @@ export function WorkCenterPage() {
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div>
                     <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#6f6256]">{breadcrumb}</div>
-                    <h1 className="mt-2 text-3xl font-black text-[#111827]">Delivery Hub</h1>
+                    <h1 className="mt-2 text-3xl font-black text-[#111827]">AI Capability Diagnosis</h1>
                     <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-[#6f6256]">
-                      Manage delivery operations and execute project tasks through separate Admin and Team workspaces.
+                      Powered by BlackDog Model Diagnosis Engine. Manage diagnosis plans, workbench setup, expert task execution, QC, risk, and delivery results.
                     </p>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -1291,7 +1489,7 @@ export function WorkCenterPage() {
   function renderSetupModal() {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/45 px-4 py-8" onClick={() => setSetupOpen(false)}>
-        <div className="scroll-panel max-h-[calc(100vh-64px)] w-[min(98vw,1880px)] rounded-xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_70px_rgba(17,24,39,0.28)]" onClick={(event) => event.stopPropagation()}>
+        <div className="scroll-panel max-h-[calc(100vh-64px)] w-[min(calc(100vw_-_40px),1600px)] rounded-xl border border-[#e4d7c6] bg-[#fbfaf6] p-6 shadow-[0_24px_70px_rgba(17,24,39,0.28)]" onClick={(event) => event.stopPropagation()}>
           <div className="flex items-center justify-between gap-3">
             <SectionTitle title="Project Setup" subtitle="Configure project data, rules, AI template, assignment, and publish state." />
             <button type="button" onClick={() => setSetupOpen(false)} className="rounded-md border border-[#d7cec0] bg-white px-3 py-1.5 text-sm font-semibold text-[#4b5563]">Close</button>

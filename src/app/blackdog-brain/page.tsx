@@ -1,23 +1,27 @@
 import type { Metadata } from "next";
 import { AccessGate } from "@/components/auth/AccessGate";
+import { BlackDogBrainHome } from "@/components/blackdog-brain/BlackDogBrainWorkspace";
+import { BrainComingSoon } from "@/components/brain/BrainComingSoon";
 import { TopNav } from "@/components/layout/TopNav";
-import { BlackDogBrainPage } from "@/components/blackdog-brain/BlackDogBrainPage";
-import { loadTalentLibraryProfiles } from "@/data/talentPoolStore";
 
 export const metadata: Metadata = {
   title: "BlackDog Brain | BlackDog Talent Hub",
-  description: "AI talent matching engine for client projects, talent profiles, and recruiting gaps.",
+  description: "The brain that turns human needs into AI-powered workflows, workspaces, and personalized operating systems.",
 };
 
-export default async function Page() {
-  const profiles = await loadTalentLibraryProfiles();
+export default function Page() {
+  const showRealBrain = process.env.NODE_ENV === "development";
 
   return (
     <>
       <TopNav />
-      <AccessGate route="/blackdog-brain">
-        <BlackDogBrainPage initialProfiles={profiles} />
-      </AccessGate>
+      {showRealBrain ? (
+        <AccessGate route="/blackdog-brain">
+          <BlackDogBrainHome />
+        </AccessGate>
+      ) : (
+        <BrainComingSoon />
+      )}
     </>
   );
 }

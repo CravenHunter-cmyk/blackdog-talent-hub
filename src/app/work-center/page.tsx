@@ -4,8 +4,8 @@ import { TopNav } from "@/components/layout/TopNav";
 import { WorkCenterPage } from "@/components/work-center/WorkCenterPage";
 
 export const metadata: Metadata = {
-  title: "Delivery Hub | BlackDog Talent Hub",
-  description: "Manage delivery projects, records, review workflows, and delivery sync.",
+  title: "AI Capability Diagnosis | BlackDog Talent Hub",
+  description: "Diagnose model capabilities, design evaluation workflows, match expert talent, and deliver model-ready results.",
 };
 
 export default function Page() {

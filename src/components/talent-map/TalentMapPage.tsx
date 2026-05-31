@@ -61,9 +61,9 @@ export function TalentMapPage() {
       <TopNav />
 
       <section className="page-shell pb-24 pt-8">
-        <div className="mb-3 grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.65fr)]">
+        <div className="mb-3 grid gap-5 xl:gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.65fr)] xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.65fr)]">
           <div className="pt-4 lg:pt-7">
-            <h1 className="max-w-[900px] text-5xl font-black leading-[1.02] tracking-[-0.012em] text-[#111827] lg:whitespace-nowrap xl:text-[58px]">
+            <h1 className="max-w-[900px] text-5xl font-black leading-[1.02] tracking-[-0.012em] text-[#111827] xl:whitespace-nowrap xl:text-[58px]">
               Global Native Talent Network
             </h1>
             <div className="ml-0 sm:ml-8">
