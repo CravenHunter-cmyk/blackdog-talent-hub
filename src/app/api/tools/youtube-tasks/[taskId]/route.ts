@@ -10,7 +10,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { taskId } = await context.params;
     const detail = await getYoutubeTaskDetail(taskId, actor, { acquireLock: true });
     return NextResponse.json(detail);
@@ -21,7 +21,7 @@ export async function GET(request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { taskId } = await context.params;
     const body = await request.json();
     const task = await updateYoutubeTask(taskId, {
@@ -44,7 +44,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { taskId } = await context.params;
     const task = await deleteYoutubeTask(taskId, actor);
     return NextResponse.json({ task });

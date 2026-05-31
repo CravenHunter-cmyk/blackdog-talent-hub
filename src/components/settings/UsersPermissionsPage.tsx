@@ -611,10 +611,13 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
   useEffect(() => {
     let cancelled = false
 
-    queueMicrotask(() => {
+    queueMicrotask(async () => {
       if (cancelled) return
 
-      const storedAccounts = getStoredAccounts()
+      const remoteAccounts = await fetch("/api/accounts")
+        .then((response) => response.ok ? response.json() : null)
+        .catch(() => null) as { accounts?: LocalAccount[] } | null;
+      const storedAccounts = remoteAccounts?.accounts?.length ? remoteAccounts.accounts : getStoredAccounts()
       const uiAccounts = storedAccounts.map(mapStoredAccountToUiAccount)
       setAccounts(uiAccounts)
       setSelectedAccountIds([])
@@ -861,7 +864,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     }));
   }
 
-  function saveDraft() {
+  async function saveDraft() {
     const cleanedLoginAccount = draft.loginAccount.trim();
     const cleanedDisplayName = draft.displayName.trim();
     const cleanedPassword = draft.tempPassword.trim();
@@ -952,6 +955,52 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       });
     });
     appendLocalAccountAuditLogs(auditLogs);
+
+    const storedPayload = mapUiAccountToStoredAccount(nextAccount);
+    const remoteResponse = await fetch(draft.isNew ? "/api/accounts" : `/api/accounts/${encodeURIComponent(nextAccount.id)}`, {
+      method: draft.isNew ? "POST" : "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...storedPayload,
+        displayName: nextAccount.displayName,
+        password: cleanedPassword || undefined,
+      }),
+    }).catch(() => null);
+
+    if (remoteResponse?.ok) {
+      const payload = await remoteResponse.json() as { account: LocalAccount };
+      const remoteAccount = mapStoredAccountToUiAccount(payload.account);
+      setAccounts((current) => {
+        const exists = current.some((account) => account.id === remoteAccount.id);
+        return exists ? current.map((account) => (account.id === remoteAccount.id ? remoteAccount : account)) : [remoteAccount, ...current];
+      });
+      setSelectedAccountId(remoteAccount.id);
+      setDraft({
+        id: remoteAccount.id,
+        loginAccount: remoteAccount.loginAccount,
+        displayName: remoteAccount.displayName,
+        email: remoteAccount.email,
+        displayNameTouched: false,
+        role: remoteAccount.role,
+        status: remoteAccount.status,
+        permissions: { ...remoteAccount.permissions },
+        toolPermissions: { ...remoteAccount.toolPermissions },
+        assignedTeams: remoteAccount.assignedTeams.join(", "),
+        linkedTalentProfile: remoteAccount.linkedTalentProfile || "",
+        linkedTalentProfileManuallySelected: Boolean(remoteAccount.linkedTalentProfile),
+        lastLogin: remoteAccount.lastLogin,
+        notes: remoteAccount.notes,
+        tempPassword: "",
+        isNew: false,
+      });
+      setEditorOpen(false);
+      return;
+    }
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      const payload = await remoteResponse?.json().catch(() => ({ error: "Unable to save account." })) as { error?: string } | undefined;
+      setDraftError(payload?.error || "Unable to save account.");
+      return;
+    }
 
     setAccounts((current) => {
       const exists = current.some((account) => account.id === nextAccount.id);

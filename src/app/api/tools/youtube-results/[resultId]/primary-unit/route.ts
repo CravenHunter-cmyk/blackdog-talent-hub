@@ -10,7 +10,7 @@ type RouteContext = {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { resultId } = await context.params;
     const body = await request.json();
     const result = await updateYoutubeResultPrimaryUnitForActor(resultId, String(body.primaryUnitId || ""), actor);

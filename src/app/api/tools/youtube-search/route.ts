@@ -15,7 +15,7 @@ type SearchRequest = {
 
 export async function POST(request: Request) {
   try {
-    getRequiredYoutubeUser(request);
+    await getRequiredYoutubeUser(request);
     const body = await request.json() as SearchRequest;
     const language = String(body.language || "").trim();
     const domain = String(body.domain || "").trim();

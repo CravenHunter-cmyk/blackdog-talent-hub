@@ -42,7 +42,7 @@ function unique(values: string[]) {
 
 export async function POST(request: Request) {
   try {
-    getRequiredYoutubeUser(request);
+    await getRequiredYoutubeUser(request);
     const body = await request.json() as KeywordRequest;
     const languages = unique(normalizeMultiSelect(body.languages, body.language, languageOptions));
     const domains = unique(normalizeMultiSelect(body.domains, body.domain, domainOptions));

@@ -10,7 +10,7 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { taskId } = await context.params;
     const result = await rebalanceYoutubePrimaryUnitsForActor(taskId, actor);
     return NextResponse.json(result);

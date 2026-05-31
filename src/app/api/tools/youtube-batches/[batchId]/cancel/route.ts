@@ -10,7 +10,7 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { batchId } = await context.params;
     const batch = await cancelYoutubeSearchBatch(batchId, actor);
     return NextResponse.json({ batch });

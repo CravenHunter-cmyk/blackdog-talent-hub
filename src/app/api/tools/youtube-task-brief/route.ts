@@ -151,7 +151,7 @@ function normalizePublishedDateRange(input: unknown, brief: string): PublishedDa
 
 export async function POST(request: Request) {
   try {
-    getRequiredYoutubeUser(request);
+    await getRequiredYoutubeUser(request);
     const body = await request.json() as { brief?: string };
     const brief = String(body.brief || "").trim();
 

@@ -297,17 +297,39 @@ export const blackDogAccounts = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     email: text("email").notNull(),
+    loginAccount: text("login_account"),
     name: text("name"),
     role: text("role").$type<BlackDogAccountRole>().notNull().default("member"),
     status: text("status").$type<BlackDogAccountStatus>().notNull().default("Active"),
+    passwordHash: text("password_hash"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("blackdog_accounts_email_unique_idx").on(table.email),
+    uniqueIndex("blackdog_accounts_login_account_unique_idx").on(table.loginAccount),
     index("blackdog_accounts_role_idx").on(table.role),
     index("blackdog_accounts_status_idx").on(table.status),
     index("blackdog_accounts_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const blackDogSessions = pgTable(
+  "blackdog_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    accountId: uuid("account_id").notNull().references(() => blackDogAccounts.id),
+    sessionTokenHash: text("session_token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("blackdog_sessions_token_hash_unique_idx").on(table.sessionTokenHash),
+    index("blackdog_sessions_account_id_idx").on(table.accountId),
+    index("blackdog_sessions_expires_at_idx").on(table.expiresAt),
+    index("blackdog_sessions_revoked_at_idx").on(table.revokedAt),
   ],
 );
 

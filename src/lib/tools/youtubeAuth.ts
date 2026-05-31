@@ -1,4 +1,5 @@
 import type { YoutubeUserRole } from "@/db/schema";
+import { requireToolAccess, type BlackDogUser } from "@/lib/auth/blackdogAuth";
 import { YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID } from "@/lib/tools/toolRegistry";
 import { NextResponse } from "next/server";
 
@@ -29,63 +30,35 @@ function normalizeRole(value: string | null | undefined): YoutubeUserRole {
   return "member";
 }
 
-function parseToolAccessHeader(value: string | null | undefined): Record<string, boolean> {
-  if (!value) return {};
-  const trimmed = value.trim();
-  if (!trimmed) return {};
+function mapBlackDogUserToYoutubeActor(user: BlackDogUser): YoutubeActor {
+  return {
+    id: user.id,
+    email: user.email,
+    role: normalizeRole(user.role),
+    toolPermissions: user.toolPermissions,
+  };
+}
+
+export async function getCurrentYoutubeUser(request?: Request): Promise<YoutubeActor> {
+  if (!request && process.env.NODE_ENV === "development") return DEV_ACTOR;
+  if (!request) throw new YoutubeAuthError("Sign in required to use this tool.");
 
   try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return Object.fromEntries(
-        Object.entries(parsed as Record<string, unknown>)
-          .map(([toolId, enabled]) => [toolId.trim(), Boolean(enabled)] as const)
-          .filter(([toolId]) => Boolean(toolId)),
-      );
+    const user = await requireToolAccess(request, YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID);
+    return mapBlackDogUserToYoutubeActor(user);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Sign in required.") {
+      throw new YoutubeAuthError("Sign in required to use this tool.");
     }
-  } catch {
-    // Fall back to comma-separated tool ids.
+    if (error instanceof Error && error.message === "You do not have access to this tool.") {
+      throw new YoutubePermissionError(error.message);
+    }
+    throw error;
   }
-
-  return Object.fromEntries(
-    trimmed
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .map((toolId) => [toolId, true] as const),
-  );
 }
 
-export function getCurrentYoutubeUser(request?: Request): YoutubeActor {
-  const headers = request?.headers;
-  const id = headers?.get("x-blackdog-user-id")?.trim();
-  const email = headers?.get("x-blackdog-user-email")?.trim();
-  const roleHeader = headers?.get("x-blackdog-user-role");
-  const toolPermissions = {
-    ...parseToolAccessHeader(headers?.get("x-blackdog-tool-access")),
-    ...parseToolAccessHeader(headers?.get("x-blackdog-tool-permissions")),
-  };
-
-  if (id && email) {
-    return {
-      id,
-      email,
-      role: normalizeRole(roleHeader),
-      toolPermissions,
-    };
-  }
-
-  if (process.env.NODE_ENV === "development") return DEV_ACTOR;
-
-  throw new YoutubeAuthError("Sign in required to use this tool.");
-}
-
-export function getRequiredYoutubeUser(request?: Request): YoutubeActor {
-  const actor = getCurrentYoutubeUser(request);
-  if (!hasYoutubeToolAccess(actor)) {
-    throw new YoutubePermissionError("You do not have access to this tool.");
-  }
-  return actor;
+export async function getRequiredYoutubeUser(request?: Request): Promise<YoutubeActor> {
+  return getCurrentYoutubeUser(request);
 }
 
 export function youtubeApiErrorResponse(error: unknown, fallbackMessage: string, fallbackStatus = 400) {

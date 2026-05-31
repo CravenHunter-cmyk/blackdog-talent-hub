@@ -68,11 +68,23 @@ CREATE TABLE IF NOT EXISTS "youtube_audit_logs" (
 CREATE TABLE IF NOT EXISTS "blackdog_accounts" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   "email" text NOT NULL,
+  "login_account" text,
   "name" text,
   "role" text DEFAULT 'member' NOT NULL,
   "status" text DEFAULT 'Active' NOT NULL,
+  "password_hash" text,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL,
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "blackdog_sessions" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "account_id" uuid NOT NULL REFERENCES "public"."blackdog_accounts"("id"),
+  "session_token_hash" text NOT NULL,
+  "expires_at" timestamp with time zone NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "last_seen_at" timestamp with time zone,
+  "revoked_at" timestamp with time zone
 );
 
 CREATE TABLE IF NOT EXISTS "blackdog_tool_permissions" (
@@ -97,6 +109,9 @@ CREATE TABLE IF NOT EXISTS "blackdog_audit_logs" (
   "after" jsonb,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
+
+ALTER TABLE "blackdog_accounts" ADD COLUMN IF NOT EXISTS "login_account" text;
+ALTER TABLE "blackdog_accounts" ADD COLUMN IF NOT EXISTS "password_hash" text;
 
 ALTER TABLE "tool_tasks" ADD COLUMN IF NOT EXISTS "published_date_range_label" text;
 ALTER TABLE "tool_tasks" ADD COLUMN IF NOT EXISTS "published_within_months" integer;
@@ -230,6 +245,7 @@ CREATE INDEX IF NOT EXISTS "youtube_audit_logs_actor_id_idx" ON "youtube_audit_l
 CREATE INDEX IF NOT EXISTS "youtube_audit_logs_created_at_idx" ON "youtube_audit_logs" USING btree ("created_at");
 
 CREATE UNIQUE INDEX IF NOT EXISTS "blackdog_accounts_email_unique_idx" ON "blackdog_accounts" USING btree ("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "blackdog_accounts_login_account_unique_idx" ON "blackdog_accounts" USING btree ("login_account");
 CREATE INDEX IF NOT EXISTS "blackdog_accounts_role_idx" ON "blackdog_accounts" USING btree ("role");
 CREATE INDEX IF NOT EXISTS "blackdog_accounts_status_idx" ON "blackdog_accounts" USING btree ("status");
 CREATE INDEX IF NOT EXISTS "blackdog_accounts_created_at_idx" ON "blackdog_accounts" USING btree ("created_at");
@@ -238,6 +254,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS "blackdog_tool_permissions_account_tool_unique
 CREATE INDEX IF NOT EXISTS "blackdog_tool_permissions_account_id_idx" ON "blackdog_tool_permissions" USING btree ("account_id");
 CREATE INDEX IF NOT EXISTS "blackdog_tool_permissions_tool_id_idx" ON "blackdog_tool_permissions" USING btree ("tool_id");
 CREATE INDEX IF NOT EXISTS "blackdog_tool_permissions_granted_idx" ON "blackdog_tool_permissions" USING btree ("granted");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "blackdog_sessions_token_hash_unique_idx" ON "blackdog_sessions" USING btree ("session_token_hash");
+CREATE INDEX IF NOT EXISTS "blackdog_sessions_account_id_idx" ON "blackdog_sessions" USING btree ("account_id");
+CREATE INDEX IF NOT EXISTS "blackdog_sessions_expires_at_idx" ON "blackdog_sessions" USING btree ("expires_at");
+CREATE INDEX IF NOT EXISTS "blackdog_sessions_revoked_at_idx" ON "blackdog_sessions" USING btree ("revoked_at");
 
 CREATE INDEX IF NOT EXISTS "blackdog_audit_logs_action_idx" ON "blackdog_audit_logs" USING btree ("action");
 CREATE INDEX IF NOT EXISTS "blackdog_audit_logs_actor_id_idx" ON "blackdog_audit_logs" USING btree ("actor_id");

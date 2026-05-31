@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { searchParams } = new URL(request.url);
     const tasks = await getYoutubeTasks({
       status: searchParams.get("status") || undefined,
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const body = await request.json();
     const task = await createYoutubeTask({
       name: body.name,

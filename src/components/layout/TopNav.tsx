@@ -41,6 +41,24 @@ export function TopNav() {
     MOCK_PLATFORM_USERS.find((user) => user?.id === platformUser?.id || user?.role === platformUser?.role)?.id || "logged-out";
 
   useEffect(() => {
+    async function refreshServerSession() {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          if (process.env.NODE_ENV !== "development") persistMockUser(null);
+          return;
+        }
+        const payload = await response.json();
+        if (payload.user) persistMockUser(payload.user);
+      } catch {
+        if (process.env.NODE_ENV !== "development") persistMockUser(null);
+        // Client-side navigation can continue with the local snapshot.
+      }
+    }
+    refreshServerSession();
+  }, []);
+
+  useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
       if (!accountMenuRef.current?.contains(event.target as Node)) {
         setAccountMenuOpen(false);
@@ -53,7 +71,12 @@ export function TopNav() {
     };
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Local cleanup still runs if the network request fails.
+    }
     persistMockUser(null);
     router.replace("/login");
   }
@@ -105,7 +128,9 @@ export function TopNav() {
 
             {accountMenuOpen ? (
               <div className="absolute right-0 top-full z-[70] mt-3 w-[260px] rounded-xl border border-[#e4d7c6] bg-[#fffdf8] p-3 text-left shadow-[0_18px_45px_rgba(31,41,51,0.16)]">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9a6a2b]">Dev only</div>
+                {process.env.NODE_ENV === "development" ? (
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9a6a2b]">Dev only</div>
+                ) : null}
                 <div className="mt-2 text-sm font-bold text-[#111827]">
                   {platformUser ? `Current: ${platformUser.name}` : "Current: Logged out"}
                 </div>
@@ -113,21 +138,23 @@ export function TopNav() {
                   {platformUser ? platformUser.role : "No mock account selected"}
                 </div>
 
-                <label className="mt-4 block">
-                  <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-[#6f6256]">Switch Mock Account</span>
-                  <select
-                    value={mockAccountSelectValue}
-                    onChange={(event) => handleMockUserChange(event.target.value)}
-                    className="mt-2 h-9 w-full rounded-md border border-[#d7dccf] bg-white px-2 text-xs font-semibold text-[#40372f] outline-none"
-                    aria-label="Mock account switcher"
-                  >
-                    {MOCK_PLATFORM_USERS.map((user) => (
-                      <option key={user?.id || "logged-out"} value={user?.id || "logged-out"}>
-                        {user ? `${user.name} · ${user.role}` : "Logged out"}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {process.env.NODE_ENV === "development" ? (
+                  <label className="mt-4 block">
+                    <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-[#6f6256]">Switch Mock Account</span>
+                    <select
+                      value={mockAccountSelectValue}
+                      onChange={(event) => handleMockUserChange(event.target.value)}
+                      className="mt-2 h-9 w-full rounded-md border border-[#d7dccf] bg-white px-2 text-xs font-semibold text-[#40372f] outline-none"
+                      aria-label="Mock account switcher"
+                    >
+                      {MOCK_PLATFORM_USERS.map((user) => (
+                        <option key={user?.id || "logged-out"} value={user?.id || "logged-out"}>
+                          {user ? `${user.name} · ${user.role}` : "Logged out"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
 
                 <div className="mt-4 grid gap-2 border-t border-[#eadfcd] pt-3">
                   <Link

@@ -78,8 +78,19 @@ export function AccessGate({ route, module, children }: AccessGateProps) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    function refresh() {
-      setUser(readPlatformUser());
+    async function refresh() {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const payload = await response.json();
+          setUser(payload.user || (process.env.NODE_ENV === "development" ? readPlatformUser() : null));
+          setReady(true);
+          return;
+        }
+      } catch {
+        // Fall back to the local development snapshot.
+      }
+      setUser(process.env.NODE_ENV === "development" ? readPlatformUser() : null);
       setReady(true);
     }
     refresh();

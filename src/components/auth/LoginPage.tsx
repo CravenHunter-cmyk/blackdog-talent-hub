@@ -112,23 +112,52 @@ export function LoginPage() {
       return
     }
 
+    setLoading(true)
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginAccount: cleanedAccount, password: cleanedPassword }),
+      });
+      if (response.ok) {
+        const payload = await response.json() as { user: { loginAccount: string; name: string; role: MockAccountRole; status: MockAccountStatus; toolPermissions?: Record<string, boolean> } };
+        persistSession(payload.user);
+        router.replace(roleToRedirect(payload.user.role));
+        return;
+      }
+      if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+        const payload = await response.json().catch(() => ({ error: "Account or password is incorrect." })) as { error?: string };
+        setFormError(payload.error || "Account or password is incorrect.");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+        setFormError("Unable to sign in.");
+        setLoading(false);
+        return;
+      }
+    }
+
     const user = findAccountByLogin(cleanedAccount)
     if (!user) {
       setFormError("Account or password is incorrect.")
+      setLoading(false)
       return
     }
 
     if (user.status === "Locked") {
       setFormError("This account is locked. Please contact an administrator.")
+      setLoading(false)
       return
     }
 
     if (user.password !== cleanedPassword) {
       setFormError("Account or password is incorrect.")
+      setLoading(false)
       return
     }
 
-    setLoading(true)
     try {
       if (user.status === "Invited") {
         updateStoredAccount(user.accountId, { status: "Active", lastLogin: new Date().toISOString() })

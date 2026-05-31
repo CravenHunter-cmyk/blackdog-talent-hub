@@ -10,7 +10,7 @@ type RouteContext = {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { resultId } = await context.params;
     const body = await request.json();
     const result = await updateYoutubeResult(resultId, {
@@ -25,7 +25,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { resultId } = await context.params;
     const result = await softDeleteYoutubeResult(resultId, actor);
     return NextResponse.json({ result });

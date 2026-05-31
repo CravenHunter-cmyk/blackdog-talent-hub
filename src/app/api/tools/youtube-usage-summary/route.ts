@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { searchParams } = new URL(request.url);
     const summary = await getYoutubeUsageSummary(searchParams.get("taskId"), actor);
     return NextResponse.json(summary);

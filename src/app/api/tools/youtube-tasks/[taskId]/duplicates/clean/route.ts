@@ -10,7 +10,7 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { taskId } = await context.params;
     const [result, cleanResult] = await Promise.all([
       getYoutubeDuplicateGroups(taskId, actor),

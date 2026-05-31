@@ -10,7 +10,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    const actor = getRequiredYoutubeUser(request);
+    const actor = await getRequiredYoutubeUser(request);
     const { taskId } = await context.params;
     const result = await getYoutubeDuplicateGroups(taskId, actor);
     return NextResponse.json(result);
