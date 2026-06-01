@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { AccessGate } from "@/components/auth/AccessGate";
+import { BrainComingSoon } from "@/components/brain/BrainComingSoon";
 import { TopNav } from "@/components/layout/TopNav";
-import { UsersPermissionsPage } from "@/components/settings/UsersPermissionsPage";
-import { loadTalentLibraryProfiles } from "@/data/talentPoolStore";
+import { isBlackDogCommandWorkspaceEnabled } from "@/lib/blackdogCommandAccess";
 
 export const metadata: Metadata = {
   title: "Command | BlackDog Talent Hub",
@@ -10,6 +10,19 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  if (!isBlackDogCommandWorkspaceEnabled()) {
+    return (
+      <>
+        <TopNav />
+        <BrainComingSoon />
+      </>
+    );
+  }
+
+  const [{ UsersPermissionsPage }, { loadTalentLibraryProfiles }] = await Promise.all([
+    import("@/components/settings/UsersPermissionsPage"),
+    import("@/data/talentPoolStore"),
+  ]);
   const talentProfiles = await loadTalentLibraryProfiles();
 
   return (
