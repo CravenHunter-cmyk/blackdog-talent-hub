@@ -55,13 +55,15 @@ export function clearCurrentPlatformUserCache() {
 
 export function useCurrentPlatformUser() {
   const router = useRouter();
-  const [user, setUser] = useState<PlatformUser | null>(() => readPlatformUser());
+  const [user, setUser] = useState<PlatformUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
     setLoading(true);
     const nextUser = await loadCurrentPlatformUser({ force });
     setUser(nextUser);
+    setHydrated(true);
     setLoading(false);
     return nextUser;
   }, []);
@@ -72,6 +74,7 @@ export function useCurrentPlatformUser() {
       cachedUser = nextUser;
       cachedAt = Date.now();
       setUser(nextUser);
+      setHydrated(true);
     }
 
     queueMicrotask(() => {
@@ -107,6 +110,7 @@ export function useCurrentPlatformUser() {
 
   return {
     user,
+    hydrated,
     loading,
     isAuthenticated: Boolean(user),
     refresh,

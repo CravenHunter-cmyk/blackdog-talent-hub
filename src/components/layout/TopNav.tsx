@@ -17,7 +17,7 @@ const navItems = [
 
 export function TopNav() {
   const pathname = usePathname();
-  const { user: platformUser, logout } = useCurrentPlatformUser();
+  const { user: platformUser, hydrated, logout } = useCurrentPlatformUser();
 
   const isNavActive = (href: string) => (href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
 
@@ -48,7 +48,7 @@ export function TopNav() {
               {item.label}
             </Link>
           ))}
-          {platformUser ? (
+          {hydrated && platformUser ? (
             <button
               type="button"
               onClick={logout}

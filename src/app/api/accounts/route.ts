@@ -2,7 +2,13 @@ import { eq, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { blackDogAccounts, blackDogAuditLogs, blackDogToolPermissions, type BlackDogAccountRole } from "@/db/schema";
-import { getRequiredBlackDogUser, isBlackDogAdmin } from "@/lib/auth/blackdogAuth";
+import {
+  BlackDogAuthError,
+  BlackDogPermissionError,
+  blackDogAuthErrorResponse,
+  getRequiredBlackDogUser,
+  isBlackDogAdmin,
+} from "@/lib/auth/blackdogAuth";
 import { hashPassword } from "@/lib/auth/password";
 
 export const runtime = "nodejs";
@@ -93,46 +99,73 @@ async function upsertToolPermissions(accountId: string, toolPermissions: Record<
 export async function GET(request: Request) {
   const startedAt = Date.now();
   const authStartedAt = Date.now();
-  const { error } = await requireAdmin(request);
-  if (error) return error;
-  const authMs = Date.now() - authStartedAt;
+  let authMs = 0;
+  let dbMs = 0;
+  let accountsCount = 0;
 
-  const dbStartedAt = Date.now();
-  const [accounts, permissions] = await Promise.all([
-    db
-      .select({
-        id: blackDogAccounts.id,
-        email: blackDogAccounts.email,
-        loginAccount: blackDogAccounts.loginAccount,
-        name: blackDogAccounts.name,
-        role: blackDogAccounts.role,
-        status: blackDogAccounts.status,
-        createdAt: blackDogAccounts.createdAt,
-        updatedAt: blackDogAccounts.updatedAt,
-      })
-      .from(blackDogAccounts)
-      .where(ne(blackDogAccounts.status, "Deleted")),
-    db.select().from(blackDogToolPermissions),
-  ]);
-  const dbMs = Date.now() - dbStartedAt;
+  try {
+    const { error } = await requireAdmin(request);
+    authMs = Date.now() - authStartedAt;
+    if (error) {
+      console.info("[accounts] list timing", {
+        authMs,
+        dbMs,
+        totalMs: Date.now() - startedAt,
+        accountsCount,
+      });
+      return error;
+    }
 
-  const permissionsByAccountId = new Map<string, ToolPermissionRow[]>();
-  permissions.forEach((permission) => {
-    const existing = permissionsByAccountId.get(permission.accountId) || [];
-    existing.push(permission);
-    permissionsByAccountId.set(permission.accountId, existing);
-  });
+    const dbStartedAt = Date.now();
+    const [accounts, permissions] = await Promise.all([
+      db
+        .select({
+          id: blackDogAccounts.id,
+          email: blackDogAccounts.email,
+          loginAccount: blackDogAccounts.loginAccount,
+          name: blackDogAccounts.name,
+          role: blackDogAccounts.role,
+          status: blackDogAccounts.status,
+          createdAt: blackDogAccounts.createdAt,
+          updatedAt: blackDogAccounts.updatedAt,
+        })
+        .from(blackDogAccounts)
+        .where(ne(blackDogAccounts.status, "Deleted")),
+      db.select().from(blackDogToolPermissions),
+    ]);
+    dbMs = Date.now() - dbStartedAt;
+    accountsCount = accounts.length;
 
-  console.info("[accounts] list timing", {
-    authMs,
-    dbMs,
-    totalMs: Date.now() - startedAt,
-    accountsCount: accounts.length,
-  });
+    const permissionsByAccountId = new Map<string, ToolPermissionRow[]>();
+    permissions.forEach((permission) => {
+      const existing = permissionsByAccountId.get(permission.accountId) || [];
+      existing.push(permission);
+      permissionsByAccountId.set(permission.accountId, existing);
+    });
 
-  return NextResponse.json({
-    accounts: accounts.map((account) => serializeAccount(account, permissionsByAccountId.get(account.id) || [])),
-  });
+    console.info("[accounts] list timing", {
+      authMs,
+      dbMs,
+      totalMs: Date.now() - startedAt,
+      accountsCount,
+    });
+
+    return NextResponse.json({
+      accounts: accounts.map((account) => serializeAccount(account, permissionsByAccountId.get(account.id) || [])),
+    });
+  } catch (error) {
+    authMs = authMs || Date.now() - authStartedAt;
+    console.info("[accounts] list timing", {
+      authMs,
+      dbMs,
+      totalMs: Date.now() - startedAt,
+      accountsCount,
+    });
+    if (error instanceof BlackDogAuthError || error instanceof BlackDogPermissionError) {
+      return blackDogAuthErrorResponse(error, "Unable to load accounts.");
+    }
+    return NextResponse.json({ error: "Unable to load accounts." }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {

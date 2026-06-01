@@ -487,7 +487,6 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
   const [linkedTalentProfileStatus, setLinkedTalentProfileStatus] = useState<"idle" | "multiple" | "none">("idle");
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const linkedTalentSelectorRef = useRef<HTMLDivElement | null>(null);
-  const accountsLoadStartedRef = useRef(false);
 
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.id === selectedAccountId) ?? accounts[0],
@@ -578,8 +577,6 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
   }, [allVisibleSelected, someVisibleSelected]);
 
   useEffect(() => {
-    if (accountsLoadStartedRef.current) return;
-    accountsLoadStartedRef.current = true;
     let cancelled = false
 
     queueMicrotask(async () => {
@@ -1192,7 +1189,8 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
             </div>
           ) : accountsError && !accounts.length ? (
             <div className="mt-4 rounded-xl border border-[#f5c2c7] bg-[#fdecec] px-5 py-6 text-center shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
-              <div className="text-sm font-bold text-[#b42318]">{accountsError}</div>
+              <div className="text-sm font-bold text-[#b42318]">Unable to load accounts.</div>
+              <div className="mt-1 text-xs font-semibold text-[#8f2d22]">{accountsError}</div>
               <button
                 type="button"
                 onClick={retryLoadAccounts}
@@ -1201,11 +1199,22 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                 Retry
               </button>
             </div>
+          ) : !accounts.length ? (
+            <div className="mt-4 rounded-xl border border-[#e3dbcd] bg-white px-5 py-8 text-center text-sm font-semibold text-[#6f6256] shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
+              No accounts found
+            </div>
           ) : (
           <>
           {accountsError ? (
-            <div className="mt-4 rounded-xl border border-[#f5c2c7] bg-[#fdecec] px-4 py-3 text-sm font-semibold text-[#b42318]">
-              {accountsError}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#f5c2c7] bg-[#fdecec] px-4 py-3 text-sm font-semibold text-[#b42318]">
+              <span>{accountsError}</span>
+              <button
+                type="button"
+                onClick={retryLoadAccounts}
+                className="rounded-md border border-[#b42318] bg-white px-3 py-1.5 text-xs font-semibold text-[#b42318] hover:bg-[#fff1ef]"
+              >
+                Retry
+              </button>
             </div>
           ) : null}
           <div className="scroll-x-panel mt-4 w-full rounded-xl border border-[#e3dbcd] bg-white shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
