@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { loadCurrentPlatformUser } from "@/components/auth/useCurrentPlatformUser";
 import { canAccessModule, isClient, readPlatformUser, routeFallbackType, type PlatformUser } from "@/lib/permissions";
 
 type AccessGateProps = {
@@ -80,23 +81,17 @@ export function AccessGate({ route, module, children, noPermissionFallback }: Ac
 
   useEffect(() => {
     async function refresh() {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (response.ok) {
-          const payload = await response.json();
-          setUser(payload.user || (process.env.NODE_ENV === "development" ? readPlatformUser() : null));
-          setReady(true);
-          return;
-        }
-      } catch {
-        // Fall back to the local development snapshot.
-      }
-      setUser(process.env.NODE_ENV === "development" ? readPlatformUser() : null);
+      const nextUser = await loadCurrentPlatformUser();
+      setUser(nextUser || (process.env.NODE_ENV === "development" ? readPlatformUser() : null));
       setReady(true);
     }
-    refresh();
-    window.addEventListener("storage", refresh);
-    return () => window.removeEventListener("storage", refresh);
+    function handleStorageChange() {
+      setUser(readPlatformUser());
+      setReady(true);
+    }
+    void refresh();
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   if (!ready) return null;

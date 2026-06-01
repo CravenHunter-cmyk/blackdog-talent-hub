@@ -4,54 +4,87 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { persistMockUser, readPlatformUser, type PlatformUser } from "@/lib/permissions";
 
-export function useCurrentPlatformUser() {
-  const router = useRouter();
-  const [user, setUser] = useState<PlatformUser | null>(null);
-  const [loading, setLoading] = useState(true);
+const AUTH_CACHE_TTL_MS = 30_000;
+let cachedUser: PlatformUser | null = null;
+let cachedAt = 0;
+let inFlightAuthRequest: Promise<PlatformUser | null> | null = null;
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/auth/me", { cache: "no-store" });
+export async function loadCurrentPlatformUser({ force = false }: { force?: boolean } = {}) {
+  const now = Date.now();
+  if (!force && now - cachedAt < AUTH_CACHE_TTL_MS) return cachedUser;
+  if (!force && inFlightAuthRequest) return inFlightAuthRequest;
+
+  inFlightAuthRequest = fetch("/api/auth/me", { cache: "no-store" })
+    .then(async (response) => {
       if (!response.ok) {
         persistMockUser(null);
-        setUser(null);
+        cachedUser = null;
+        cachedAt = Date.now();
         return null;
       }
       const payload = await response.json();
       if (payload.user) {
         persistMockUser(payload.user);
-        const nextUser = readPlatformUser();
-        setUser(nextUser);
-        return nextUser;
+        cachedUser = readPlatformUser();
+        cachedAt = Date.now();
+        return cachedUser;
       }
       persistMockUser(null);
-      setUser(null);
+      cachedUser = null;
+      cachedAt = Date.now();
       return null;
-    } catch {
+    })
+    .catch(() => {
       persistMockUser(null);
-      setUser(null);
+      cachedUser = null;
+      cachedAt = Date.now();
       return null;
-    } finally {
-      setLoading(false);
-    }
+    })
+    .finally(() => {
+      inFlightAuthRequest = null;
+    });
+
+  return inFlightAuthRequest;
+}
+
+export function clearCurrentPlatformUserCache() {
+  cachedUser = null;
+  cachedAt = Date.now();
+  inFlightAuthRequest = null;
+}
+
+export function useCurrentPlatformUser() {
+  const router = useRouter();
+  const [user, setUser] = useState<PlatformUser | null>(() => readPlatformUser());
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
+    setLoading(true);
+    const nextUser = await loadCurrentPlatformUser({ force });
+    setUser(nextUser);
+    setLoading(false);
+    return nextUser;
   }, []);
 
   useEffect(() => {
     function handleStorageChange() {
-      setUser(readPlatformUser());
+      const nextUser = readPlatformUser();
+      cachedUser = nextUser;
+      cachedAt = Date.now();
+      setUser(nextUser);
     }
 
     queueMicrotask(() => {
       void refresh();
     });
     window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("blackdog-auth-changed", refresh);
-    window.addEventListener("focus", refresh);
+    const handleAuthChanged = () => {
+      void refresh({ force: true });
+    };
+    window.addEventListener("blackdog-auth-changed", handleAuthChanged);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("blackdog-auth-changed", refresh);
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("blackdog-auth-changed", handleAuthChanged);
     };
   }, [refresh]);
 
@@ -62,6 +95,7 @@ export function useCurrentPlatformUser() {
       // Local cleanup still runs if the network request fails.
     }
     persistMockUser(null);
+    clearCurrentPlatformUserCache();
     try {
       window.sessionStorage.clear();
     } catch {
