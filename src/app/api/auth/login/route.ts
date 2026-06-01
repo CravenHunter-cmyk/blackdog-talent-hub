@@ -22,8 +22,14 @@ export async function POST(request: Request) {
     const password = String(body.password || "");
     const account = await findBlackDogAccountByLogin(loginAccount);
 
-    if (!account || account.status !== "Active" || !verifyPassword(password, account.passwordHash)) {
-      return NextResponse.json({ error: "Account or password is incorrect." }, { status: 401 });
+    if (!account) {
+      return NextResponse.json({ error: "Account not found." }, { status: 401 });
+    }
+    if (account.status !== "Active") {
+      return NextResponse.json({ error: "Account disabled." }, { status: 403 });
+    }
+    if (!verifyPassword(password, account.passwordHash)) {
+      return NextResponse.json({ error: "Invalid password." }, { status: 401 });
     }
 
     const token = createSessionToken();

@@ -45,6 +45,10 @@ async function serializeAccount(account: typeof blackDogAccounts.$inferSelect) {
   };
 }
 
+function normalizeLogin(value: string) {
+  return value.trim().toLowerCase();
+}
+
 async function upsertToolPermissions(accountId: string, toolPermissions: Record<string, boolean>, actorId: string, actorEmail: string) {
   const existing = await db.select().from(blackDogToolPermissions).where(eq(blackDogToolPermissions.accountId, accountId));
   const existingMap = new Map(existing.map((permission) => [permission.toolId, permission]));
@@ -92,11 +96,11 @@ export async function POST(request: Request) {
   const { actor, error } = await requireAdmin(request);
   if (error) return error;
   const body = await request.json();
-  const email = String(body.email || "").trim().toLowerCase();
-  const loginAccount = String(body.loginAccount || email).trim().toLowerCase();
-  const name = String(body.name || body.displayName || email).trim();
+  const loginAccount = normalizeLogin(String(body.loginAccount || body.email || ""));
+  const email = normalizeLogin(String(body.email || loginAccount));
+  const name = String(body.name || body.displayName || loginAccount).trim();
   const password = String(body.password || "").trim();
-  if (!email || !name || !password) return NextResponse.json({ error: "Email, name, and password are required." }, { status: 400 });
+  if (!loginAccount || !name || !password) return NextResponse.json({ error: "Login account, name, and password are required." }, { status: 400 });
 
   const [account] = await db.insert(blackDogAccounts).values({
     email,
@@ -105,6 +109,7 @@ export async function POST(request: Request) {
     role: toDbRole(String(body.role || "member")),
     status: body.status === "Locked" || body.status === "Invited" ? body.status : "Active",
     passwordHash: hashPassword(password),
+    passwordUpdatedAt: new Date(),
   }).returning();
   await upsertToolPermissions(account.id, body.toolPermissions || {}, actor.id, actor.email);
   await db.insert(blackDogAuditLogs).values({

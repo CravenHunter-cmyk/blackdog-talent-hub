@@ -27,7 +27,7 @@ const AUDIT_STORAGE_KEY = "blackdog_account_audit_logs"
 
 export type LocalAccountAuditLog = {
   id: string
-  action: "account_created" | "account_updated" | "tool_access_granted" | "tool_access_revoked"
+  action: "account_created" | "account_updated" | "tool_access_granted" | "tool_access_revoked" | "password_reset"
   actorId?: string
   actorEmail?: string
   targetAccountId: string

@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "crypto";
-import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { blackDogAccounts, blackDogSessions, blackDogToolPermissions, type BlackDogAccountRole } from "@/db/schema";
@@ -9,6 +9,7 @@ export const BLACKDOG_SESSION_COOKIE = "blackdog_session";
 export type BlackDogUser = {
   id: string;
   email: string;
+  loginAccount: string;
   name: string;
   role: BlackDogAccountRole;
   status: string;
@@ -81,6 +82,7 @@ function buildUser(account: typeof blackDogAccounts.$inferSelect, permissions: A
   return {
     id: account.id,
     email: account.email,
+    loginAccount: account.loginAccount || account.email,
     name: account.name || account.email,
     role: account.role,
     status: account.status,
@@ -117,6 +119,7 @@ export async function getCurrentBlackDogUser(request?: Request): Promise<BlackDo
       return {
         id,
         email,
+        loginAccount: email,
         name: email,
         role: normalizeRole(request.headers.get("x-blackdog-user-role")),
         status: "Active",
@@ -167,7 +170,7 @@ export async function findBlackDogAccountByLogin(loginAccountOrEmail: string) {
   const [account] = await db
     .select()
     .from(blackDogAccounts)
-    .where(or(eq(blackDogAccounts.email, login), eq(blackDogAccounts.loginAccount, login)))
+    .where(or(sql`lower(${blackDogAccounts.email}) = ${login}`, sql`lower(${blackDogAccounts.loginAccount}) = ${login}`))
     .limit(1);
   return account || null;
 }

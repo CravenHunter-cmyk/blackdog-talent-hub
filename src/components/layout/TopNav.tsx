@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   MOCK_PLATFORM_USERS,
+  canAccessRoute,
   getServerPlatformUserSnapshot,
   persistMockUser,
   readPlatformUser,
@@ -87,6 +88,7 @@ export function TopNav() {
   }
 
   const isNavActive = (href: string) => (href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
+  const visibleNavItems = navItems.filter((item) => canAccessRoute(platformUser, item.href));
 
   const navLinkClass = (href: string) => {
     const isActive = isNavActive(href);
@@ -105,7 +107,7 @@ export function TopNav() {
         </div>
 
         <nav className="scroll-x-panel ml-auto flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}

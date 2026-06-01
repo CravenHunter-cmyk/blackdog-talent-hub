@@ -6,7 +6,13 @@ export const runtime = "nodejs";
 function mapRole(role: string) {
   if (role === "admin") return "super_admin";
   if (role === "reviewer") return "hr";
-  return "talent";
+  return "client";
+}
+
+function mapPermissions(role: string) {
+  if (role === "admin") return ["platform.private.view", "platform.admin.full", "settings.view", "settings.manage"];
+  if (role === "reviewer") return ["platform.private.view", "recruiting.view", "talentLibrary.view", "talentHub.view", "workCenter.view"];
+  return ["platform.private.view", "recruiting.view", "talentLibrary.view", "talentHub.view", "workCenter.view"];
 }
 
 export async function GET(request: Request) {
@@ -15,12 +21,12 @@ export async function GET(request: Request) {
   return NextResponse.json({
     user: {
       id: user.id,
-      loginAccount: user.email,
+      loginAccount: user.loginAccount,
       name: user.name,
       role: mapRole(user.role),
       platformRole: mapRole(user.role),
       status: user.status,
-      permissions: user.role === "admin" ? ["platform.private.view", "platform.admin.full", "settings.view", "settings.manage"] : ["platform.private.view"],
+      permissions: mapPermissions(user.role),
       toolPermissions: user.toolPermissions,
     },
   });

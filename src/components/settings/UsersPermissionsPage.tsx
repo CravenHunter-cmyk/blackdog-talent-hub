@@ -485,6 +485,12 @@ function formatAccountDate(value = "") {
   return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`
 }
 
+function isLocalTestingMode() {
+  if (process.env.NODE_ENV === "development") return true;
+  if (typeof window === "undefined") return false;
+  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
 function mapStoredAccountToUiAccount(account: LocalAccount): AccountRecord {
   const permissions = {
     ...buildPermissionState(account.role),
@@ -545,18 +551,18 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     () => initialTalentProfiles.filter((profile) => profile.status !== "deleted"),
     [initialTalentProfiles],
   );
-  const [accounts, setAccounts] = useState<AccountRecord[]>(() => INITIAL_ACCOUNTS.map((account) => ({ ...account })));
+  const [accounts, setAccounts] = useState<AccountRecord[]>(() => (isLocalTestingMode() ? INITIAL_ACCOUNTS.map((account) => ({ ...account })) : []));
   const [accountsLoaded, setAccountsLoaded] = useState(false);
-  const [selectedAccountId, setSelectedAccountId] = useState(INITIAL_ACCOUNTS[0].id);
+  const [selectedAccountId, setSelectedAccountId] = useState(() => (isLocalTestingMode() ? INITIAL_ACCOUNTS[0].id : ""));
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [draft, setDraft] = useState<AccountDraft>(() => ({
     ...createDefaultDraft("super_admin", false),
-    ...INITIAL_ACCOUNTS[0],
-    assignedTeams: INITIAL_ACCOUNTS[0].assignedTeams.join(", "),
-    isNew: false,
+    ...(isLocalTestingMode() ? INITIAL_ACCOUNTS[0] : {}),
+    assignedTeams: isLocalTestingMode() ? INITIAL_ACCOUNTS[0].assignedTeams.join(", ") : "",
+    isNew: !isLocalTestingMode(),
     tempPassword: "",
-    loginAccount: INITIAL_ACCOUNTS[0].loginAccount,
-    displayName: INITIAL_ACCOUNTS[0].displayName,
+    loginAccount: isLocalTestingMode() ? INITIAL_ACCOUNTS[0].loginAccount : "",
+    displayName: isLocalTestingMode() ? INITIAL_ACCOUNTS[0].displayName : "",
     linkedTalentProfile: "",
     linkedTalentProfileManuallySelected: false,
     displayNameTouched: false,
@@ -575,6 +581,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
   );
 
   const selectedAccountPassword = selectedAccount?.password || "Not Set";
+  const localTestingMode = isLocalTestingMode();
 
   const selectedTalentProfile = useMemo(
     () => (draft.role === "talent" ? getTalentProfileOption(draft.linkedTalentProfile, talentProfiles) : undefined),
@@ -615,9 +622,9 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       if (cancelled) return
 
       const remoteAccounts = await fetch("/api/accounts")
-        .then((response) => response.ok ? response.json() : null)
+        .then((response) => response.ok ? response.json() : { unavailable: true })
         .catch(() => null) as { accounts?: LocalAccount[] } | null;
-      const storedAccounts = remoteAccounts?.accounts?.length ? remoteAccounts.accounts : getStoredAccounts()
+      const storedAccounts = remoteAccounts?.accounts ?? (isLocalTestingMode() ? getStoredAccounts() : [])
       const uiAccounts = storedAccounts.map(mapStoredAccountToUiAccount)
       setAccounts(uiAccounts)
       setSelectedAccountIds([])
@@ -647,6 +654,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
 
   useEffect(() => {
     if (!accountsLoaded) return
+    if (!isLocalTestingMode()) return
     saveStoredAccounts(accounts.map(mapUiAccountToStoredAccount))
   }, [accounts, accountsLoaded]);
 
@@ -1040,7 +1048,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     }));
   }
 
-  function resetDraftPassword() {
+  async function resetDraftPassword() {
     const nextPassword = draft.tempPassword.trim()
     if (!nextPassword) {
       setDraftError("Please enter a new password first.");
@@ -1048,6 +1056,26 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     }
 
     setDraftError("");
+
+    if (!draft.isNew && !isLocalTestingMode()) {
+      const response = await fetch(`/api/accounts/${encodeURIComponent(draft.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: nextPassword }),
+      }).catch(() => null);
+
+      if (!response?.ok) {
+        const payload = await response?.json().catch(() => ({ error: "Unable to reset password." })) as { error?: string } | undefined;
+        setDraftError(payload?.error || "Unable to reset password.");
+        return;
+      }
+
+      const payload = await response.json() as { account: LocalAccount };
+      const remoteAccount = mapStoredAccountToUiAccount(payload.account);
+      setAccounts((current) => current.map((account) => (account.id === remoteAccount.id ? remoteAccount : account)));
+      setDraft((current) => ({ ...current, tempPassword: "" }));
+      return;
+    }
 
     setAccounts((current) =>
       current.map((account) =>
@@ -1060,6 +1088,18 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
           : account,
       ),
     );
+    appendLocalAccountAuditLogs([
+      {
+        id: `audit-${Date.now()}-password-reset`,
+        action: "password_reset",
+        actorId: "local-admin-ui",
+        targetAccountId: draft.id,
+        targetEmail: draft.email || undefined,
+        before: { passwordSet: Boolean(selectedAccount?.password) },
+        after: { passwordSet: true },
+        createdAt: new Date().toISOString(),
+      },
+    ]);
     setDraft((current) => ({
       ...current,
       tempPassword: nextPassword,
@@ -1396,12 +1436,12 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Login Account</span>
+                    <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Email / Login Account</span>
                       <input
                         className="mt-1 w-full rounded-lg border border-[#d7dde2] bg-[#fffdf8] px-3 py-2.5 text-sm outline-none"
                         value={draft.loginAccount}
                         onChange={(event) => updateDraftField("loginAccount", event.target.value)}
-                        placeholder="julie, hr_japan_01, manager01"
+                        placeholder="email or login account"
                       />
                     </label>
                     <label className="block">
@@ -1412,12 +1452,20 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                         onChange={(event) => updateDraftField("tempPassword", event.target.value)}
                         placeholder="Set or reset password"
                       />
-                      <div className="mt-1 text-[11px] text-[#6f6256]">
-                        Current Password: <span className="font-mono font-semibold text-[#111827]">{selectedAccountPassword}</span>
-                      </div>
-                      <div className="mt-1 text-[11px] text-[#6f6256]">
-                        Password is shown for local testing only. Hide this before production.
-                      </div>
+                      {localTestingMode ? (
+                        <>
+                          <div className="mt-1 text-[11px] text-[#6f6256]">
+                            Dev-only current password: <span className="font-mono font-semibold text-[#111827]">{selectedAccountPassword}</span>
+                          </div>
+                          <div className="mt-1 text-[11px] text-[#6f6256]">
+                            Local testing only. Production passwords are never displayed.
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-1 text-[11px] text-[#6f6256]">
+                          Password is hidden for security. Use Reset Password to set a new temporary password.
+                        </div>
+                      )}
                     </label>
                     <label className="block">
                       <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6f6256]">Name</span>

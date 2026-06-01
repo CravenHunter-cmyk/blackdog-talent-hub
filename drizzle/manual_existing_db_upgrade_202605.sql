@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS "blackdog_accounts" (
   "role" text DEFAULT 'member' NOT NULL,
   "status" text DEFAULT 'Active' NOT NULL,
   "password_hash" text,
+  "password_updated_at" timestamp with time zone,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL,
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS "blackdog_audit_logs" (
 
 ALTER TABLE "blackdog_accounts" ADD COLUMN IF NOT EXISTS "login_account" text;
 ALTER TABLE "blackdog_accounts" ADD COLUMN IF NOT EXISTS "password_hash" text;
+ALTER TABLE "blackdog_accounts" ADD COLUMN IF NOT EXISTS "password_updated_at" timestamp with time zone;
 
 ALTER TABLE "tool_tasks" ADD COLUMN IF NOT EXISTS "published_date_range_label" text;
 ALTER TABLE "tool_tasks" ADD COLUMN IF NOT EXISTS "published_within_months" integer;

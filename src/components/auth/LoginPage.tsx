@@ -96,7 +96,7 @@ export function LoginPage() {
     const cleanedCode = normalize(verificationCode)
 
     if (!cleanedAccount) {
-      setFormError("Please enter your account.")
+      setFormError("Please enter your email or login account.")
       return
     }
     if (!cleanedPassword) {
@@ -208,7 +208,7 @@ export function LoginPage() {
                 className="mt-1 w-full rounded-lg border border-[#d7dde2] bg-[#fffdf8] px-3 py-3 text-sm outline-none focus:border-[#1f5c43]"
                 value={account}
                 onChange={(event) => setAccount(event.target.value)}
-                placeholder="Enter your account"
+                placeholder="Email or Login Account"
                 autoComplete="username"
               />
             </label>

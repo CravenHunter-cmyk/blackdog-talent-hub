@@ -1,0 +1,1 @@
+ALTER TABLE "blackdog_accounts" ADD COLUMN "password_updated_at" timestamp with time zone;

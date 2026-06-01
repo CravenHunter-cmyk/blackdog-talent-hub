@@ -302,6 +302,7 @@ export const blackDogAccounts = pgTable(
     role: text("role").$type<BlackDogAccountRole>().notNull().default("member"),
     status: text("status").$type<BlackDogAccountStatus>().notNull().default("Active"),
     passwordHash: text("password_hash"),
+    passwordUpdatedAt: timestamp("password_updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

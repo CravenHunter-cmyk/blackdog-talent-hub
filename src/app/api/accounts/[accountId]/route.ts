@@ -46,15 +46,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ accou
   if (!before) return NextResponse.json({ error: "Account not found." }, { status: 404 });
 
   const nextValues: Partial<typeof blackDogAccounts.$inferInsert> = {
-    email: String(body.email || before.email).trim().toLowerCase(),
     loginAccount: String(body.loginAccount || before.loginAccount || before.email).trim().toLowerCase(),
+    email: String(body.email || body.loginAccount || before.email).trim().toLowerCase(),
     name: String(body.name || body.displayName || before.name || before.email).trim(),
     role: toDbRole(String(body.role || before.role)),
     status: body.status === "Locked" || body.status === "Invited" || body.status === "Active" ? body.status : before.status,
     updatedAt: new Date(),
   };
   const password = String(body.password || "").trim();
-  if (password) nextValues.passwordHash = hashPassword(password);
+  if (password) {
+    nextValues.passwordHash = hashPassword(password);
+    nextValues.passwordUpdatedAt = new Date();
+  }
 
   const [updated] = await db.update(blackDogAccounts).set(nextValues).where(eq(blackDogAccounts.id, accountId)).returning();
   const existing = await db.select().from(blackDogToolPermissions).where(eq(blackDogToolPermissions.accountId, accountId));
@@ -88,5 +91,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ accou
     before: { role: before.role, status: before.status },
     after: { role: updated.role, status: updated.status },
   });
+  if (password) {
+    await db.insert(blackDogAuditLogs).values({
+      action: "password_reset",
+      actorId: actor.id,
+      actorEmail: actor.email,
+      targetAccountId: accountId,
+      targetEmail: updated.email,
+      before: { passwordSet: Boolean(before.passwordHash) },
+      after: { passwordSet: true },
+    });
+  }
   return NextResponse.json({ account: await serializeAccount(updated) });
 }
