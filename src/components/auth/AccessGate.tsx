@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { loadCurrentPlatformUser } from "@/components/auth/useCurrentPlatformUser";
-import { canAccessModule, isClient, readPlatformUser, routeFallbackType, type PlatformUser } from "@/lib/permissions";
+import { canAccessModule, readPlatformUser, routeFallbackType, type PlatformUser } from "@/lib/permissions";
 
 type AccessGateProps = {
   route: string;
@@ -14,79 +13,42 @@ type AccessGateProps = {
 };
 
 export function PermissionFallback({ type, route }: { type: "access-required" | "no-permission"; route?: string }) {
-  const router = useRouter();
   const isAccessRequired = type === "access-required";
-  const [user, setUser] = useState<PlatformUser | null>(null);
-  const clientBlocked = !isAccessRequired && isClient(user);
-  const isToolRoute = Boolean(route?.startsWith("/workspace/tools/"));
-  const title = isAccessRequired ? "Access Required" : isToolRoute ? "No Tool Access" : "No Permission";
-  const description = isAccessRequired
-    ? isToolRoute
-      ? "Sign in required to use this tool."
-      : "Please log in with an authorized BlackDog account to access this workspace."
-    : clientBlocked
-      ? "Client accounts are read-only and cannot access personal workspaces, internal communication, or system command."
-      : isToolRoute
-        ? "You do not have access to this tool. Contact your administrator to request access."
-        : "Your current account does not have permission to access this workspace.";
-  const helperText = isAccessRequired ? "Need access? Please contact the BlackDog team." : "";
-
-  useEffect(() => {
-    function refresh() {
-      setUser(readPlatformUser());
-    }
-    refresh();
-    window.addEventListener("storage", refresh);
-    return () => window.removeEventListener("storage", refresh);
-  }, []);
+  const isToolRoute = Boolean(route?.startsWith("/workspace/tools"));
 
   return (
     <main
-      className="relative flex min-h-[calc(100vh-88px)] items-center justify-center overflow-hidden bg-[#111827] px-5 py-[clamp(74px,10vh,118px)] text-[#111827]"
+      className="relative min-h-[calc(100vh-88px)] overflow-hidden bg-[#16110d] px-5 py-10 sm:px-8 lg:px-12"
       style={{
         backgroundImage:
-          "linear-gradient(135deg, rgba(17, 24, 39, 0.76), rgba(31, 92, 67, 0.58) 48%, rgba(154, 106, 53, 0.46)), url('/images/blackdog-brain-coming-soon.png')",
+          "linear-gradient(90deg, rgba(18, 13, 10, 0.46) 0%, rgba(31, 22, 16, 0.28) 38%, rgba(22, 17, 13, 0.08) 70%, rgba(22, 17, 13, 0.04) 100%), linear-gradient(180deg, rgba(20, 14, 10, 0.08) 0%, rgba(18, 13, 10, 0.20) 100%), url('/images/blackdog-brain-coming-soon.png')",
         backgroundPosition: "center",
         backgroundSize: "cover",
       }}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(255,255,255,0.20),transparent_26%),radial-gradient(circle_at_82%_20%,rgba(245,197,129,0.18),transparent_28%),linear-gradient(180deg,rgba(17,24,39,0.14),rgba(17,24,39,0.34))] backdrop-blur-[1px]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#111827]/55 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_21%_58%,rgba(221,178,113,0.12),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(255,244,218,0.05),transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#120d0a]/28 to-transparent" />
 
-      <section className="relative w-full max-w-[760px] overflow-hidden rounded-[34px] border border-white/30 bg-[#fffdf8]/90 px-8 py-10 shadow-[0_32px_90px_rgba(0,0,0,0.38)] backdrop-blur-xl sm:px-12 sm:py-12">
-        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
-        <div className="relative">
-          <div className="inline-flex rounded-full border border-[#d7cec0] bg-[#fbfaf6] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#6f6256]">
-            BlackDog Talent Hub · Protected Workspace
-          </div>
-          <h1 className="mt-6 text-4xl font-black tracking-tight text-[#111827] sm:text-5xl">
-            {title}
+      <section className="relative mx-auto flex min-h-[calc(100vh-168px)] max-w-7xl items-end pb-[clamp(72px,15vh,140px)] pt-[clamp(96px,14vh,150px)]">
+        <div className="max-w-[590px] pb-[clamp(10px,3vh,34px)] sm:ml-[clamp(8px,4vw,74px)]">
+          <h1 className="max-w-2xl text-[clamp(2.6rem,5vw,4.55rem)] font-semibold leading-[0.95] tracking-[-0.015em] text-[#ead6af] drop-shadow-[0_2px_10px_rgba(0,0,0,0.30)]">
+            Coming Soon
           </h1>
-          <p className="mt-5 max-w-[500px] text-base font-semibold leading-7 text-[#40372f]">
-            {description}
+          <p className="mt-5 max-w-xl text-[clamp(1.05rem,1.7vw,1.45rem)] font-medium leading-7 text-[#f2e6d1] drop-shadow-[0_2px_8px_rgba(0,0,0,0.26)]">
+            Personalized AI tools, shaped by individual thinking profiles.
           </p>
-          {helperText ? (
-            <p className="mt-4 max-w-[500px] rounded-xl border border-[#eadfcd] bg-[#fbfaf6] px-4 py-3 text-sm font-semibold leading-6 text-[#6f6256]">{helperText}</p>
-          ) : null}
-          <div className="mt-5 rounded-2xl border border-[#eadfcd] bg-white/70 p-4 shadow-[0_14px_34px_rgba(31,41,51,0.08)]">
-            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#1f5c43]">Protected Workspace</div>
-            <p className="mt-2 text-sm font-semibold leading-6 text-[#4b4037]">
-              Workspace access is reserved for authorized BlackDog platform accounts.
-            </p>
-          </div>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-          {isAccessRequired ? (
-            <>
-              <Link href="/login" className="inline-flex min-w-28 items-center justify-center rounded-md border border-[#1f5c43] bg-[#1f5c43] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(31,92,67,0.18)]">Login</Link>
-              <Link href="/" className="inline-flex min-w-40 items-center justify-center rounded-md border border-[#d7cec0] bg-white px-5 py-2.5 text-sm font-semibold text-[#4b5563]">Back to Talent Map</Link>
-            </>
-          ) : (
-            <>
-              <button type="button" onClick={() => router.back()} className="inline-flex min-w-24 items-center justify-center rounded-md border border-[#d7cec0] bg-white px-5 py-2.5 text-sm font-semibold text-[#4b5563]">Back</button>
-              <Link href="/talent-messages" className="inline-flex min-w-40 items-center justify-center rounded-md border border-[#1f5c43] bg-[#1f5c43] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(31,92,67,0.18)]">Go to My Workspace</Link>
-              <button type="button" className="inline-flex min-w-32 items-center justify-center rounded-md border border-[#d7cec0] bg-white px-5 py-2.5 text-sm font-semibold text-[#4b5563]">Contact Admin</button>
-            </>
-          )}
+          <p className="mt-4 max-w-[540px] text-sm font-normal leading-6 text-[#dfcfb6] drop-shadow-[0_2px_7px_rgba(0,0,0,0.24)] sm:text-base sm:leading-7">
+            BlackDog creates tailored AI workspaces for clients, teams, and individuals — turning unique needs, context, and habits into dedicated AI apps for work, communication, decision-making, and delivery.
+          </p>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <Link href="/" className="inline-flex min-w-36 items-center justify-center rounded-full border border-[#ead6af]/32 bg-[#ead6af]/10 px-4 py-2 text-xs font-medium text-[#f2e6d1] shadow-[0_8px_20px_rgba(0,0,0,0.14)] backdrop-blur-sm transition hover:bg-[#ead6af]/16">
+              Back to Talent Map
+            </Link>
+            {isAccessRequired || isToolRoute ? (
+              <Link href="/login" className="inline-flex min-w-20 items-center justify-center rounded-full border border-[#f2e6d1]/24 bg-[#f2e6d1]/8 px-4 py-2 text-xs font-medium text-[#ead6af] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-[#f2e6d1]/13">
+                Login
+              </Link>
+            ) : null}
           </div>
         </div>
       </section>

@@ -18,10 +18,10 @@ export function BrainComingSoon() {
             Coming Soon
           </h1>
           <p className="mt-5 max-w-xl text-[clamp(1.05rem,1.7vw,1.45rem)] font-medium leading-7 text-[#f2e6d1] drop-shadow-[0_2px_8px_rgba(0,0,0,0.26)]">
-            AI tools shaped by individual thinking profiles.
+            Personalized AI tools, shaped by individual thinking profiles.
           </p>
-          <p className="mt-4 max-w-[520px] text-sm font-normal leading-6 text-[#dfcfb6] drop-shadow-[0_2px_7px_rgba(0,0,0,0.24)] sm:text-base sm:leading-7">
-            BlackDog Brain builds personalized AI apps around each client&apos;s needs, context, habits, and goals — making AI feel less like a generic tool and more like a tailored solution.
+          <p className="mt-4 max-w-[540px] text-sm font-normal leading-6 text-[#dfcfb6] drop-shadow-[0_2px_7px_rgba(0,0,0,0.24)] sm:text-base sm:leading-7">
+            BlackDog creates tailored AI workspaces for clients, teams, and individuals — turning unique needs, context, and habits into dedicated AI apps for work, communication, decision-making, and delivery.
           </p>
         </div>
       </section>
