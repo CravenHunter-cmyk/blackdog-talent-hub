@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useCurrentPlatformUser } from "@/components/auth/useCurrentPlatformUser";
 import { hasBlackDogToolAccess, readPlatformUser, type PlatformUser } from "@/lib/permissions";
 import { blackDogTools } from "@/lib/tools/toolRegistry";
 import { ToolCard } from "./ToolCard";
@@ -10,30 +11,18 @@ type ViewMode = "card" | "list";
 
 export function BlackDogToolsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("card");
-  const [user, setUser] = useState<PlatformUser | null>(null);
-  const [ready, setReady] = useState(false);
+  const { user: currentUser, loading } = useCurrentPlatformUser();
+  const [localUser, setLocalUser] = useState<PlatformUser | null>(() => readPlatformUser());
 
   useEffect(() => {
-    async function refresh() {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (response.ok) {
-          const payload = await response.json();
-          setUser(payload.user || null);
-          setReady(true);
-          return;
-        }
-      } catch {
-        // Fall back to the local development snapshot.
-      }
-      const localUser = readPlatformUser();
-      setUser(process.env.NODE_ENV === "development" ? localUser : null);
-      setReady(true);
+    function handleStorageChange() {
+      setLocalUser(readPlatformUser());
     }
-    refresh();
-    window.addEventListener("storage", refresh);
-    return () => window.removeEventListener("storage", refresh);
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
+
+  const user = currentUser || (process.env.NODE_ENV === "development" ? localUser : null);
 
   const visibleTools = useMemo(
     () => blackDogTools.filter((tool) => hasBlackDogToolAccess(user, tool.id)),
@@ -66,7 +55,7 @@ export function BlackDogToolsPage() {
           </div>
         </section>
 
-        {!ready ? null : !user ? (
+        {loading ? null : !user ? (
           <section className="rounded-2xl border border-[#d0c3b3] bg-[#fbfaf6] px-6 py-10 text-center shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
             <h2 className="text-2xl font-black text-[#111827]">Sign in required to use BlackDog Tools.</h2>
             <p className="mx-auto mt-3 max-w-[460px] text-sm font-semibold leading-6 text-[#6f6256]">

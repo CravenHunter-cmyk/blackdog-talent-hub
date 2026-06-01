@@ -27,7 +27,7 @@ export function ToolList({ tools }: { tools: BlackDogTool[] }) {
               <td className="td-left text-sm font-medium text-[#6f6256]">{tool.description}</td>
               <td className="td-actions">
                 {tool.status === "Active" ? (
-                  <Link href={tool.href} className="rounded-md border border-[#1f5c43] bg-[#1f5c43] px-3 py-2 text-sm font-bold text-white">Open</Link>
+                  <Link href={tool.href} prefetch={false} className="rounded-md border border-[#1f5c43] bg-[#1f5c43] px-3 py-2 text-sm font-bold text-white">Open</Link>
                 ) : (
                   <span className="rounded-md border border-[#d7cec0] bg-white px-3 py-2 text-sm font-bold text-[#6f6256]">Soon</span>
                 )}
