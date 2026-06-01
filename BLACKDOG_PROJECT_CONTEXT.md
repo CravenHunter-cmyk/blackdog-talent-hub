@@ -114,6 +114,8 @@ BlackDog Brain now has two strategic tracks:
 1. Business Brain: builds AI model evaluation workflows, workbenches, talent operations, QC, deployment, and model-ready delivery for enterprise clients.
 2. Personal Brain: builds private AI assistants and personalized apps for individuals, turning personal needs into secure AI-powered life systems.
 
+Archived Brain concepts for future backlog: the former local demo workbench included AI Gateway project analysis, client project intake, talent matching, talent persona generation, language plans, gap analysis, recruiting task generation, and a Matching Brain Rules editor. These are archived product directions for future Business Brain / Brain Studio work and are not part of the current main implementation, which is the Brain task registry plus task workspace.
+
 BlackDog Tools is an internal workspace area. The YouTube Speech Link Collector now uses the database task model as the primary path: task -> search batch -> deduplicated YouTube results -> result matches -> export records. Browser localStorage key `blackdog_youtube_speech_results` remains only as a legacy local-results compatibility area and should not be the primary path for new searches. Backend API keys for DeepSeek and Apify must only be read from server-side environment variables.
 
 BlackDog Tools database direction: use Drizzle ORM with Neon serverless driver. Database schema lives in `src/db/schema.ts`, database client lives in `src/db/index.ts`, and Drizzle config lives in `drizzle.config.ts`. The first database tables are `tool_tasks`, `tool_search_batches`, `youtube_results`, `youtube_result_matches`, and `tool_exports`.
