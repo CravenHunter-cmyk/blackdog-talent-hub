@@ -6,7 +6,7 @@ export function BrainComingSoon() {
       className="relative min-h-[calc(100vh-72px)] overflow-hidden bg-[#111827] px-4 py-12 text-[#111827] sm:px-6 lg:px-8"
       style={{
         backgroundImage:
-          "linear-gradient(135deg, rgba(17, 24, 39, 0.74), rgba(31, 92, 67, 0.56) 48%, rgba(154, 106, 53, 0.44)), url('/images/blackdog-access-bg.jpeg')",
+          "linear-gradient(135deg, rgba(17, 24, 39, 0.74), rgba(31, 92, 67, 0.56) 48%, rgba(154, 106, 53, 0.44)), url('/images/blackdog-brain-coming-soon.png')",
         backgroundPosition: "center",
         backgroundSize: "cover",
       }}
@@ -25,7 +25,7 @@ export function BrainComingSoon() {
             A protected AI workspace is being prepared.
           </p>
           <p className="mt-4 max-w-xl rounded-2xl border border-[#eadfcd] bg-white/70 px-4 py-3 text-sm font-semibold leading-6 text-[#6f6256]">
-            The full Brain workspace remains available only in local development until the production release is explicitly enabled.
+            BlackDog Brain will connect task reasoning, project intelligence, and AI data workflows. The full workspace remains available only in local development until the production release is explicitly enabled.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link href="/" className="inline-flex min-w-40 items-center justify-center rounded-md border border-[#1f5c43] bg-[#1f5c43] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(31,92,67,0.18)]">

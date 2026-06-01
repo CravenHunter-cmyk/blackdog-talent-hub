@@ -45,7 +45,7 @@ export function PermissionFallback({ type, route }: { type: "access-required" | 
       className="relative flex min-h-[calc(100vh-88px)] items-center justify-center overflow-hidden bg-[#111827] px-5 py-[clamp(74px,10vh,118px)] text-[#111827]"
       style={{
         backgroundImage:
-          "linear-gradient(135deg, rgba(17, 24, 39, 0.76), rgba(31, 92, 67, 0.58) 48%, rgba(154, 106, 53, 0.46)), url('/images/blackdog-access-bg.jpeg')",
+          "linear-gradient(135deg, rgba(17, 24, 39, 0.76), rgba(31, 92, 67, 0.58) 48%, rgba(154, 106, 53, 0.46)), url('/images/blackdog-brain-coming-soon.png')",
         backgroundPosition: "center",
         backgroundSize: "cover",
       }}

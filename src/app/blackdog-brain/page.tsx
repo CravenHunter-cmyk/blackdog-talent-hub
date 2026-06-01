@@ -3,6 +3,7 @@ import { AccessGate } from "@/components/auth/AccessGate";
 import { BlackDogBrainHome } from "@/components/blackdog-brain/BlackDogBrainWorkspace";
 import { BrainComingSoon } from "@/components/brain/BrainComingSoon";
 import { TopNav } from "@/components/layout/TopNav";
+import { isBlackDogBrainWorkspaceEnabled } from "@/lib/blackdogBrainAccess";
 
 export const metadata: Metadata = {
   title: "BlackDog Brain | BlackDog Talent Hub",
@@ -10,6 +11,10 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
+  if (!isBlackDogBrainWorkspaceEnabled()) {
+    return <BrainComingSoon />;
+  }
+
   return (
     <>
       <TopNav />
