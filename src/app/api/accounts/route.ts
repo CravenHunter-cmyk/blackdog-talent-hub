@@ -19,6 +19,12 @@ function toUiRole(role: string) {
   return "talent";
 }
 
+type AccountListRow = Pick<
+  typeof blackDogAccounts.$inferSelect,
+  "id" | "email" | "loginAccount" | "name" | "role" | "status" | "createdAt" | "updatedAt"
+>;
+type ToolPermissionRow = typeof blackDogToolPermissions.$inferSelect;
+
 async function requireAdmin(request: Request) {
   const actor = await getRequiredBlackDogUser(request);
   if (!isBlackDogAdmin(actor)) {
@@ -27,8 +33,7 @@ async function requireAdmin(request: Request) {
   return { actor, error: null };
 }
 
-async function serializeAccount(account: typeof blackDogAccounts.$inferSelect) {
-  const permissions = await db.select().from(blackDogToolPermissions).where(eq(blackDogToolPermissions.accountId, account.id));
+function serializeAccount(account: AccountListRow, permissions: ToolPermissionRow[] = []) {
   return {
     accountId: account.id,
     loginAccount: account.loginAccount || account.email,
@@ -86,10 +91,48 @@ async function upsertToolPermissions(accountId: string, toolPermissions: Record<
 }
 
 export async function GET(request: Request) {
+  const startedAt = Date.now();
+  const authStartedAt = Date.now();
   const { error } = await requireAdmin(request);
   if (error) return error;
-  const accounts = await db.select().from(blackDogAccounts).where(ne(blackDogAccounts.status, "Deleted"));
-  return NextResponse.json({ accounts: await Promise.all(accounts.map(serializeAccount)) });
+  const authMs = Date.now() - authStartedAt;
+
+  const dbStartedAt = Date.now();
+  const [accounts, permissions] = await Promise.all([
+    db
+      .select({
+        id: blackDogAccounts.id,
+        email: blackDogAccounts.email,
+        loginAccount: blackDogAccounts.loginAccount,
+        name: blackDogAccounts.name,
+        role: blackDogAccounts.role,
+        status: blackDogAccounts.status,
+        createdAt: blackDogAccounts.createdAt,
+        updatedAt: blackDogAccounts.updatedAt,
+      })
+      .from(blackDogAccounts)
+      .where(ne(blackDogAccounts.status, "Deleted")),
+    db.select().from(blackDogToolPermissions),
+  ]);
+  const dbMs = Date.now() - dbStartedAt;
+
+  const permissionsByAccountId = new Map<string, ToolPermissionRow[]>();
+  permissions.forEach((permission) => {
+    const existing = permissionsByAccountId.get(permission.accountId) || [];
+    existing.push(permission);
+    permissionsByAccountId.set(permission.accountId, existing);
+  });
+
+  console.info("[accounts] list timing", {
+    authMs,
+    dbMs,
+    totalMs: Date.now() - startedAt,
+    accountsCount: accounts.length,
+  });
+
+  return NextResponse.json({
+    accounts: accounts.map((account) => serializeAccount(account, permissionsByAccountId.get(account.id) || [])),
+  });
 }
 
 export async function POST(request: Request) {
@@ -120,5 +163,5 @@ export async function POST(request: Request) {
     targetEmail: account.email,
     after: { role: account.role, status: account.status },
   });
-  return NextResponse.json({ account: await serializeAccount(account) });
+  return NextResponse.json({ account: serializeAccount(account, await db.select().from(blackDogToolPermissions).where(eq(blackDogToolPermissions.accountId, account.id))) });
 }

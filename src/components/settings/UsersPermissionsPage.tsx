@@ -4,7 +4,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TalentProfileRecord } from "@/types/talent-pool";
-import { appendLocalAccountAuditLogs, getStoredAccounts, saveStoredAccounts, type LocalAccount, type LocalAccountAuditLog } from "@/lib/localAccounts";
 import { blackDogTools } from "@/lib/tools/toolRegistry";
 
 type RoleKey = "super_admin" | "hr_user" | "talent";
@@ -80,6 +79,24 @@ type AccountRecord = {
   notes: string;
   createdAt: string;
   updatedAt: string;
+};
+
+type AccountApiRecord = {
+  accountId: string;
+  loginAccount: string;
+  name: string;
+  role: RoleKey;
+  status: AccountRecord["status"];
+  password?: string;
+  email?: string;
+  permissions?: Partial<PermissionState>;
+  toolPermissions?: Record<string, boolean>;
+  createdAt?: string;
+  updatedAt?: string;
+  assignedTeams?: string[];
+  linkedTalentProfileId?: string;
+  lastLogin?: string;
+  notes?: string;
 };
 
 type AccountDraft = {
@@ -259,106 +276,6 @@ const ROLE_DEFAULT_KEYS: Record<RoleKey, PermissionKey[]> = {
   ],
 };
 
-const INITIAL_ACCOUNTS: AccountRecord[] = [
-  {
-    id: "acc-julie",
-    loginAccount: "julie",
-    displayName: "Julie Zhu",
-    email: "julie@blackdog.tld",
-    role: "super_admin",
-    status: "Active",
-    password: "123456",
-    permissions: buildPermissionState("super_admin"),
-    toolPermissions: buildToolPermissionState("super_admin"),
-    assignedTeams: ["Global Operations", "Platform"],
-    lastLogin: "2026-04-27 08:15",
-    notes: "Owner of the main recruiting workspace.",
-    createdAt: "2026-04-12 09:10",
-    updatedAt: "2026-04-27 10:22",
-  },
-  {
-    id: "acc-olivia",
-    loginAccount: "hr_japan_01",
-    displayName: "Olivia Chen",
-    email: "olivia@blackdog.tld",
-    role: "hr_user",
-    status: "Active",
-    password: "123456",
-    permissions: {
-      ...buildPermissionState("hr_user"),
-      viewTalentLibrary: true,
-      viewHrPerformance: true,
-    },
-    toolPermissions: buildToolPermissionState("hr_user"),
-    assignedTeams: ["Chinese Coverage", "Plugin Workflow"],
-    lastLogin: "2026-04-26 17:32",
-    notes: "HR coverage for Chinese and plugin submissions.",
-    createdAt: "2026-04-16 08:30",
-    updatedAt: "2026-04-24 14:05",
-  },
-  {
-    id: "acc-tanchanok",
-    loginAccount: "tanchanok_pearl",
-    displayName: "Tanchanok Pearl",
-    email: "",
-    role: "talent",
-    status: "Active",
-    password: "123456",
-    permissions: {
-      ...buildPermissionState("talent"),
-      viewTalentMessages: true,
-    },
-    toolPermissions: buildToolPermissionState("talent"),
-    assignedTeams: ["TikTok LLM Evaluation"],
-    linkedTalentProfile: "tal_tanchanok-pearl_b7e9e2143200",
-    lastLogin: "2026-04-27 09:05",
-    notes: "Talent account linked to the Thai evaluator profile.",
-    createdAt: "2026-04-18 10:15",
-    updatedAt: "2026-04-27 09:30",
-  },
-  {
-    id: "acc-nayara",
-    loginAccount: "nayara_ribeiro",
-    displayName: "Nayara Ribeiro",
-    email: "",
-    role: "talent",
-    status: "Active",
-    password: "123456",
-    permissions: {
-      ...buildPermissionState("talent"),
-      viewTalentMessages: true,
-      sendMessages: true,
-    },
-    toolPermissions: buildToolPermissionState("talent"),
-    assignedTeams: ["Native LLM Evaluator Recruitment"],
-    linkedTalentProfile: "tal_nayara-ribeiro_preview",
-    lastLogin: "2026-04-27 10:20",
-    notes: "Talent account linked to the Chinese evaluator profile.",
-    createdAt: "2026-04-18 12:20",
-    updatedAt: "2026-04-27 10:22",
-  },
-  {
-    id: "acc-locked-demo",
-    loginAccount: "locked_demo",
-    displayName: "Locked Demo",
-    email: "",
-    role: "talent",
-    status: "Locked",
-    password: "123456",
-    permissions: {
-      ...buildPermissionState("talent"),
-      viewTalentMessages: true,
-    },
-    toolPermissions: buildToolPermissionState("talent"),
-    assignedTeams: [],
-    linkedTalentProfile: undefined,
-    lastLogin: "Never",
-    notes: "Locked account for login testing.",
-    createdAt: "2026-04-27 10:22",
-    updatedAt: "2026-04-27 10:22",
-  },
-];
-
 function buildPermissionState(role: RoleKey): PermissionState {
   const next = Object.fromEntries(PERMISSION_KEYS.map((key) => [key, false])) as PermissionState;
   if (role === "super_admin") {
@@ -491,7 +408,7 @@ function isLocalTestingMode() {
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
-function mapStoredAccountToUiAccount(account: LocalAccount): AccountRecord {
+function mapStoredAccountToUiAccount(account: AccountApiRecord): AccountRecord {
   const permissions = {
     ...buildPermissionState(account.role),
     ...account.permissions,
@@ -510,7 +427,7 @@ function mapStoredAccountToUiAccount(account: LocalAccount): AccountRecord {
     email: account.email || "",
     role: account.role,
     status: account.status,
-    password: account.password,
+    password: account.password || "",
     permissions,
     toolPermissions,
     assignedTeams: account.assignedTeams || [],
@@ -522,7 +439,7 @@ function mapStoredAccountToUiAccount(account: LocalAccount): AccountRecord {
   }
 }
 
-function mapUiAccountToStoredAccount(account: AccountRecord): LocalAccount {
+function mapUiAccountToStoredAccount(account: AccountRecord): AccountApiRecord {
   return {
     accountId: account.id,
     loginAccount: account.loginAccount.trim(),
@@ -551,22 +468,12 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     () => initialTalentProfiles.filter((profile) => profile.status !== "deleted"),
     [initialTalentProfiles],
   );
-  const [accounts, setAccounts] = useState<AccountRecord[]>(() => (isLocalTestingMode() ? INITIAL_ACCOUNTS.map((account) => ({ ...account })) : []));
+  const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
-  const [selectedAccountId, setSelectedAccountId] = useState(() => (isLocalTestingMode() ? INITIAL_ACCOUNTS[0].id : ""));
+  const [accountsError, setAccountsError] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
-  const [draft, setDraft] = useState<AccountDraft>(() => ({
-    ...createDefaultDraft("super_admin", false),
-    ...(isLocalTestingMode() ? INITIAL_ACCOUNTS[0] : {}),
-    assignedTeams: isLocalTestingMode() ? INITIAL_ACCOUNTS[0].assignedTeams.join(", ") : "",
-    isNew: !isLocalTestingMode(),
-    tempPassword: "",
-    loginAccount: isLocalTestingMode() ? INITIAL_ACCOUNTS[0].loginAccount : "",
-    displayName: isLocalTestingMode() ? INITIAL_ACCOUNTS[0].displayName : "",
-    linkedTalentProfile: "",
-    linkedTalentProfileManuallySelected: false,
-    displayNameTouched: false,
-  }));
+  const [draft, setDraft] = useState<AccountDraft>(() => createDefaultDraft("super_admin", true));
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AccountRecord | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -580,6 +487,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
   const [linkedTalentProfileStatus, setLinkedTalentProfileStatus] = useState<"idle" | "multiple" | "none">("idle");
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const linkedTalentSelectorRef = useRef<HTMLDivElement | null>(null);
+  const accountsLoadStartedRef = useRef(false);
 
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.id === selectedAccountId) ?? accounts[0],
@@ -643,17 +551,23 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       return;
     }
     setSelectedAccountId("");
-    setDraft((current) => ({ ...current, isNew: true }));
+    setDraft(createDefaultDraft("super_admin", true));
     setEditorOpen(false);
   }, []);
 
   const refreshAccountsFromSource = useCallback(async () => {
-    const remoteAccounts = await fetch("/api/accounts")
-      .then((response) => (response.ok ? response.json() : { unavailable: true }))
-      .catch(() => null) as { accounts?: LocalAccount[] } | null;
-    const storedAccounts = remoteAccounts?.accounts ?? (isLocalTestingMode() ? getStoredAccounts() : []);
-    const uiAccounts = storedAccounts.map(mapStoredAccountToUiAccount);
+    setAccountsError("");
+    const response = await fetch("/api/accounts", { cache: "no-store" }).catch(() => null);
+    if (!response) throw new Error("Unable to load accounts.");
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({ error: "Unable to load accounts." })) as { error?: string };
+      throw new Error(payload.error || "Unable to load accounts.");
+    }
+
+    const remoteAccounts = await response.json() as { accounts?: AccountApiRecord[] };
+    const uiAccounts = (remoteAccounts.accounts || []).map(mapStoredAccountToUiAccount);
     applyLoadedAccounts(uiAccounts);
+    setAccountsLoaded(true);
     return uiAccounts;
   }, [applyLoadedAccounts]);
 
@@ -664,30 +578,28 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
   }, [allVisibleSelected, someVisibleSelected]);
 
   useEffect(() => {
+    if (accountsLoadStartedRef.current) return;
+    accountsLoadStartedRef.current = true;
     let cancelled = false
 
     queueMicrotask(async () => {
       if (cancelled) return
 
-      const remoteAccounts = await fetch("/api/accounts")
-        .then((response) => response.ok ? response.json() : { unavailable: true })
-        .catch(() => null) as { accounts?: LocalAccount[] } | null;
-      const storedAccounts = remoteAccounts?.accounts ?? (isLocalTestingMode() ? getStoredAccounts() : [])
-      const uiAccounts = storedAccounts.map(mapStoredAccountToUiAccount)
-      applyLoadedAccounts(uiAccounts)
-      setAccountsLoaded(true)
+      setAccountsLoaded(false);
+      try {
+        await refreshAccountsFromSource();
+      } catch (error) {
+        if (cancelled) return;
+        applyLoadedAccounts([]);
+        setAccountsError(error instanceof Error ? error.message : "Unable to load accounts.");
+        setAccountsLoaded(true);
+      }
     })
 
     return () => {
       cancelled = true
     }
-  }, [applyLoadedAccounts])
-
-  useEffect(() => {
-    if (!accountsLoaded) return
-    if (!isLocalTestingMode()) return
-    saveStoredAccounts(accounts.map(mapUiAccountToStoredAccount))
-  }, [accounts, accountsLoaded]);
+  }, [applyLoadedAccounts, refreshAccountsFromSource])
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -964,37 +876,6 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       updatedAt,
     };
 
-    const auditLogs: LocalAccountAuditLog[] = [
-      {
-        id: `audit-${Date.now()}-${draft.isNew ? "created" : "updated"}`,
-        action: draft.isNew ? "account_created" : "account_updated",
-        actorId: "local-admin-ui",
-        targetAccountId: nextAccount.id,
-        targetEmail: nextAccount.email || undefined,
-        before: originalAccount ? { role: originalAccount.role, status: originalAccount.status, toolPermissions: originalAccount.toolPermissions } : undefined,
-        after: { role: nextAccount.role, status: nextAccount.status, toolPermissions: nextAccount.toolPermissions },
-        createdAt: new Date().toISOString(),
-      },
-    ];
-
-    blackDogTools.forEach((tool) => {
-      const beforeGranted = originalAccount?.role === "super_admin" ? true : Boolean(originalAccount?.toolPermissions?.[tool.id]);
-      const afterGranted = nextAccount.role === "super_admin" ? true : Boolean(nextAccount.toolPermissions[tool.id]);
-      if (beforeGranted === afterGranted) return;
-      auditLogs.push({
-        id: `audit-${Date.now()}-${tool.id}-${afterGranted ? "granted" : "revoked"}`,
-        action: afterGranted ? "tool_access_granted" : "tool_access_revoked",
-        actorId: "local-admin-ui",
-        targetAccountId: nextAccount.id,
-        targetEmail: nextAccount.email || undefined,
-        toolId: tool.id,
-        before: { granted: beforeGranted },
-        after: { granted: afterGranted },
-        createdAt: new Date().toISOString(),
-      });
-    });
-    appendLocalAccountAuditLogs(auditLogs);
-
     const storedPayload = mapUiAccountToStoredAccount(nextAccount);
     const remoteResponse = await fetch(draft.isNew ? "/api/accounts" : `/api/accounts/${encodeURIComponent(nextAccount.id)}`, {
       method: draft.isNew ? "POST" : "PATCH",
@@ -1007,7 +888,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     }).catch(() => null);
 
     if (remoteResponse?.ok) {
-      const payload = await remoteResponse.json() as { account: LocalAccount };
+      const payload = await remoteResponse.json() as { account: AccountApiRecord };
       const remoteAccount = mapStoredAccountToUiAccount(payload.account);
       setAccounts((current) => {
         const exists = current.some((account) => account.id === remoteAccount.id);
@@ -1035,39 +916,9 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       setEditorOpen(false);
       return;
     }
-    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      const payload = await remoteResponse?.json().catch(() => ({ error: "Unable to save account." })) as { error?: string } | undefined;
-      setDraftError(payload?.error || "Unable to save account.");
-      return;
-    }
 
-    setAccounts((current) => {
-      const exists = current.some((account) => account.id === nextAccount.id);
-      if (exists) {
-        return current.map((account) => (account.id === nextAccount.id ? nextAccount : account));
-      }
-      return [nextAccount, ...current];
-    });
-    setSelectedAccountId(nextAccount.id);
-    setDraft({
-      id: nextAccount.id,
-      loginAccount: nextAccount.loginAccount,
-      displayName: nextAccount.displayName,
-      email: nextAccount.email,
-      displayNameTouched: false,
-      role: nextAccount.role,
-      status: nextAccount.status,
-      permissions: { ...nextAccount.permissions },
-      toolPermissions: { ...nextAccount.toolPermissions },
-      assignedTeams: nextAccount.assignedTeams.join(", "),
-      linkedTalentProfile: nextAccount.linkedTalentProfile || "",
-      linkedTalentProfileManuallySelected: Boolean(nextAccount.linkedTalentProfile),
-      lastLogin: nextAccount.lastLogin,
-      notes: nextAccount.notes,
-      tempPassword: "",
-      isNew: false,
-    });
-    setEditorOpen(false);
+    const payload = await remoteResponse?.json().catch(() => ({ error: "Unable to save account." })) as { error?: string } | undefined;
+    setDraftError(payload?.error || "Unable to save account.");
   }
 
   function resetDraftToRoleDefaults() {
@@ -1088,7 +939,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
 
     setDraftError("");
 
-    if (!draft.isNew && !isLocalTestingMode()) {
+    if (!draft.isNew) {
       const response = await fetch(`/api/accounts/${encodeURIComponent(draft.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1101,58 +952,41 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
         return;
       }
 
-      const payload = await response.json() as { account: LocalAccount };
+      const payload = await response.json() as { account: AccountApiRecord };
       const remoteAccount = mapStoredAccountToUiAccount(payload.account);
       setAccounts((current) => current.map((account) => (account.id === remoteAccount.id ? remoteAccount : account)));
       setDraft((current) => ({ ...current, tempPassword: "" }));
       return;
     }
 
-    setAccounts((current) =>
-      current.map((account) =>
-        account.id === draft.id
-          ? {
-              ...account,
-              password: nextPassword,
-              updatedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-            }
-          : account,
-      ),
-    );
-    appendLocalAccountAuditLogs([
-      {
-        id: `audit-${Date.now()}-password-reset`,
-        action: "password_reset",
-        actorId: "local-admin-ui",
-        targetAccountId: draft.id,
-        targetEmail: draft.email || undefined,
-        before: { passwordSet: Boolean(selectedAccount?.password) },
-        after: { passwordSet: true },
-        createdAt: new Date().toISOString(),
-      },
-    ]);
     setDraft((current) => ({
       ...current,
       tempPassword: nextPassword,
     }));
   }
 
-  function pauseAccount(account: AccountRecord) {
-    setAccounts((current) =>
-      current.map((item) =>
-        item.id === account.id
-          ? {
-              ...item,
-              status: item.status === "Locked" ? "Active" : "Locked",
-              updatedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-            }
-          : item,
-      ),
-    );
-    if (selectedAccountId === account.id) {
+  async function pauseAccount(account: AccountRecord) {
+    setAccountsError("");
+    const nextStatus = account.status === "Locked" ? "Active" : "Locked";
+    const response = await fetch(`/api/accounts/${encodeURIComponent(account.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus }),
+    }).catch(() => null);
+
+    if (!response?.ok) {
+      const payload = await response?.json().catch(() => ({ error: "Unable to update account status." })) as { error?: string } | undefined;
+      setAccountsError(payload?.error || "Unable to update account status.");
+      return;
+    }
+
+    const payload = await response.json() as { account: AccountApiRecord };
+    const remoteAccount = mapStoredAccountToUiAccount(payload.account);
+    setAccounts((current) => current.map((item) => (item.id === remoteAccount.id ? remoteAccount : item)));
+    if (selectedAccountId === remoteAccount.id) {
       setDraft((current) => ({
         ...current,
-        status: account.status === "Locked" ? "Active" : "Locked",
+        status: remoteAccount.status,
       }));
     }
   }
@@ -1184,34 +1018,11 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
       return;
     }
 
-    setAccounts((current) => current.filter((item) => item.id !== deleteTarget.id));
-    setSelectedAccountIds((current) => current.filter((id) => id !== deleteTarget.id));
-    if (selectedAccountId === deleteTarget.id) {
-      const fallback = accounts.find((item) => item.id !== deleteTarget.id);
-      if (fallback) {
-        setSelectedAccountId(fallback.id);
-        setDraft({
-          id: fallback.id,
-          loginAccount: fallback.loginAccount,
-          displayName: fallback.displayName,
-          email: fallback.email,
-          displayNameTouched: false,
-          role: fallback.role,
-          status: fallback.status,
-          permissions: { ...fallback.permissions },
-          toolPermissions: { ...fallback.toolPermissions },
-          assignedTeams: fallback.assignedTeams.join(", "),
-          linkedTalentProfile: fallback.linkedTalentProfile || "",
-          linkedTalentProfileManuallySelected: Boolean(fallback.linkedTalentProfile),
-          lastLogin: fallback.lastLogin,
-          notes: fallback.notes,
-          tempPassword: "",
-          isNew: false,
-        });
-      } else {
-        setSelectedAccountId("");
-        setEditorOpen(false);
-      }
+    try {
+      await refreshAccountsFromSource();
+      setSelectedAccountIds((current) => current.filter((id) => id !== deleteTarget.id));
+    } catch (error) {
+      setAccountsError(error instanceof Error ? error.message : "Unable to refresh accounts.");
     }
     setDeleteTarget(null);
     setDeleteLoading(false);
@@ -1234,19 +1045,45 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     setSelectedAccountIds([]);
   }
 
-  function batchPauseAccounts() {
-    setAccounts((current) =>
-      current.map((item) =>
-        selectedAccountIds.includes(item.id)
-          ? {
-              ...item,
-              status: "Locked",
-              updatedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-            }
-          : item,
-      ),
-    );
-    setDraft((current) => (selectedAccountIds.includes(current.id) ? { ...current, status: "Locked" } : current));
+  async function retryLoadAccounts() {
+    setAccountsLoaded(false);
+    setAccountsError("");
+    try {
+      await refreshAccountsFromSource();
+    } catch (error) {
+      applyLoadedAccounts([]);
+      setAccountsError(error instanceof Error ? error.message : "Unable to load accounts.");
+      setAccountsLoaded(true);
+    }
+  }
+
+  async function batchPauseAccounts() {
+    setAccountsError("");
+    const failures: string[] = [];
+    for (const accountId of selectedAccountIds) {
+      const response = await fetch(`/api/accounts/${encodeURIComponent(accountId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Locked" }),
+      }).catch(() => null);
+
+      if (!response?.ok) {
+        const payload = await response?.json().catch(() => ({ error: "Unable to lock account." })) as { error?: string } | undefined;
+        const account = accounts.find((item) => item.id === accountId);
+        failures.push(`${account?.loginAccount || accountId}: ${payload?.error || "Unable to lock account."}`);
+      }
+    }
+
+    try {
+      await refreshAccountsFromSource();
+    } catch (error) {
+      setAccountsError(error instanceof Error ? error.message : "Unable to refresh accounts.");
+      return;
+    }
+
+    if (failures.length) {
+      setAccountsError(`${failures.length} account${failures.length > 1 ? "s" : ""} could not be locked. ${failures.join(" ")}`);
+    }
   }
 
   function requestBatchDeleteAccounts() {
@@ -1349,6 +1186,28 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
             </div>
           </div>
 
+          {!accountsLoaded ? (
+            <div className="mt-4 rounded-xl border border-[#e3dbcd] bg-white px-5 py-8 text-center text-sm font-semibold text-[#6f6256] shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
+              Loading accounts...
+            </div>
+          ) : accountsError && !accounts.length ? (
+            <div className="mt-4 rounded-xl border border-[#f5c2c7] bg-[#fdecec] px-5 py-6 text-center shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
+              <div className="text-sm font-bold text-[#b42318]">{accountsError}</div>
+              <button
+                type="button"
+                onClick={retryLoadAccounts}
+                className="mt-4 inline-flex items-center rounded-md border border-[#b42318] bg-white px-4 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1ef]"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+          <>
+          {accountsError ? (
+            <div className="mt-4 rounded-xl border border-[#f5c2c7] bg-[#fdecec] px-4 py-3 text-sm font-semibold text-[#b42318]">
+              {accountsError}
+            </div>
+          ) : null}
           <div className="scroll-x-panel mt-4 w-full rounded-xl border border-[#e3dbcd] bg-white shadow-[0_10px_24px_rgba(31,41,51,0.06)]">
             <div className="bg-[#faf7ef] px-2 sm:px-4">
               <div
@@ -1467,6 +1326,8 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
               })}
             </div>
           </div>
+          </>
+          )}
         </section>
       </div>
 
