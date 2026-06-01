@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -42,32 +41,21 @@ export function PermissionFallback({ type, route }: { type: "access-required" | 
   }, []);
 
   return (
-    <main className="relative flex min-h-[calc(100vh-88px)] items-start justify-center overflow-hidden bg-[radial-gradient(circle_at_18%_18%,rgba(31,92,67,0.14),transparent_28%),radial-gradient(circle_at_82%_12%,rgba(154,106,53,0.13),transparent_24%),linear-gradient(180deg,#fbf7ef_0%,#efe6d8_100%)] px-5 pb-20 pt-[clamp(74px,10vh,118px)] text-[#111827]">
-      <div className="pointer-events-none absolute left-[8%] top-[18%] hidden h-28 w-28 rounded-[34px] border border-white/70 bg-white/35 shadow-[0_24px_60px_rgba(31,41,51,0.10)] backdrop-blur md:block" />
-      <div className="pointer-events-none absolute bottom-[16%] right-[10%] hidden h-36 w-36 rounded-full border border-[#e4d7c6]/70 bg-[#fff8eb]/55 shadow-[0_24px_60px_rgba(31,41,51,0.08)] md:block" />
+    <main
+      className="relative flex min-h-[calc(100vh-88px)] items-center justify-center overflow-hidden bg-[#111827] px-5 py-[clamp(74px,10vh,118px)] text-[#111827]"
+      style={{
+        backgroundImage:
+          "linear-gradient(135deg, rgba(17, 24, 39, 0.76), rgba(31, 92, 67, 0.58) 48%, rgba(154, 106, 53, 0.46)), url('/images/blackdog-access-bg.jpeg')",
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(255,255,255,0.20),transparent_26%),radial-gradient(circle_at_82%_20%,rgba(245,197,129,0.18),transparent_28%),linear-gradient(180deg,rgba(17,24,39,0.14),rgba(17,24,39,0.34))] backdrop-blur-[1px]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#111827]/55 to-transparent" />
 
-      <section className="relative grid w-full max-w-[880px] overflow-hidden rounded-[34px] border border-[#e4d7c6] bg-[#fffdf8] shadow-[0_32px_90px_rgba(31,41,51,0.20)] lg:grid-cols-[0.42fr_0.58fr]">
-        <div className="relative min-h-[280px] border-b border-[#eadfcd] bg-[linear-gradient(145deg,#f4eadc_0%,#fff8eb_56%,#edf8f1_100%)] p-7 lg:border-b-0 lg:border-r">
-          <div className="absolute inset-x-8 top-8 h-px bg-gradient-to-r from-transparent via-[#c8b79f] to-transparent" />
-          <div className="flex h-full flex-col justify-between">
-            <div>
-              <div className="inline-flex rounded-full border border-[#d7cec0] bg-white/80 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#9a6a35]">
-                Protected Workspace
-              </div>
-              <div className="mt-8 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[30px] border border-[#e4d7c6] bg-white shadow-[0_18px_38px_rgba(31,41,51,0.18)]">
-                <Image src="/blackdog-mascot.jpg" alt="BlackDog mascot" width={112} height={112} className="h-full w-full object-cover" priority />
-              </div>
-            </div>
-            <div className="mt-8 rounded-2xl border border-white/80 bg-white/65 p-4 shadow-[0_14px_34px_rgba(31,41,51,0.08)] backdrop-blur">
-              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#1f5c43]">BlackDog Talent Hub</div>
-              <p className="mt-2 text-sm font-semibold leading-6 text-[#4b4037]">
-                Workspace access is reserved for authorized platform accounts.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-8 py-10 sm:px-12 sm:py-12">
+      <section className="relative w-full max-w-[760px] overflow-hidden rounded-[34px] border border-white/30 bg-[#fffdf8]/90 px-8 py-10 shadow-[0_32px_90px_rgba(0,0,0,0.38)] backdrop-blur-xl sm:px-12 sm:py-12">
+        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+        <div className="relative">
           <div className="inline-flex rounded-full border border-[#d7cec0] bg-[#fbfaf6] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#6f6256]">
             BlackDog Talent Hub · Protected Workspace
           </div>
@@ -80,6 +68,12 @@ export function PermissionFallback({ type, route }: { type: "access-required" | 
           {helperText ? (
             <p className="mt-4 max-w-[500px] rounded-xl border border-[#eadfcd] bg-[#fbfaf6] px-4 py-3 text-sm font-semibold leading-6 text-[#6f6256]">{helperText}</p>
           ) : null}
+          <div className="mt-5 rounded-2xl border border-[#eadfcd] bg-white/70 p-4 shadow-[0_14px_34px_rgba(31,41,51,0.08)]">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#1f5c43]">Protected Workspace</div>
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#4b4037]">
+              Workspace access is reserved for authorized BlackDog platform accounts.
+            </p>
+          </div>
           <div className="mt-8 flex flex-wrap items-center gap-3">
           {isAccessRequired ? (
             <>
