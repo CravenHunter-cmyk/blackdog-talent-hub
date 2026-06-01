@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { blackDogAccounts, blackDogAuditLogs, blackDogToolPermissions, type BlackDogAccountRole } from "@/db/schema";
+import { blackDogAccounts, blackDogAuditLogs, blackDogSessions, blackDogToolPermissions, type BlackDogAccountRole } from "@/db/schema";
 import { getRequiredBlackDogUser, isBlackDogAdmin } from "@/lib/auth/blackdogAuth";
 import { hashPassword } from "@/lib/auth/password";
 
@@ -103,4 +103,27 @@ export async function PATCH(request: Request, context: { params: Promise<{ accou
     });
   }
   return NextResponse.json({ account: await serializeAccount(updated) });
+}
+
+export async function DELETE(request: Request, context: { params: Promise<{ accountId: string }> }) {
+  const actor = await getRequiredBlackDogUser(request);
+  if (!isBlackDogAdmin(actor)) return NextResponse.json({ error: "Only admins can manage accounts." }, { status: 403 });
+  const { accountId } = await context.params;
+  const [before] = await db.select().from(blackDogAccounts).where(eq(blackDogAccounts.id, accountId)).limit(1);
+  if (!before) return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  if (before.id === actor.id) return NextResponse.json({ error: "You cannot delete your own account." }, { status: 400 });
+
+  const [updated] = await db.update(blackDogAccounts).set({ status: "Deleted", updatedAt: new Date() }).where(eq(blackDogAccounts.id, accountId)).returning();
+  await db.update(blackDogSessions).set({ revokedAt: new Date() }).where(eq(blackDogSessions.accountId, accountId));
+  await db.insert(blackDogAuditLogs).values({
+    action: "account_deleted",
+    actorId: actor.id,
+    actorEmail: actor.email,
+    targetAccountId: accountId,
+    targetEmail: before.email,
+    before: { role: before.role, status: before.status },
+    after: { role: updated.role, status: updated.status },
+  });
+
+  return NextResponse.json({ ok: true });
 }

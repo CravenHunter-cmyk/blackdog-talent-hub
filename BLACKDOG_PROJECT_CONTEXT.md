@@ -107,7 +107,7 @@ After the modification is complete and verified, commit and push only after expl
 
 The `/` route is the more customer-facing public page. The other routes are more workspace, internal, or login-protected functional areas. Future development must not place internal candidate privacy information on the homepage by mistake.
 
-Top navigation currently uses this order: Talent Map, BlackDog Brain, BlackDog Tools, BlackDog Talent Museum, Talent Hub, PM Hub, Sourcing Hub, Command, Account/Login. Talent Map must remain first, BlackDog Brain second, and BlackDog Tools third. AI Diagnosis should not appear as a separate top-level navigation item; AI model evaluation diagnosis capabilities are organized under BlackDog Brain.
+Top navigation currently uses this order: Talent Map, BlackDog Brain, BlackDog Tools, BlackDog Talent Museum, Talent Hub, PM Hub, Sourcing Hub, Command, Account/Login. Talent Map must remain first, BlackDog Brain second, and BlackDog Tools third. Navigation names stay visible to logged-out visitors; Talent Map is public, while all other workspace modules require login before showing real business content. Logged-out clicks on protected navigation items may route to the requested workspace path, but the page-level AccessGate must show a single Access Required card instead of rendering the real workspace or a second modal. AI Diagnosis should not appear as a separate top-level navigation item; AI model evaluation diagnosis capabilities are organized under BlackDog Brain.
 
 BlackDog Brain now has two strategic tracks:
 

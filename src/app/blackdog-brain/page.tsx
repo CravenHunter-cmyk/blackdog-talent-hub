@@ -10,18 +10,12 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  const showRealBrain = process.env.NODE_ENV === "development";
-
   return (
     <>
       <TopNav />
-      {showRealBrain ? (
-        <AccessGate route="/blackdog-brain">
-          <BlackDogBrainHome />
-        </AccessGate>
-      ) : (
-        <BrainComingSoon />
-      )}
+      <AccessGate route="/blackdog-brain" noPermissionFallback={<BrainComingSoon />}>
+        <BlackDogBrainHome />
+      </AccessGate>
     </>
   );
 }

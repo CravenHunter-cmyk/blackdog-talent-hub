@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BlackDogBrainTaskWorkspace } from "./BlackDogBrainTaskWorkspace";
 
 type BrainTrackId = "business" | "personal";
 type BusinessModuleId = "brain-studio" | "project-lab" | "talent-workspace" | "workflow-monitor" | "deployment-center";
@@ -268,6 +269,8 @@ export function BlackDogBrainHome() {
             ))}
           </div>
         </section>
+
+        <BlackDogBrainTaskWorkspace />
       </div>
     </main>
   );

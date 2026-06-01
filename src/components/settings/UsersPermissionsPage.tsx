@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TalentProfileRecord } from "@/types/talent-pool";
 import { appendLocalAccountAuditLogs, getStoredAccounts, saveStoredAccounts, type LocalAccount, type LocalAccountAuditLog } from "@/lib/localAccounts";
 import { blackDogTools } from "@/lib/tools/toolRegistry";
@@ -568,6 +568,12 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     displayNameTouched: false,
   }));
   const [editorOpen, setEditorOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AccountRecord | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [batchDeleteIds, setBatchDeleteIds] = useState<string[]>([]);
+  const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
+  const [batchDeleteError, setBatchDeleteError] = useState("");
   const [draftError, setDraftError] = useState("");
   const [linkedTalentProfileSearch, setLinkedTalentProfileSearch] = useState("");
   const [linkedTalentProfileOpen, setLinkedTalentProfileOpen] = useState(false);
@@ -608,6 +614,48 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
   const visibleAccountIds = useMemo(() => accounts.map((account) => account.id), [accounts]);
   const allVisibleSelected = visibleAccountIds.length > 0 && visibleAccountIds.every((id) => selectedAccountIds.includes(id));
   const someVisibleSelected = visibleAccountIds.some((id) => selectedAccountIds.includes(id));
+  const batchDeleteTargets = useMemo(
+    () => accounts.filter((account) => batchDeleteIds.includes(account.id)),
+    [accounts, batchDeleteIds],
+  );
+
+  const applyLoadedAccounts = useCallback((uiAccounts: AccountRecord[]) => {
+    setAccounts(uiAccounts);
+    setSelectedAccountIds([]);
+    if (uiAccounts.length) {
+      setSelectedAccountId((currentSelectedId) => {
+        const nextSelected = uiAccounts.find((account) => account.id === currentSelectedId) || uiAccounts[0];
+        setDraft((current) => ({
+          ...current,
+          ...nextSelected,
+          assignedTeams: nextSelected.assignedTeams.join(", "),
+          toolPermissions: { ...nextSelected.toolPermissions },
+          isNew: false,
+          tempPassword: "",
+          loginAccount: nextSelected.loginAccount,
+          displayName: nextSelected.displayName,
+          linkedTalentProfile: nextSelected.linkedTalentProfile || "",
+          linkedTalentProfileManuallySelected: Boolean(nextSelected.linkedTalentProfile),
+          displayNameTouched: false,
+        }));
+        return nextSelected.id;
+      });
+      return;
+    }
+    setSelectedAccountId("");
+    setDraft((current) => ({ ...current, isNew: true }));
+    setEditorOpen(false);
+  }, []);
+
+  const refreshAccountsFromSource = useCallback(async () => {
+    const remoteAccounts = await fetch("/api/accounts")
+      .then((response) => (response.ok ? response.json() : { unavailable: true }))
+      .catch(() => null) as { accounts?: LocalAccount[] } | null;
+    const storedAccounts = remoteAccounts?.accounts ?? (isLocalTestingMode() ? getStoredAccounts() : []);
+    const uiAccounts = storedAccounts.map(mapStoredAccountToUiAccount);
+    applyLoadedAccounts(uiAccounts);
+    return uiAccounts;
+  }, [applyLoadedAccounts]);
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -626,31 +674,14 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
         .catch(() => null) as { accounts?: LocalAccount[] } | null;
       const storedAccounts = remoteAccounts?.accounts ?? (isLocalTestingMode() ? getStoredAccounts() : [])
       const uiAccounts = storedAccounts.map(mapStoredAccountToUiAccount)
-      setAccounts(uiAccounts)
-      setSelectedAccountIds([])
-      if (uiAccounts.length) {
-        setSelectedAccountId(uiAccounts[0].id)
-        setDraft((current) => ({
-          ...current,
-          ...uiAccounts[0],
-          assignedTeams: uiAccounts[0].assignedTeams.join(", "),
-          toolPermissions: { ...uiAccounts[0].toolPermissions },
-          isNew: false,
-          tempPassword: "",
-          loginAccount: uiAccounts[0].loginAccount,
-          displayName: uiAccounts[0].displayName,
-          linkedTalentProfile: uiAccounts[0].linkedTalentProfile || "",
-          linkedTalentProfileManuallySelected: Boolean(uiAccounts[0].linkedTalentProfile),
-          displayNameTouched: false,
-        }))
-      }
+      applyLoadedAccounts(uiAccounts)
       setAccountsLoaded(true)
     })
 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [applyLoadedAccounts])
 
   useEffect(() => {
     if (!accountsLoaded) return
@@ -1126,17 +1157,64 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     }
   }
 
-  function deleteAccount(account: AccountRecord) {
-    setAccounts((current) => current.filter((item) => item.id !== account.id));
-    setSelectedAccountIds((current) => current.filter((id) => id !== account.id));
-    if (selectedAccountId === account.id) {
-      const fallback = accounts.find((item) => item.id !== account.id) ?? accounts[0];
+  function requestDeleteAccount(account: AccountRecord) {
+    setDeleteTarget(account);
+    setDeleteError("");
+  }
+
+  async function confirmDeleteAccount() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    setDeleteError("");
+
+    const remoteResponse = await fetch(`/api/accounts/${encodeURIComponent(deleteTarget.id)}`, {
+      method: "DELETE",
+    }).catch(() => null);
+
+    if (remoteResponse && !remoteResponse.ok) {
+      const payload = await remoteResponse.json().catch(() => ({ error: "Unable to delete account." })) as { error?: string };
+      setDeleteError(payload.error || "Unable to delete account.");
+      setDeleteLoading(false);
+      return;
+    }
+
+    if (!remoteResponse && !isLocalTestingMode()) {
+      setDeleteError("Unable to delete account.");
+      setDeleteLoading(false);
+      return;
+    }
+
+    setAccounts((current) => current.filter((item) => item.id !== deleteTarget.id));
+    setSelectedAccountIds((current) => current.filter((id) => id !== deleteTarget.id));
+    if (selectedAccountId === deleteTarget.id) {
+      const fallback = accounts.find((item) => item.id !== deleteTarget.id);
       if (fallback) {
-        openAccountEditor(fallback);
+        setSelectedAccountId(fallback.id);
+        setDraft({
+          id: fallback.id,
+          loginAccount: fallback.loginAccount,
+          displayName: fallback.displayName,
+          email: fallback.email,
+          displayNameTouched: false,
+          role: fallback.role,
+          status: fallback.status,
+          permissions: { ...fallback.permissions },
+          toolPermissions: { ...fallback.toolPermissions },
+          assignedTeams: fallback.assignedTeams.join(", "),
+          linkedTalentProfile: fallback.linkedTalentProfile || "",
+          linkedTalentProfileManuallySelected: Boolean(fallback.linkedTalentProfile),
+          lastLogin: fallback.lastLogin,
+          notes: fallback.notes,
+          tempPassword: "",
+          isNew: false,
+        });
       } else {
+        setSelectedAccountId("");
         setEditorOpen(false);
       }
     }
+    setDeleteTarget(null);
+    setDeleteLoading(false);
   }
 
   function toggleAccountSelection(accountId: string, checked: boolean) {
@@ -1171,18 +1249,38 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
     setDraft((current) => (selectedAccountIds.includes(current.id) ? { ...current, status: "Locked" } : current));
   }
 
-  function batchDeleteAccounts() {
-    setAccounts((current) => current.filter((item) => !selectedAccountIds.includes(item.id)));
-    setSelectedAccountIds([]);
-    if (selectedAccountIds.includes(selectedAccountId)) {
-      const remaining = accounts.filter((item) => !selectedAccountIds.includes(item.id));
-      const fallback = remaining[0];
-      if (fallback) {
-        openAccountEditor(fallback);
-      } else {
-        setEditorOpen(false);
+  function requestBatchDeleteAccounts() {
+    setBatchDeleteIds(selectedAccountIds);
+    setBatchDeleteError("");
+  }
+
+  async function confirmBatchDeleteAccounts() {
+    if (!batchDeleteIds.length) return;
+    setBatchDeleteLoading(true);
+    setBatchDeleteError("");
+
+    const failures: string[] = [];
+    for (const accountId of batchDeleteIds) {
+      const response = await fetch(`/api/accounts/${encodeURIComponent(accountId)}`, {
+        method: "DELETE",
+      }).catch(() => null);
+
+      if (!response?.ok) {
+        const payload = await response?.json().catch(() => ({ error: "Unable to delete account." })) as { error?: string } | undefined;
+        const account = accounts.find((item) => item.id === accountId);
+        failures.push(`${account?.loginAccount || accountId}: ${payload?.error || "Unable to delete account."}`);
       }
     }
+
+    await refreshAccountsFromSource();
+    setBatchDeleteLoading(false);
+
+    if (failures.length) {
+      setBatchDeleteError(`${failures.length} account${failures.length > 1 ? "s" : ""} could not be deleted. ${failures.join(" ")}`);
+      return;
+    }
+
+    setBatchDeleteIds([]);
   }
 
   return (
@@ -1234,7 +1332,7 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                   </button>
                   <button
                     type="button"
-                    onClick={batchDeleteAccounts}
+                    onClick={requestBatchDeleteAccounts}
                     className="rounded-md border border-[#b42318] bg-white px-3 py-1.5 text-xs font-semibold text-[#b42318] hover:bg-[#fff1ef]"
                   >
                     Batch Delete
@@ -1353,7 +1451,10 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
                           </button>
                           <button
                             type="button"
-                            onClick={() => deleteAccount(account)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              requestDeleteAccount(account);
+                            }}
                             className="inline-flex h-8 min-w-[64px] items-center justify-center whitespace-nowrap rounded-md border border-[#b42318] bg-white px-3 py-1.5 text-xs font-semibold leading-none text-[#b42318] hover:bg-[#fff1ef]"
                           >
                             Delete
@@ -1368,6 +1469,99 @@ export function UsersPermissionsPage({ initialTalentProfiles = [] }: UsersPermis
           </div>
         </section>
       </div>
+
+      {batchDeleteIds.length ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 px-4 py-8">
+          <section className="w-full max-w-lg rounded-2xl border border-[#f1c7c2] bg-white p-6 shadow-[0_24px_60px_rgba(17,24,39,0.22)]">
+            <h2 className="text-xl font-black text-[#111827]">Delete selected accounts?</h2>
+            <p className="mt-3 text-sm font-semibold leading-6 text-[#6f6256]">
+              Are you sure you want to delete the selected accounts? This action cannot be undone.
+            </p>
+            <div className="mt-4 max-h-48 overflow-auto rounded-xl border border-[#eadfcd] bg-[#fbfaf6] px-4 py-3">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#6f6256]">
+                {batchDeleteIds.length} selected
+              </div>
+              <div className="mt-2 space-y-2">
+                {batchDeleteTargets.map((account) => (
+                  <div key={account.id}>
+                    <div className="text-sm font-black text-[#111827]">{account.displayName}</div>
+                    <div className="text-xs font-semibold text-[#6f6256]">{account.loginAccount}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {batchDeleteError ? (
+              <div className="mt-4 rounded-xl border border-[#f5c2c7] bg-[#fdecec] px-4 py-3 text-sm font-semibold text-[#b42318]">
+                {batchDeleteError}
+              </div>
+            ) : null}
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (batchDeleteLoading) return;
+                  setBatchDeleteIds([]);
+                  setBatchDeleteError("");
+                }}
+                disabled={batchDeleteLoading}
+                className="inline-flex min-w-24 items-center justify-center rounded-md border border-[#d7dccf] bg-[#fffdf8] px-4 py-2 text-sm font-semibold text-[#40372f] hover:bg-[#f6f2e8] disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmBatchDeleteAccounts}
+                disabled={batchDeleteLoading}
+                className="inline-flex min-w-24 items-center justify-center rounded-md border border-[#b42318] bg-[#b42318] px-4 py-2 text-sm font-semibold text-white hover:bg-[#981b1b] disabled:opacity-60"
+              >
+                {batchDeleteLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 px-4 py-8">
+          <section className="w-full max-w-md rounded-2xl border border-[#f1c7c2] bg-white p-6 shadow-[0_24px_60px_rgba(17,24,39,0.22)]">
+            <h2 className="text-xl font-black text-[#111827]">Delete account?</h2>
+            <p className="mt-3 text-sm font-semibold leading-6 text-[#6f6256]">
+              Are you sure you want to delete this account? This action cannot be undone.
+            </p>
+            <div className="mt-4 rounded-xl border border-[#eadfcd] bg-[#fbfaf6] px-4 py-3">
+              <div className="text-sm font-black text-[#111827]">{deleteTarget.displayName}</div>
+              <div className="mt-1 text-xs font-semibold text-[#6f6256]">{deleteTarget.loginAccount}</div>
+            </div>
+            {deleteError ? (
+              <div className="mt-4 rounded-xl border border-[#f5c2c7] bg-[#fdecec] px-4 py-3 text-sm font-semibold text-[#b42318]">
+                {deleteError}
+              </div>
+            ) : null}
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (deleteLoading) return;
+                  setDeleteTarget(null);
+                  setDeleteError("");
+                }}
+                disabled={deleteLoading}
+                className="inline-flex min-w-24 items-center justify-center rounded-md border border-[#d7dccf] bg-[#fffdf8] px-4 py-2 text-sm font-semibold text-[#40372f] hover:bg-[#f6f2e8] disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteAccount}
+                disabled={deleteLoading}
+                className="inline-flex min-w-24 items-center justify-center rounded-md border border-[#b42318] bg-[#b42318] px-4 py-2 text-sm font-semibold text-white hover:bg-[#981b1b] disabled:opacity-60"
+              >
+                {deleteLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {editorOpen ? (
         <div className="scroll-panel fixed inset-0 z-50 flex items-start justify-center bg-[#111827]/40 px-4 py-8">

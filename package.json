@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:local-admin": "NODE_ENV=development BLACKDOG_LOCAL_SEED=1 node scripts/seed-local-admin.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

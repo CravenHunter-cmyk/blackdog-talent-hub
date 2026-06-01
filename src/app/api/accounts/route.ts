@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { blackDogAccounts, blackDogAuditLogs, blackDogToolPermissions, type BlackDogAccountRole } from "@/db/schema";
@@ -88,7 +88,7 @@ async function upsertToolPermissions(accountId: string, toolPermissions: Record<
 export async function GET(request: Request) {
   const { error } = await requireAdmin(request);
   if (error) return error;
-  const accounts = await db.select().from(blackDogAccounts);
+  const accounts = await db.select().from(blackDogAccounts).where(ne(blackDogAccounts.status, "Deleted"));
   return NextResponse.json({ accounts: await Promise.all(accounts.map(serializeAccount)) });
 }
 

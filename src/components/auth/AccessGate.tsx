@@ -10,6 +10,7 @@ type AccessGateProps = {
   route: string;
   module?: string;
   children: ReactNode;
+  noPermissionFallback?: ReactNode;
 };
 
 export function PermissionFallback({ type, route }: { type: "access-required" | "no-permission"; route?: string }) {
@@ -73,7 +74,7 @@ export function PermissionFallback({ type, route }: { type: "access-required" | 
   );
 }
 
-export function AccessGate({ route, module, children }: AccessGateProps) {
+export function AccessGate({ route, module, children, noPermissionFallback }: AccessGateProps) {
   const [user, setUser] = useState<PlatformUser | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -102,5 +103,6 @@ export function AccessGate({ route, module, children }: AccessGateProps) {
 
   const fallback = routeFallbackType(user, route);
   if (fallback === "allowed" && (!module || canAccessModule(user, module))) return <>{children}</>;
+  if (fallback === "no-permission" && noPermissionFallback) return <>{noPermissionFallback}</>;
   return <PermissionFallback type={fallback === "allowed" ? "no-permission" : fallback} route={route} />;
 }

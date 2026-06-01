@@ -1,3 +1,8 @@
+// Legacy/development compatibility layer for local account demos.
+// New authentication, session, and permission work should use the DB-backed
+// auth path in src/lib/auth/blackdogAuth.ts plus /api/auth/me, /api/auth/logout,
+// and page-level AccessGate. Do not build new production authorization on this file.
+
 export type LocalAccountRole = "super_admin" | "hr_user" | "talent"
 
 export type LocalAccountStatus = "Invited" | "Active" | "Locked"

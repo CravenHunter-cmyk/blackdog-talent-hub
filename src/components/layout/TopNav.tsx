@@ -1,15 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import {
-  MOCK_PLATFORM_USERS,
-  canAccessRoute,
-  getServerPlatformUserSnapshot,
-  persistMockUser,
-  readPlatformUser,
-} from "@/lib/permissions";
+import { usePathname } from "next/navigation";
+import { useCurrentPlatformUser } from "@/components/auth/useCurrentPlatformUser";
 
 const navItems = [
   { label: "Talent Map", href: "/" },
@@ -22,73 +15,11 @@ const navItems = [
   { label: "Command", href: "/settings" },
 ];
 
-function subscribePlatformUser(callback: () => void) {
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
-
 export function TopNav() {
   const pathname = usePathname();
-  const router = useRouter();
-  const platformUser = useSyncExternalStore(
-    subscribePlatformUser,
-    readPlatformUser,
-    getServerPlatformUserSnapshot,
-  );
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const accountMenuRef = useRef<HTMLDivElement | null>(null);
-  const mockAccountSelectValue =
-    MOCK_PLATFORM_USERS.find((user) => user?.id === platformUser?.id || user?.role === platformUser?.role)?.id || "logged-out";
-
-  useEffect(() => {
-    async function refreshServerSession() {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (!response.ok) {
-          if (process.env.NODE_ENV !== "development") persistMockUser(null);
-          return;
-        }
-        const payload = await response.json();
-        if (payload.user) persistMockUser(payload.user);
-      } catch {
-        if (process.env.NODE_ENV !== "development") persistMockUser(null);
-        // Client-side navigation can continue with the local snapshot.
-      }
-    }
-    refreshServerSession();
-  }, []);
-
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (!accountMenuRef.current?.contains(event.target as Node)) {
-        setAccountMenuOpen(false);
-      }
-    }
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, []);
-
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // Local cleanup still runs if the network request fails.
-    }
-    persistMockUser(null);
-    router.replace("/login");
-  }
-
-  function handleMockUserChange(userId: string) {
-    const nextUser = MOCK_PLATFORM_USERS.find((user) => (user?.id || "logged-out") === userId) || null;
-    persistMockUser(nextUser);
-  }
+  const { user: platformUser, logout } = useCurrentPlatformUser();
 
   const isNavActive = (href: string) => (href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
-  const visibleNavItems = navItems.filter((item) => canAccessRoute(platformUser, item.href));
 
   const navLinkClass = (href: string) => {
     const isActive = isNavActive(href);
@@ -107,7 +38,7 @@ export function TopNav() {
         </div>
 
         <nav className="scroll-x-panel ml-auto flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1">
-          {visibleNavItems.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}
@@ -117,71 +48,19 @@ export function TopNav() {
               {item.label}
             </Link>
           ))}
-          <div ref={accountMenuRef} className="relative">
+          {platformUser ? (
             <button
               type="button"
-              onClick={() => setAccountMenuOpen((open) => !open)}
-              className={navLinkClass("/login")}
-              aria-haspopup="menu"
-              aria-expanded={accountMenuOpen}
+              onClick={logout}
+              className={`${navLinkClass("/login")} cursor-pointer`}
             >
-              {platformUser ? "Account" : "Login"}
+              Logout
             </button>
-
-            {accountMenuOpen ? (
-              <div className="absolute right-0 top-full z-[70] mt-3 w-[260px] rounded-xl border border-[#e4d7c6] bg-[#fffdf8] p-3 text-left shadow-[0_18px_45px_rgba(31,41,51,0.16)]">
-                {process.env.NODE_ENV === "development" ? (
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9a6a2b]">Dev only</div>
-                ) : null}
-                <div className="mt-2 text-sm font-bold text-[#111827]">
-                  {platformUser ? `Current: ${platformUser.name}` : "Current: Logged out"}
-                </div>
-                <div className="mt-1 text-xs font-medium text-[#6f6256]">
-                  {platformUser ? platformUser.role : "No mock account selected"}
-                </div>
-
-                {process.env.NODE_ENV === "development" ? (
-                  <label className="mt-4 block">
-                    <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-[#6f6256]">Switch Mock Account</span>
-                    <select
-                      value={mockAccountSelectValue}
-                      onChange={(event) => handleMockUserChange(event.target.value)}
-                      className="mt-2 h-9 w-full rounded-md border border-[#d7dccf] bg-white px-2 text-xs font-semibold text-[#40372f] outline-none"
-                      aria-label="Mock account switcher"
-                    >
-                      {MOCK_PLATFORM_USERS.map((user) => (
-                        <option key={user?.id || "logged-out"} value={user?.id || "logged-out"}>
-                          {user ? `${user.name} · ${user.role}` : "Logged out"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
-                <div className="mt-4 grid gap-2 border-t border-[#eadfcd] pt-3">
-                  <Link
-                    href="/login"
-                    onClick={() => setAccountMenuOpen(false)}
-                    className="rounded-md border border-[#1f5c43] bg-[#1f5c43] px-3 py-2 text-center text-sm font-semibold text-white"
-                  >
-                    Login
-                  </Link>
-                  {platformUser ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAccountMenuOpen(false);
-                        handleLogout();
-                      }}
-                      className="rounded-md border border-[#b42318] bg-[#fff1ef] px-3 py-2 text-sm font-semibold text-[#b42318]"
-                    >
-                      Logout
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-          </div>
+          ) : (
+            <Link href="/login" className={navLinkClass("/login")}>
+              Login
+            </Link>
+          )}
         </nav>
       </div>
     </header>
