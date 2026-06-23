@@ -50,6 +50,8 @@ const carouselSlides = [
   "More Evaluation Workflows",
 ] as const;
 
+const storyVideoSrc = process.env.NEXT_PUBLIC_BLACKDOG_BRAIN_STORY_VIDEO_URL || "";
+
 const slideTitles: Record<SlideIndex, { title: string; subtitle: string }> = {
   0: {
     title: "Caption Evaluation",
@@ -402,6 +404,17 @@ function ScoreRow({
   );
 }
 
+function VideoFallbackScene() {
+  return (
+    <div className={styles.videoScene} aria-hidden="true">
+      <span className={styles.sunsetGlow} />
+      <span className={styles.skyline} />
+      <span className={styles.waterline} />
+      <span className={styles.walkway} />
+    </div>
+  );
+}
+
 function PlatformShell({
   ariaLabel,
   breadcrumbLabel,
@@ -647,59 +660,65 @@ function CaptionEvaluationSlide() {
 
             <div className={styles.videoPlayer}>
               <div ref={playerRef} className={styles.videoFrame}>
-              <video
-                ref={videoRef}
-                className={styles.videoMedia}
-                aria-label="Waterfront skyline video preview"
-                src="/Videos/blackdog-brain-story.mp4"
-                muted={isMuted}
-                playsInline
-                preload="auto"
-                onClick={toggleVideo}
-                onLoadedMetadata={(event) => {
-                  setDuration(event.currentTarget.duration || 15);
-                  event.currentTarget.playbackRate = playbackRate;
-                  event.currentTarget.muted = isMuted;
-                }}
-                onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
-              />
-              <button
-                className={`${styles.playButton} ${isPlaying ? styles.playButtonPlaying : ""}`}
-                type="button"
-                aria-label={isPlaying ? "Pause video" : "Play video"}
-                onClick={toggleVideo}
-              >
-                <Icon name={isPlaying ? "pause" : "play"} />
-              </button>
-              <div className={styles.videoControls}>
-                <button type="button" className={styles.controlButton} onClick={toggleVideo}>
-                  <Icon name={isPlaying ? "pause" : "play"} />
-                </button>
-                <button type="button" className={styles.controlButton} onClick={toggleMute}>
-                  <Icon name="volume" />
-                </button>
-                <span className={styles.videoTime}>
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
-                <button
-                  className={styles.videoSeek}
-                  type="button"
-                  aria-label="Seek video"
-                  onClick={seekVideo}
-                >
-                  <span style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }} />
-                </button>
-                <button type="button" className={styles.controlButton} onClick={cyclePlaybackRate}>
-                  <Icon name="settings" />
-                  <span>{playbackRate}x</span>
-                </button>
-                <button type="button" className={styles.controlButton} onClick={toggleFullscreen}>
-                  <Icon name="fullscreen" />
-                </button>
-              </div>
+              {storyVideoSrc ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    className={styles.videoMedia}
+                    aria-label="Waterfront skyline video preview"
+                    src={storyVideoSrc}
+                    muted={isMuted}
+                    playsInline
+                    preload="auto"
+                    onClick={toggleVideo}
+                    onLoadedMetadata={(event) => {
+                      setDuration(event.currentTarget.duration || 15);
+                      event.currentTarget.playbackRate = playbackRate;
+                      event.currentTarget.muted = isMuted;
+                    }}
+                    onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => setIsPlaying(false)}
+                  />
+                  <button
+                    className={`${styles.playButton} ${isPlaying ? styles.playButtonPlaying : ""}`}
+                    type="button"
+                    aria-label={isPlaying ? "Pause video" : "Play video"}
+                    onClick={toggleVideo}
+                  >
+                    <Icon name={isPlaying ? "pause" : "play"} />
+                  </button>
+                  <div className={styles.videoControls}>
+                    <button type="button" className={styles.controlButton} onClick={toggleVideo}>
+                      <Icon name={isPlaying ? "pause" : "play"} />
+                    </button>
+                    <button type="button" className={styles.controlButton} onClick={toggleMute}>
+                      <Icon name="volume" />
+                    </button>
+                    <span className={styles.videoTime}>
+                      {formatTime(currentTime)} / {formatTime(duration)}
+                    </span>
+                    <button
+                      className={styles.videoSeek}
+                      type="button"
+                      aria-label="Seek video"
+                      onClick={seekVideo}
+                    >
+                      <span style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }} />
+                    </button>
+                    <button type="button" className={styles.controlButton} onClick={cyclePlaybackRate}>
+                      <Icon name="settings" />
+                      <span>{playbackRate}x</span>
+                    </button>
+                    <button type="button" className={styles.controlButton} onClick={toggleFullscreen}>
+                      <Icon name="fullscreen" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <VideoFallbackScene />
+              )}
               </div>
             </div>
 
@@ -1035,66 +1054,72 @@ function CotEvaluationSlide() {
 
           <div className={styles.videoPlayer}>
             <div ref={playerRef} className={styles.videoFrame}>
-              <video
-                ref={videoRef}
-                className={styles.videoMedia}
-                aria-label="Localized travel video preview"
-                src="/Videos/blackdog-brain-story.mp4"
-                muted={isMuted}
-                playsInline
-                preload="auto"
-                onClick={toggleVideo}
-                onLoadedMetadata={(event) => {
-                  event.currentTarget.playbackRate = playbackRate;
-                  event.currentTarget.muted = isMuted;
-                }}
-                onTimeUpdate={(event) => {
-                  const nextTime = Math.min(event.currentTarget.currentTime, cotDuration);
-                  setCurrentTime(nextTime);
+              {storyVideoSrc ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    className={styles.videoMedia}
+                    aria-label="Localized travel video preview"
+                    src={storyVideoSrc}
+                    muted={isMuted}
+                    playsInline
+                    preload="auto"
+                    onClick={toggleVideo}
+                    onLoadedMetadata={(event) => {
+                      event.currentTarget.playbackRate = playbackRate;
+                      event.currentTarget.muted = isMuted;
+                    }}
+                    onTimeUpdate={(event) => {
+                      const nextTime = Math.min(event.currentTarget.currentTime, cotDuration);
+                      setCurrentTime(nextTime);
 
-                  if (event.currentTarget.currentTime >= cotDuration) {
-                    event.currentTarget.pause();
-                    setIsPlaying(false);
-                  }
-                }}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
-              />
-              <button
-                className={`${styles.playButton} ${isPlaying ? styles.playButtonPlaying : ""}`}
-                type="button"
-                aria-label={isPlaying ? "Pause video" : "Play video"}
-                onClick={toggleVideo}
-              >
-                <Icon name={isPlaying ? "pause" : "play"} />
-              </button>
-              <div className={styles.videoControls}>
-                <button type="button" className={styles.controlButton} onClick={toggleVideo}>
-                  <Icon name={isPlaying ? "pause" : "play"} />
-                </button>
-                <button type="button" className={styles.controlButton} onClick={toggleMute}>
-                  <Icon name="volume" />
-                </button>
-                <span className={styles.videoTime}>
-                  {formatTime(currentTime)} / {formatTime(cotDuration)}
-                </span>
-                <button
-                  className={styles.videoSeek}
-                  type="button"
-                  aria-label="Seek COT video"
-                  onClick={seekVideo}
-                >
-                  <span style={{ width: `${(currentTime / cotDuration) * 100}%` }} />
-                </button>
-                <button type="button" className={styles.controlButton} onClick={cyclePlaybackRate}>
-                  <Icon name="settings" />
-                  <span>{playbackRate}x</span>
-                </button>
-                <button type="button" className={styles.controlButton} onClick={toggleFullscreen}>
-                  <Icon name="fullscreen" />
-                </button>
-              </div>
+                      if (event.currentTarget.currentTime >= cotDuration) {
+                        event.currentTarget.pause();
+                        setIsPlaying(false);
+                      }
+                    }}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => setIsPlaying(false)}
+                  />
+                  <button
+                    className={`${styles.playButton} ${isPlaying ? styles.playButtonPlaying : ""}`}
+                    type="button"
+                    aria-label={isPlaying ? "Pause video" : "Play video"}
+                    onClick={toggleVideo}
+                  >
+                    <Icon name={isPlaying ? "pause" : "play"} />
+                  </button>
+                  <div className={styles.videoControls}>
+                    <button type="button" className={styles.controlButton} onClick={toggleVideo}>
+                      <Icon name={isPlaying ? "pause" : "play"} />
+                    </button>
+                    <button type="button" className={styles.controlButton} onClick={toggleMute}>
+                      <Icon name="volume" />
+                    </button>
+                    <span className={styles.videoTime}>
+                      {formatTime(currentTime)} / {formatTime(cotDuration)}
+                    </span>
+                    <button
+                      className={styles.videoSeek}
+                      type="button"
+                      aria-label="Seek COT video"
+                      onClick={seekVideo}
+                    >
+                      <span style={{ width: `${(currentTime / cotDuration) * 100}%` }} />
+                    </button>
+                    <button type="button" className={styles.controlButton} onClick={cyclePlaybackRate}>
+                      <Icon name="settings" />
+                      <span>{playbackRate}x</span>
+                    </button>
+                    <button type="button" className={styles.controlButton} onClick={toggleFullscreen}>
+                      <Icon name="fullscreen" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <VideoFallbackScene />
+              )}
             </div>
           </div>
 
