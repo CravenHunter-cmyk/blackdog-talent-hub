@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { BlackDogPawWatermarkField } from "@/components/layout/BlackDogPawWatermarkField";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,7 +28,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="blackdog-paw-watermark-bg min-h-full flex flex-col">
+        <BlackDogPawWatermarkField />
+        {children}
+      </body>
     </html>
   );
 }

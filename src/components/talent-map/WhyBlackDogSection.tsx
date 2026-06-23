@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
+import { WhyTalentAvatarOverlay } from "@/components/talent-map/WhyTalentAvatarOverlay";
 import { WhyWorkflowLoop } from "@/components/talent-map/WhyWorkflowLoop";
 
 type BlockLayout = {
@@ -114,6 +115,8 @@ export function WhyBlackDogSection() {
             );
           })}
         </div>
+
+        <WhyTalentAvatarOverlay />
 
         <div className="why-proof-metrics" style={summaryStyle(WHY_LAYOUT.summary)}>
           <WhyWorkflowLoop />

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { CSSProperties } from "react";
 
 type NodeId = "need" | "match" | "review" | "qa" | "deliver";
@@ -22,7 +23,7 @@ type WorkflowLayout = {
   lines: Record<LineId, LineLayout>;
 };
 
-const WORKFLOW_LAYOUT: WorkflowLayout = {
+const LOOP_LAYOUT: WorkflowLayout = {
   nodes: {
     need: { x: 8.3, y: 44.9, width: 27 },
     match: { x: 50.6, y: -29, width: 28 },
@@ -39,7 +40,7 @@ const WORKFLOW_LAYOUT: WorkflowLayout = {
   },
 };
 
-const WORKFLOW_NODES: Array<{ id: NodeId; label: string; icon: "document" | "people" | "review" | "shield" | "package" }> = [
+const LOOP_NODES: Array<{ id: NodeId; label: string; icon: "document" | "people" | "review" | "shield" | "package" }> = [
   { id: "need", label: "Need", icon: "document" },
   { id: "match", label: "Match", icon: "people" },
   { id: "review", label: "Review", icon: "review" },
@@ -47,7 +48,7 @@ const WORKFLOW_NODES: Array<{ id: NodeId; label: string; icon: "document" | "peo
   { id: "qa", label: "QA", icon: "shield" },
 ];
 
-const WORKFLOW_LINES: Array<{ id: LineId }> = [
+const LOOP_LINES: Array<{ id: LineId }> = [
   { id: "needMatch" },
   { id: "matchReview" },
   { id: "reviewQa" },
@@ -76,7 +77,7 @@ function linePath(layout: LineLayout) {
   return `M 0 50 Q 50 ${50 + layout.bend} 100 50`;
 }
 
-function WorkflowIcon({ icon }: { icon: (typeof WORKFLOW_NODES)[number]["icon"] }) {
+function LoopIcon({ icon }: { icon: (typeof LOOP_NODES)[number]["icon"] }) {
   if (icon === "document") {
     return (
       <svg viewBox="0 0 16 16">
@@ -130,9 +131,9 @@ export function WhyWorkflowLoop() {
   return (
     <div className="why-proof-workflow" aria-label="Need to Match to Review to QA to Deliver">
       <span className="why-proof-workflow-loop">
-        {WORKFLOW_LINES.map((line) => {
-          const currentLine = WORKFLOW_LAYOUT.lines[line.id];
-          const markerId = `workflow-arrow-${line.id}`;
+        {LOOP_LINES.map((line) => {
+          const currentLine = LOOP_LAYOUT.lines[line.id];
+          const markerId = `loop-arrow-${line.id}`;
 
           return (
             <span
@@ -170,14 +171,23 @@ export function WhyWorkflowLoop() {
           );
         })}
 
-        {WORKFLOW_NODES.map((node) => (
+        <Image
+          src="/images/blackdog-workflow-mini-dog.png"
+          alt=""
+          width={96}
+          height={96}
+          className="why-proof-workflow-mini-dog"
+          aria-hidden="true"
+        />
+
+        {LOOP_NODES.map((node) => (
           <span
             className={`why-proof-workflow-node why-proof-workflow-node-${node.id}`}
             key={node.id}
-            style={nodeStyle(WORKFLOW_LAYOUT.nodes[node.id])}
+            style={nodeStyle(LOOP_LAYOUT.nodes[node.id])}
           >
             <span className="why-proof-workflow-icon">
-              <WorkflowIcon icon={node.icon} />
+              <LoopIcon icon={node.icon} />
             </span>
             {node.label}
           </span>

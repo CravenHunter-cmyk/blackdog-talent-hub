@@ -22,6 +22,58 @@ body {
   overscroll-behavior-y: auto;
 }
 
+.blackdog-paw-watermark-bg {
+  position: relative;
+  isolation: isolate;
+  background: var(--background);
+}
+
+.blackdog-paw-watermark-bg > :not(.blackdog-paw-watermark-field) {
+  position: relative;
+  z-index: 1;
+}
+
+.blackdog-paw-watermark-field {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blackdog-paw-watermark-field__plane {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: max(360vw, 4400px);
+  height: max(420vh, 4800px);
+  place-content: center;
+  grid-template-columns: repeat(27, 34px);
+  grid-auto-rows: 34px;
+  gap: 92px 126px;
+  transform: translate(-50%, -50%) rotate(-24deg);
+  transform-origin: center;
+}
+
+.blackdog-paw-watermark-field__paw {
+  display: block;
+  width: 34px;
+  height: 34px;
+  opacity: var(--paw-opacity, 0.08);
+  background: #e7aa45;
+  -webkit-mask-image: url("/images/Logo_icon_tight.png");
+  mask-image: url("/images/Logo_icon_tight.png");
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  transform: translate(var(--paw-offset-x, 0), var(--paw-offset-y, 0)) rotate(var(--paw-rotate, 0deg)) scale(var(--paw-scale, 1));
+  transform-origin: center;
+}
+
 html {
   min-height: 100%;
   overflow-y: auto;
@@ -4029,6 +4081,44 @@ html {
   max-width: none;
 }
 
+.why-talent-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.why-talent-avatar {
+  position: absolute;
+  left: var(--talent-avatar-x);
+  top: var(--talent-avatar-y);
+  display: block;
+  width: var(--talent-avatar-size);
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(222, 247, 255, 0.7)),
+    rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 8px 18px rgba(15, 75, 88, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.why-talent-avatar-face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: inherit;
+  background-image: url("/images/Talent_Photo.png");
+  background-position: var(--talent-avatar-focus-x) var(--talent-avatar-focus-y);
+  background-repeat: no-repeat;
+  background-size: 430% auto;
+}
+
 .why-proof-metrics {
   position: absolute;
   right: 160px;
@@ -4066,6 +4156,20 @@ html {
   height: 104px;
   max-width: 100%;
   min-width: 0;
+}
+
+.why-proof-workflow-mini-dog {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  z-index: 2;
+  display: block;
+  width: 48px;
+  height: auto;
+  opacity: 0.94;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 10px 16px rgba(10, 81, 94, 0.16));
 }
 
 .why-proof-workflow-node {
@@ -4212,6 +4316,11 @@ html {
   .why-proof-workflow-loop {
     width: min(100%, 326px);
     height: 94px;
+  }
+
+  .why-proof-workflow-mini-dog {
+    top: 55%;
+    width: 42px;
   }
 
   .why-proof-workflow-node {
