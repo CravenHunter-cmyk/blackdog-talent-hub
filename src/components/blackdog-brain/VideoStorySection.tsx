@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 export function VideoStorySection() {
   const [videoOpen, setVideoOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const VIDEO_SRC = process.env.NEXT_PUBLIC_BLACKDOG_BRAIN_STORY_VIDEO_URL || "";
+  const VIDEO_SRC = process.env.NEXT_PUBLIC_BLACKDOG_BRAIN_INTRO_VIDEO_URL || "";
 
   useEffect(() => {
     const video = videoRef.current;
