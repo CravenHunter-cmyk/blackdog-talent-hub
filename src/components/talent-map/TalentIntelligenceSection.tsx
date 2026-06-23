@@ -36,10 +36,10 @@ const DEFAULT_BRAIN_LAYOUT: BrainLayerLayout = {
   performanceModeling: { left: 69.30930524553571, top: 22.874360910772943, width: 10.6 },
   matchCalculation: { left: 91.19795851934524, top: 22.88757693614772, width: 5 },
   matchScore: { left: 80.74755161830358, top: 47.3829173432013, width: 8.008775111607143 },
-  bestFit: { left: 69.12095191592262, top: 62.75210134803458, width: 28.2 },
-  strengths: { left: 69.30587332589285, top: 72.1, width: 8.8 },
-  riskNote: { left: 79.1352283296131, top: 72.1, width: 8.414025297619048 },
-  recommendedRole: { left: 88.66812686011905, top: 72.15, width: 8.560219029017858 },
+  bestFit: { left: 67.041, top: 60.224, width: 28.2 },
+  strengths: { left: 71.106, top: 66.368, width: 8.8 },
+  riskNote: { left: 79.854, top: 66.466, width: 8.414 },
+  recommendedRole: { left: 88.274, top: 66.606, width: 8.56 },
 };
 
 const TALENT_PROFILE_INNER_SCALE = 0.88;

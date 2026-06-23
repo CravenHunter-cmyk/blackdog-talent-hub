@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BlackDogLogo } from "@/components/brand/BlackDogLogo";
 import { useCurrentPlatformUser } from "@/components/auth/useCurrentPlatformUser";
 
 const navItems = [
@@ -33,14 +34,21 @@ export function TopNav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#e2d8c8] bg-[#fbfaf6]/96 shadow-[0_8px_20px_rgba(31,41,51,0.05)] backdrop-blur">
-      <div className="mx-auto flex h-[72px] w-full max-w-[1600px] flex-nowrap items-center gap-4 px-[clamp(16px,2.5vw,40px)]">
-        <div className="w-[210px] shrink-0">
-          <div className="whitespace-nowrap text-base font-bold tracking-tight text-[#111827]">BlackDog Talent Hub</div>
-          <div className="whitespace-nowrap text-xs font-medium text-[#64748b]">Global native talent network</div>
-        </div>
+    <header
+      className="sticky top-0 z-50 border-b border-[#e2d8c8] shadow-[0_8px_20px_rgba(31,41,51,0.05)] backdrop-blur"
+      style={{
+        backgroundImage: "linear-gradient(180deg, rgba(255, 252, 246, 0.88) 0%, rgba(255, 250, 240, 0.78) 100%)",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
+      }}
+    >
+      <div className="page-shell flex h-[76px] flex-nowrap items-center gap-4 overflow-visible px-[clamp(24px,3vw,56px)] lg:px-[clamp(40px,4.5vw,88px)]">
+        <Link href="/" className="inline-flex shrink-0 items-center text-decoration-none">
+          <BlackDogLogo size="md" tone="default" />
+        </Link>
 
-        <nav className="scroll-x-panel ml-auto flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1">
+        <nav className="scroll-x-panel ml-auto flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 lg:pr-2">
           {navItems.map((item) => (
             <Link
               key={item.label}
