@@ -117,6 +117,7 @@ const LANGUAGE_MARKER_STYLE: "circle" | "paw" = "circle";
 const AUTO_ROTATE_SPEED = 0.95;
 const FOCUS_ROTATE_SPEED = 0.22;
 const MIN_STAGE_SIZE = 320;
+const WEBGL_RETRY_DELAYS = [0, 250, 900, 1800];
 const GLOBE_VISUAL_CONFIG = {
   oceanColor: "#0B6FAE",
   oceanEmissive: "#0A4F8F",
@@ -253,12 +254,15 @@ function findNearestNode(
 function checkWebGlAvailable() {
   try {
     const canvas = document.createElement("canvas");
-    const context =
+    const context = (
       canvas.getContext("webgl2", { failIfMajorPerformanceCaveat: false }) ??
-      canvas.getContext("webgl", { failIfMajorPerformanceCaveat: false });
+      canvas.getContext("webgl", { failIfMajorPerformanceCaveat: false }) ??
+      canvas.getContext("experimental-webgl", { failIfMajorPerformanceCaveat: false })
+    ) as WebGLRenderingContext | WebGL2RenderingContext | null;
 
     if (!context) return false;
 
+    context.getExtension("WEBGL_lose_context")?.loseContext();
     return true;
   } catch {
     return false;
@@ -620,6 +624,8 @@ export function BlackdogGlobeLanguageMap({
   const lastFocusedNodeRef = useRef<string | null>(null);
   const lastFocusedGroupRef = useRef<ContinentGroup | null>(null);
   const resumeAutoRotateTimerRef = useRef<number | null>(null);
+  const webGlRetryTimersRef = useRef<number[]>([]);
+  const webGlStatusRef = useRef<WebGlStatus>("checking");
   const activeSelectedId = selectedId ?? internalSelectedId;
 
   const defaultGlobeView = DEFAULT_GLOBE_VIEW;
@@ -665,6 +671,37 @@ export function BlackdogGlobeLanguageMap({
     window.clearTimeout(resumeAutoRotateTimerRef.current);
     resumeAutoRotateTimerRef.current = null;
   }, []);
+
+  const clearWebGlRetryTimers = useCallback(() => {
+    webGlRetryTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    webGlRetryTimersRef.current = [];
+  }, []);
+
+  const scheduleWebGlAvailabilityCheck = useCallback(() => {
+    clearWebGlRetryTimers();
+
+    WEBGL_RETRY_DELAYS.forEach((delay, index) => {
+      const timer = window.setTimeout(() => {
+        if (index === 0) {
+          setWebGlStatus("checking");
+        }
+
+        const isAvailable = checkWebGlAvailable();
+
+        if (isAvailable) {
+          setWebGlStatus("available");
+          clearWebGlRetryTimers();
+          return;
+        }
+
+        if (index === WEBGL_RETRY_DELAYS.length - 1) {
+          setWebGlStatus("unavailable");
+        }
+      }, delay);
+
+      webGlRetryTimersRef.current.push(timer);
+    });
+  }, [clearWebGlRetryTimers]);
 
   const scheduleAutoRotateResume = useCallback(() => {
     clearAutoRotateResume();
@@ -782,12 +819,29 @@ export function BlackdogGlobeLanguageMap({
   }, [configureControls, resetGlobeView]);
 
   useEffect(() => {
-    const animationFrame = window.requestAnimationFrame(() => {
-      setWebGlStatus(checkWebGlAvailable() ? "available" : "unavailable");
-    });
+    webGlStatusRef.current = webGlStatus;
+  }, [webGlStatus]);
 
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, []);
+  useEffect(() => {
+    scheduleWebGlAvailabilityCheck();
+
+    const retryWhenSessionResumes = () => {
+      if (webGlStatusRef.current !== "available") {
+        scheduleWebGlAvailabilityCheck();
+      }
+    };
+
+    window.addEventListener("focus", retryWhenSessionResumes);
+    window.addEventListener("pageshow", retryWhenSessionResumes);
+    document.addEventListener("visibilitychange", retryWhenSessionResumes);
+
+    return () => {
+      clearWebGlRetryTimers();
+      window.removeEventListener("focus", retryWhenSessionResumes);
+      window.removeEventListener("pageshow", retryWhenSessionResumes);
+      document.removeEventListener("visibilitychange", retryWhenSessionResumes);
+    };
+  }, [clearWebGlRetryTimers, scheduleWebGlAvailabilityCheck]);
 
   useEffect(() => {
     return () => clearAutoRotateResume();
@@ -854,7 +908,7 @@ export function BlackdogGlobeLanguageMap({
       {webGlStatus === "unavailable" && (
         <div className="blackdog-globe-map__fallback" role="status">
           <span>WebGL unavailable in this browser session</span>
-          <button type="button" onClick={() => setWebGlStatus(checkWebGlAvailable() ? "available" : "unavailable")}>
+          <button type="button" onClick={scheduleWebGlAvailabilityCheck}>
             Retry Globe
           </button>
         </div>

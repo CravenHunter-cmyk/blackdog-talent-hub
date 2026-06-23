@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { BlackDogLogo } from "@/components/brand/BlackDogLogo";
+import { BlackDogDemoVideo } from "@/components/common/BlackDogDemoVideo";
 import styles from "./PlatformShowcaseSection.module.css";
 
 type IconName =
@@ -14,12 +15,8 @@ type IconName =
   | "clipboard"
   | "copy"
   | "external"
-  | "fullscreen"
   | "logout"
-  | "pause"
-  | "play"
-  | "settings"
-  | "volume";
+  | "play";
 
 type ScoreKey = "accuracy" | "relevance" | "fluency" | "completeness";
 type SlideIndex = 0 | 1 | 2 | 3;
@@ -49,8 +46,6 @@ const carouselSlides = [
   "COT Evaluation",
   "More Evaluation Workflows",
 ] as const;
-
-const storyVideoSrc = process.env.NEXT_PUBLIC_BLACKDOG_BRAIN_STORY_VIDEO_URL || "";
 
 const slideTitles: Record<SlideIndex, { title: string; subtitle: string }> = {
   0: {
@@ -215,15 +210,6 @@ const commentsMaxLength = 500;
 const initialCaption =
   "The video introduces BlackDog Brain as an intelligent evaluation and workflow platform through a polished animated product story. A friendly BlackDog mascot appears in a modern digital workspace surrounded by interface panels, charts, task cards, and AI workflow symbols. The scene highlights how the platform can organize project requirements, support data and model evaluation work, surface progress metrics, and guide users through structured review tasks. The visual style is clean and technology focused, with warm lighting, soft motion, and product UI elements that suggest reliability, automation, and professional collaboration. Overall, the video presents BlackDog Brain as a practical AI operations assistant for teams that need to manage evaluation workflows, track quality, and turn complex project needs into clear platform actions.";
 
-function formatTime(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "00:00";
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-
-  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
-}
-
 function Icon({ name }: { name: IconName }) {
   const strokeProps = {
     fill: "none",
@@ -272,14 +258,6 @@ function Icon({ name }: { name: IconName }) {
           <path {...strokeProps} d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
         </>
       )}
-      {name === "fullscreen" && (
-        <>
-          <path {...strokeProps} d="M8 3H5a2 2 0 0 0-2 2v3" />
-          <path {...strokeProps} d="M16 3h3a2 2 0 0 1 2 2v3" />
-          <path {...strokeProps} d="M8 21H5a2 2 0 0 1-2-2v-3" />
-          <path {...strokeProps} d="M16 21h3a2 2 0 0 0 2-2v-3" />
-        </>
-      )}
       {name === "logout" && (
         <>
           <path {...strokeProps} d="M10 17 15 12l-5-5" />
@@ -287,32 +265,7 @@ function Icon({ name }: { name: IconName }) {
           <path {...strokeProps} d="M21 4v16" />
         </>
       )}
-      {name === "pause" && (
-        <>
-          <rect x="7" y="5" width="4" height="14" rx="1" fill="currentColor" />
-          <rect x="13" y="5" width="4" height="14" rx="1" fill="currentColor" />
-        </>
-      )}
       {name === "play" && <path d="M8 5v14l11-7z" fill="currentColor" />}
-      {name === "settings" && (
-        <>
-          <path
-            {...strokeProps}
-            d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"
-          />
-          <path
-            {...strokeProps}
-            d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.1 4.65a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"
-          />
-        </>
-      )}
-      {name === "volume" && (
-        <>
-          <path {...strokeProps} d="M11 5 6 9H2v6h4l5 4z" />
-          <path {...strokeProps} d="M15.5 8.5a5 5 0 0 1 0 7" />
-          <path {...strokeProps} d="M18.5 5.5a9 9 0 0 1 0 13" />
-        </>
-      )}
     </svg>
   );
 }
@@ -400,17 +353,6 @@ function ScoreRow({
           />
         ))}
       </div>
-    </div>
-  );
-}
-
-function VideoFallbackScene() {
-  return (
-    <div className={styles.videoScene} aria-hidden="true">
-      <span className={styles.sunsetGlow} />
-      <span className={styles.skyline} />
-      <span className={styles.waterline} />
-      <span className={styles.walkway} />
     </div>
   );
 }
@@ -545,13 +487,6 @@ function PlatformShell({
 }
 
 function CaptionEvaluationSlide() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<HTMLDivElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(15);
-  const [playbackRate, setPlaybackRate] = useState(1);
   const [progressCount, setProgressCount] = useState(12);
   const [completed, setCompleted] = useState(12);
   const [skipped, setSkipped] = useState(1);
@@ -567,62 +502,6 @@ function CaptionEvaluationSlide() {
   const [draftState, setDraftState] = useState("Draft not saved");
   const totalTasks = 25;
   const progressPercent = Math.min(100, (progressCount / totalTasks) * 100);
-
-  async function toggleVideo() {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (video.paused) {
-      try {
-        await video.play();
-      } catch {
-        setIsPlaying(false);
-      }
-      return;
-    }
-
-    video.pause();
-  }
-
-  function seekVideo(event: MouseEvent<HTMLButtonElement>) {
-    const video = videoRef.current;
-    if (!video || !duration) return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    video.currentTime = ratio * duration;
-    setCurrentTime(video.currentTime);
-  }
-
-  function toggleMute() {
-    const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
-
-    if (videoRef.current) {
-      videoRef.current.muted = nextMuted;
-    }
-  }
-
-  function cyclePlaybackRate() {
-    const rates = [1, 1.25, 1.5, 0.75] as const;
-    const nextRate = rates[(rates.indexOf(playbackRate as (typeof rates)[number]) + 1) % rates.length];
-    setPlaybackRate(nextRate);
-
-    if (videoRef.current) {
-      videoRef.current.playbackRate = nextRate;
-    }
-  }
-
-  async function toggleFullscreen() {
-    if (!playerRef.current || !document.fullscreenEnabled) return;
-
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-      return;
-    }
-
-    await playerRef.current.requestFullscreen();
-  }
 
   function handleSkipTask() {
     setSkipped((current) => Math.min(totalTasks, current + 1));
@@ -654,73 +533,13 @@ function CaptionEvaluationSlide() {
       tips={captionTips}
       onSkipTask={handleSkipTask}
     >
-        <div className={styles.mainWorkspace}>
-          <section className={styles.videoColumn} aria-labelledby="caption-video-title">
-            <h3 id="caption-video-title">Video</h3>
+      <div className={styles.mainWorkspace}>
+        <section className={styles.videoColumn} aria-labelledby="caption-video-title">
+          <h3 id="caption-video-title">Video</h3>
 
-            <div className={styles.videoPlayer}>
-              <div ref={playerRef} className={styles.videoFrame}>
-              {storyVideoSrc ? (
-                <>
-                  <video
-                    ref={videoRef}
-                    className={styles.videoMedia}
-                    aria-label="Waterfront skyline video preview"
-                    src={storyVideoSrc}
-                    muted={isMuted}
-                    playsInline
-                    preload="auto"
-                    onClick={toggleVideo}
-                    onLoadedMetadata={(event) => {
-                      setDuration(event.currentTarget.duration || 15);
-                      event.currentTarget.playbackRate = playbackRate;
-                      event.currentTarget.muted = isMuted;
-                    }}
-                    onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onEnded={() => setIsPlaying(false)}
-                  />
-                  <button
-                    className={`${styles.playButton} ${isPlaying ? styles.playButtonPlaying : ""}`}
-                    type="button"
-                    aria-label={isPlaying ? "Pause video" : "Play video"}
-                    onClick={toggleVideo}
-                  >
-                    <Icon name={isPlaying ? "pause" : "play"} />
-                  </button>
-                  <div className={styles.videoControls}>
-                    <button type="button" className={styles.controlButton} onClick={toggleVideo}>
-                      <Icon name={isPlaying ? "pause" : "play"} />
-                    </button>
-                    <button type="button" className={styles.controlButton} onClick={toggleMute}>
-                      <Icon name="volume" />
-                    </button>
-                    <span className={styles.videoTime}>
-                      {formatTime(currentTime)} / {formatTime(duration)}
-                    </span>
-                    <button
-                      className={styles.videoSeek}
-                      type="button"
-                      aria-label="Seek video"
-                      onClick={seekVideo}
-                    >
-                      <span style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }} />
-                    </button>
-                    <button type="button" className={styles.controlButton} onClick={cyclePlaybackRate}>
-                      <Icon name="settings" />
-                      <span>{playbackRate}x</span>
-                    </button>
-                    <button type="button" className={styles.controlButton} onClick={toggleFullscreen}>
-                      <Icon name="fullscreen" />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <VideoFallbackScene />
-              )}
-              </div>
-            </div>
+          <div className={styles.videoPlayer}>
+            <BlackDogDemoVideo />
+          </div>
 
             <div className={styles.taskBrief}>
               <h4>Task</h4>
@@ -796,8 +615,8 @@ function CaptionEvaluationSlide() {
                 Save Draft
               </button>
             </div>
-          </section>
-        </div>
+        </section>
+      </div>
     </PlatformShell>
   );
 }
@@ -934,12 +753,6 @@ function GsbEvaluationSlide() {
 }
 
 function CotEvaluationSlide() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<HTMLDivElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [playbackRate, setPlaybackRate] = useState(1);
   const [activeSegment, setActiveSegment] = useState(0);
   const [localizationQuality, setLocalizationQuality] = useState("4");
   const [comments, setComments] = useState("");
@@ -948,74 +761,10 @@ function CotEvaluationSlide() {
   const [skipped, setSkipped] = useState(0);
   const [draftState, setDraftState] = useState("Draft not saved");
   const totalTasks = 30;
-  const cotDuration = 15;
   const progressPercent = Math.min(100, (progressCount / totalTasks) * 100);
 
-  async function toggleVideo() {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (video.paused) {
-      try {
-        await video.play();
-      } catch {
-        setIsPlaying(false);
-      }
-      return;
-    }
-
-    video.pause();
-  }
-
-  function seekVideo(event: MouseEvent<HTMLButtonElement>) {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    const nextTime = ratio * cotDuration;
-    video.currentTime = nextTime;
-    setCurrentTime(nextTime);
-  }
-
-  function toggleMute() {
-    const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
-
-    if (videoRef.current) {
-      videoRef.current.muted = nextMuted;
-    }
-  }
-
-  function cyclePlaybackRate() {
-    const rates = [1, 1.25, 1.5, 0.75] as const;
-    const nextRate = rates[(rates.indexOf(playbackRate as (typeof rates)[number]) + 1) % rates.length];
-    setPlaybackRate(nextRate);
-
-    if (videoRef.current) {
-      videoRef.current.playbackRate = nextRate;
-    }
-  }
-
-  async function toggleFullscreen() {
-    if (!playerRef.current || !document.fullscreenEnabled) return;
-
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-      return;
-    }
-
-    await playerRef.current.requestFullscreen();
-  }
-
   function selectSegment(index: number) {
-    const segment = cotSegments[index];
     setActiveSegment(index);
-    setCurrentTime(segment.seek);
-
-    if (videoRef.current) {
-      videoRef.current.currentTime = segment.seek;
-    }
   }
 
   function handleSkipTask() {
@@ -1053,113 +802,46 @@ function CotEvaluationSlide() {
           <h3 id="cot-video-title">Video</h3>
 
           <div className={styles.videoPlayer}>
-            <div ref={playerRef} className={styles.videoFrame}>
-              {storyVideoSrc ? (
-                <>
-                  <video
-                    ref={videoRef}
-                    className={styles.videoMedia}
-                    aria-label="Localized travel video preview"
-                    src={storyVideoSrc}
-                    muted={isMuted}
-                    playsInline
-                    preload="auto"
-                    onClick={toggleVideo}
-                    onLoadedMetadata={(event) => {
-                      event.currentTarget.playbackRate = playbackRate;
-                      event.currentTarget.muted = isMuted;
-                    }}
-                    onTimeUpdate={(event) => {
-                      const nextTime = Math.min(event.currentTarget.currentTime, cotDuration);
-                      setCurrentTime(nextTime);
+            <BlackDogDemoVideo />
+          </div>
 
-                      if (event.currentTarget.currentTime >= cotDuration) {
-                        event.currentTarget.pause();
-                        setIsPlaying(false);
-                      }
-                    }}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onEnded={() => setIsPlaying(false)}
-                  />
-                  <button
-                    className={`${styles.playButton} ${isPlaying ? styles.playButtonPlaying : ""}`}
-                    type="button"
-                    aria-label={isPlaying ? "Pause video" : "Play video"}
-                    onClick={toggleVideo}
-                  >
-                    <Icon name={isPlaying ? "pause" : "play"} />
-                  </button>
-                  <div className={styles.videoControls}>
-                    <button type="button" className={styles.controlButton} onClick={toggleVideo}>
-                      <Icon name={isPlaying ? "pause" : "play"} />
-                    </button>
-                    <button type="button" className={styles.controlButton} onClick={toggleMute}>
-                      <Icon name="volume" />
-                    </button>
-                    <span className={styles.videoTime}>
-                      {formatTime(currentTime)} / {formatTime(cotDuration)}
-                    </span>
-                    <button
-                      className={styles.videoSeek}
-                      type="button"
-                      aria-label="Seek COT video"
-                      onClick={seekVideo}
-                    >
-                      <span style={{ width: `${(currentTime / cotDuration) * 100}%` }} />
-                    </button>
-                    <button type="button" className={styles.controlButton} onClick={cyclePlaybackRate}>
-                      <Icon name="settings" />
-                      <span>{playbackRate}x</span>
-                    </button>
-                    <button type="button" className={styles.controlButton} onClick={toggleFullscreen}>
-                      <Icon name="fullscreen" />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <VideoFallbackScene />
-              )}
+            <div className={styles.cotSegmentsHeader}>
+              <h3>Segments</h3>
+              <p>Identify the minimal complete semantic units.</p>
             </div>
-          </div>
 
-          <div className={styles.cotSegmentsHeader}>
-            <h3>Segments</h3>
-            <p>Identify the minimal complete semantic units.</p>
-          </div>
+            <div className={styles.cotSegmentList} aria-label="Video semantic segments">
+              {cotSegments.map((segment, index) => (
+                <button
+                  className={`${styles.cotSegmentItem} ${
+                    index === activeSegment ? styles.cotSegmentItemActive : ""
+                  }`}
+                  type="button"
+                  key={segment.time}
+                  aria-pressed={index === activeSegment}
+                  onClick={() => selectSegment(index)}
+                >
+                  <span>
+                    <strong>{segment.time}</strong>
+                    <em>{segment.segment}</em>
+                  </span>
+                  <span className={styles.cotSegmentPlay} aria-hidden="true">
+                    <Icon name="play" />
+                  </span>
+                </button>
+              ))}
+            </div>
 
-          <div className={styles.cotSegmentList} aria-label="Video semantic segments">
-            {cotSegments.map((segment, index) => (
-              <button
-                className={`${styles.cotSegmentItem} ${
-                  index === activeSegment ? styles.cotSegmentItemActive : ""
-                }`}
-                type="button"
-                key={segment.time}
-                aria-pressed={index === activeSegment}
-                onClick={() => selectSegment(index)}
-              >
-                <span>
-                  <strong>{segment.time}</strong>
-                  <em>{segment.segment}</em>
-                </span>
-                <span className={styles.cotSegmentPlay} aria-hidden="true">
-                  <Icon name="play" />
-                </span>
-              </button>
-            ))}
-          </div>
+            <button
+              className={styles.cotAddSegmentButton}
+              type="button"
+              onClick={() => setDraftState("Segment draft ready")}
+            >
+              Add Segment
+            </button>
+          </section>
 
-          <button
-            className={styles.cotAddSegmentButton}
-            type="button"
-            onClick={() => setDraftState("Segment draft ready")}
-          >
-            Add Segment
-          </button>
-        </section>
-
-        <section className={styles.cotReviewPanel} aria-labelledby="cot-source-title">
+          <section className={styles.cotReviewPanel} aria-labelledby="cot-source-title">
           <div className={styles.cotTextGrid}>
             <article className={styles.cotTextPanel} aria-labelledby="cot-source-title">
               <h3 id="cot-source-title">Source Text (from ASR)</h3>
