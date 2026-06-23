@@ -190,11 +190,10 @@ export function RealTimeProjectVisibilitySection() {
     label: string,
     children: ReactNode,
     className?: string,
-    reactKey?: string,
   ) {
     return (
       <div
-        key={reactKey}
+        key={key}
         className={`project-visibility-layer ${className ?? ""}`}
         data-layer={label}
         style={getLayerStyle(key)}
@@ -251,7 +250,6 @@ export function RealTimeProjectVisibilitySection() {
             <p>{feature.body}</p>
           </article>,
           `project-visibility-layer-${feature.layerKey}`,
-          feature.layerKey,
         ),
       )}
 
