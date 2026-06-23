@@ -265,21 +265,39 @@ export function canPerform(user: PlatformUser | null, action: PermissionKey) {
   return hasPermission(user, action) && !isReadOnly(user);
 }
 
+export function isPublicRoute(route: string) {
+  const [pathname] = route.split("?");
+
+  return (
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/talent-map" ||
+    pathname.startsWith("/talent-map/") ||
+    pathname === "/blackdog-brain" ||
+    pathname === "/blackdog-brain/overview"
+  );
+}
+
 export function canAccessRoute(user: PlatformUser | null, route: string) {
-  if (route === "/" || route === "/login") return true;
+  if (isPublicRoute(route)) return true;
   if (!user) return false;
   if (isPlatformAdmin(user)) return true;
+  if (route.startsWith("/sourcing-hub")) return hasPermission(user, "recruiting.view") && user.role !== "talent";
   if (route.startsWith("/recruiting")) return hasPermission(user, "recruiting.view") && user.role !== "talent";
+  if (route.startsWith("/talent-museum")) return hasPermission(user, "talentLibrary.view") && user.role !== "talent";
   if (route.startsWith("/talent-library")) return hasPermission(user, "talentLibrary.view") && user.role !== "talent";
+  if (route.startsWith("/talent-hub")) return hasPermission(user, "talentHub.view");
   if (route.startsWith("/talent-messages")) return hasPermission(user, "talentHub.view");
+  if (route.startsWith("/pm-hub")) return hasPermission(user, "platform.private.view") || hasPermission(user, "client.project.view");
   if (route.startsWith("/team-hub")) return hasPermission(user, "platform.private.view") || hasPermission(user, "client.project.view");
   if (route.startsWith("/work-center")) return hasPermission(user, "workCenter.view");
   if (route.startsWith("/blackdog-brain")) return hasPermission(user, "brain.view") && user.role !== "talent";
+  if (route.startsWith("/blackdog-tools")) return hasPermission(user, "platform.private.view");
   if (route.startsWith("/workspace/tools/youtube-speech-link-collector")) {
     return hasPermission(user, "platform.private.view") && hasBlackDogToolAccess(user, YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID);
   }
   if (route.startsWith("/workspace/tools")) return hasPermission(user, "platform.private.view");
-  if (route.startsWith("/users-permissions") || route.startsWith("/settings")) return hasPermission(user, "settings.view");
+  if (route.startsWith("/command") || route.startsWith("/users-permissions") || route.startsWith("/settings")) return hasPermission(user, "settings.view");
   return hasPermission(user, "platform.private.view");
 }
 

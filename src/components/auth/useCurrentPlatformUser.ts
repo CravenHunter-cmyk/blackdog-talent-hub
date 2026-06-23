@@ -9,6 +9,17 @@ let cachedUser: PlatformUser | null = null;
 let cachedAt = 0;
 let inFlightAuthRequest: Promise<PlatformUser | null> | null = null;
 
+function readDevelopmentFallbackUser() {
+  return process.env.NODE_ENV === "development" ? readPlatformUser() : null;
+}
+
+function clearCachedUser() {
+  persistMockUser(null);
+  cachedUser = null;
+  cachedAt = Date.now();
+  return null;
+}
+
 export async function loadCurrentPlatformUser({ force = false }: { force?: boolean } = {}) {
   const now = Date.now();
   if (!force && now - cachedAt < AUTH_CACHE_TTL_MS) return cachedUser;
@@ -17,10 +28,13 @@ export async function loadCurrentPlatformUser({ force = false }: { force?: boole
   inFlightAuthRequest = fetch("/api/auth/me", { cache: "no-store" })
     .then(async (response) => {
       if (!response.ok) {
-        persistMockUser(null);
-        cachedUser = null;
-        cachedAt = Date.now();
-        return null;
+        const fallbackUser = readDevelopmentFallbackUser();
+        if (fallbackUser) {
+          cachedUser = fallbackUser;
+          cachedAt = Date.now();
+          return cachedUser;
+        }
+        return clearCachedUser();
       }
       const payload = await response.json();
       if (payload.user) {
@@ -29,16 +43,16 @@ export async function loadCurrentPlatformUser({ force = false }: { force?: boole
         cachedAt = Date.now();
         return cachedUser;
       }
-      persistMockUser(null);
-      cachedUser = null;
-      cachedAt = Date.now();
-      return null;
+      return clearCachedUser();
     })
     .catch(() => {
-      persistMockUser(null);
-      cachedUser = null;
-      cachedAt = Date.now();
-      return null;
+      const fallbackUser = readDevelopmentFallbackUser();
+      if (fallbackUser) {
+        cachedUser = fallbackUser;
+        cachedAt = Date.now();
+        return cachedUser;
+      }
+      return clearCachedUser();
     })
     .finally(() => {
       inFlightAuthRequest = null;

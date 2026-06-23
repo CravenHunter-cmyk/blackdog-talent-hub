@@ -30,8 +30,18 @@ function roleToRedirect(role: MockAccountRole) {
   return "/talent-messages"
 }
 
-export function LoginPage() {
+function normalizeRedirectTarget(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return ""
+  return value
+}
+
+type LoginPageProps = {
+  redirectTarget?: string
+}
+
+export function LoginPage({ redirectTarget: rawRedirectTarget = "" }: LoginPageProps) {
   const router = useRouter()
+  const redirectTarget = normalizeRedirectTarget(rawRedirectTarget)
   const [account, setAccount] = useState("")
   const [password, setPassword] = useState("")
   const [verificationCode, setVerificationCode] = useState("")
@@ -122,7 +132,7 @@ export function LoginPage() {
       if (response.ok) {
         const payload = await response.json() as { user: { loginAccount: string; name: string; role: MockAccountRole; status: MockAccountStatus; toolPermissions?: Record<string, boolean> } };
         persistSession(payload.user);
-        router.replace(roleToRedirect(payload.user.role));
+        router.replace(redirectTarget || roleToRedirect(payload.user.role));
         return;
       }
       if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
@@ -183,7 +193,7 @@ export function LoginPage() {
         toolPermissions?: Record<string, boolean>
       }
       persistSession(nextUser)
-      router.replace(roleToRedirect(nextUser.role))
+      router.replace(redirectTarget || roleToRedirect(nextUser.role))
     } finally {
       setLoading(false)
     }

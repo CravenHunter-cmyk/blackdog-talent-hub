@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { loadCurrentPlatformUser } from "@/components/auth/useCurrentPlatformUser";
 import { canAccessModule, readPlatformUser, routeFallbackType, type PlatformUser } from "@/lib/permissions";
 
@@ -56,6 +57,17 @@ export function PermissionFallback({ type, route }: { type: "access-required" | 
   );
 }
 
+function LoginRedirect({ route }: { route: string }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const redirectTarget = route || "/";
+    router.replace(`/login?redirect=${redirectTarget}`);
+  }, [route, router]);
+
+  return null;
+}
+
 export function AccessGate({ route, module, children, noPermissionFallback }: AccessGateProps) {
   const [user, setUser] = useState<PlatformUser | null>(null);
   const [ready, setReady] = useState(false);
@@ -80,5 +92,6 @@ export function AccessGate({ route, module, children, noPermissionFallback }: Ac
   const fallback = routeFallbackType(user, route);
   if (fallback === "allowed" && (!module || canAccessModule(user, module))) return <>{children}</>;
   if (fallback === "no-permission" && noPermissionFallback) return <>{noPermissionFallback}</>;
+  if (fallback === "access-required") return <LoginRedirect route={route} />;
   return <PermissionFallback type={fallback === "allowed" ? "no-permission" : fallback} route={route} />;
 }

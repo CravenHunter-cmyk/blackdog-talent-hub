@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AccessGate } from "@/components/auth/AccessGate";
 import { BrainComingSoon } from "@/components/brain/BrainComingSoon";
 import { TopNav } from "@/components/layout/TopNav";
 import { isBlackDogCommandWorkspaceEnabled } from "@/lib/blackdogCommandAccess";
@@ -8,7 +9,9 @@ export default function Page() {
     return (
       <>
         <TopNav />
-        <BrainComingSoon />
+        <AccessGate route="/users-permissions" module="settings">
+          <BrainComingSoon />
+        </AccessGate>
       </>
     );
   }

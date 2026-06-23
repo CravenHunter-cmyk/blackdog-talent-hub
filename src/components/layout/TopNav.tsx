@@ -5,21 +5,24 @@ import { usePathname } from "next/navigation";
 import { useCurrentPlatformUser } from "@/components/auth/useCurrentPlatformUser";
 
 const navItems = [
-  { label: "Talent Map", href: "/" },
+  { label: "Talent Map", href: "/talent-map" },
   { label: "BlackDog Brain", href: "/blackdog-brain" },
-  { label: "BlackDog Tools", href: "/workspace/tools" },
-  { label: "BlackDog Talent Museum", href: "/talent-library" },
-  { label: "Talent Hub", href: "/talent-messages" },
-  { label: "PM Hub", href: "/team-hub" },
-  { label: "Sourcing Hub", href: "/recruiting" },
-  { label: "Command", href: "/settings" },
+  { label: "BlackDog Tools", href: "/blackdog-tools" },
+  { label: "BlackDog Talent Museum", href: "/talent-museum" },
+  { label: "Talent Hub", href: "/talent-hub" },
+  { label: "PM Hub", href: "/pm-hub" },
+  { label: "Sourcing Hub", href: "/sourcing-hub" },
+  { label: "Command", href: "/command" },
 ];
 
 export function TopNav() {
   const pathname = usePathname();
   const { user: platformUser, hydrated, logout } = useCurrentPlatformUser();
 
-  const isNavActive = (href: string) => (href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
+  const isNavActive = (href: string) => {
+    if (href === "/talent-map") return pathname === "/" || pathname === href || pathname.startsWith(`${href}/`);
+    return href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   const navLinkClass = (href: string) => {
     const isActive = isNavActive(href);

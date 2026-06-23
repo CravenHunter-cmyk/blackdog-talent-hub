@@ -7,11 +7,25 @@ export const metadata: Metadata = {
   description: "Sign in to the BlackDog Talent Hub platform.",
 }
 
-export default function Page() {
+type LoginPageSearchParams = {
+  redirect?: string | string[]
+}
+
+function firstSearchParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] || "" : value || ""
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<LoginPageSearchParams>
+}) {
+  const query = await searchParams
+
   return (
     <>
       <TopNav />
-      <LoginPage />
+      <LoginPage redirectTarget={firstSearchParam(query.redirect)} />
     </>
   )
 }

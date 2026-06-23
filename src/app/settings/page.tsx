@@ -14,7 +14,9 @@ export default async function Page() {
     return (
       <>
         <TopNav />
-        <BrainComingSoon />
+        <AccessGate route="/settings" module="settings">
+          <BrainComingSoon />
+        </AccessGate>
       </>
     );
   }
