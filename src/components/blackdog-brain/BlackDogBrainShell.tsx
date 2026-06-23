@@ -1,14 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { BlackDogBrainTabs } from "./BlackDogBrainTabs";
 
 export function BlackDogBrainShell({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <BlackDogBrainTabs />
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }
 
 export function BrainSectionHeader({
