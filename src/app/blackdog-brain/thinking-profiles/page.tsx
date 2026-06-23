@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AccessGate } from "@/components/auth/AccessGate";
-import { BlackDogBrainTabs } from "@/components/blackdog-brain/BlackDogBrainTabs";
+import { BlackDogBrainShell } from "@/components/blackdog-brain/BlackDogBrainShell";
 import { BrainComingSoon } from "@/components/brain/BrainComingSoon";
 
 export const metadata: Metadata = {
@@ -10,11 +10,10 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <>
+    <BlackDogBrainShell>
       <AccessGate route="/blackdog-brain/thinking-profiles">
-        <BlackDogBrainTabs />
         <BrainComingSoon />
       </AccessGate>
-    </>
+    </BlackDogBrainShell>
   );
 }
