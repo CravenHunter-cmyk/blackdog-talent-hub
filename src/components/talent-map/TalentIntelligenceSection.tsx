@@ -37,9 +37,23 @@ const DEFAULT_BRAIN_LAYOUT: BrainLayerLayout = {
   matchCalculation: { left: 91.19795851934524, top: 22.88757693614772, width: 5 },
   matchScore: { left: 80.74755161830358, top: 47.3829173432013, width: 8.008775111607143 },
   bestFit: { left: 69.12095191592262, top: 62.75210134803458, width: 28.2 },
-  strengths: { left: 69.30587332589285, top: 72.78782237661896, width: 8.8 },
-  riskNote: { left: 79.1352283296131, top: 72.7826303666503, width: 8.414025297619048 },
-  recommendedRole: { left: 88.66812686011905, top: 72.83360646452441, width: 8.560219029017858 },
+  strengths: { left: 69.30587332589285, top: 72.1, width: 8.8 },
+  riskNote: { left: 79.1352283296131, top: 72.1, width: 8.414025297619048 },
+  recommendedRole: { left: 88.66812686011905, top: 72.15, width: 8.560219029017858 },
+};
+
+const TALENT_PROFILE_INNER_SCALE = 0.88;
+const BRAIN_RESULT_CARD_SCALE = 0.86;
+
+const talentProfileInnerScaleStyle: CSSProperties = {
+  width: `${100 / TALENT_PROFILE_INNER_SCALE}%`,
+  transform: `scale(${TALENT_PROFILE_INNER_SCALE})`,
+  transformOrigin: "top left",
+};
+
+const brainResultCardScaleStyle: CSSProperties = {
+  transform: `scale(${BRAIN_RESULT_CARD_SCALE})`,
+  transformOrigin: "top center",
 };
 
 const performanceMetrics = [
@@ -270,6 +284,13 @@ export function TalentIntelligenceSection() {
     };
   }
 
+  function getBrainResultCardStyle(id: Extract<BrainLayerId, "strengths" | "riskNote" | "recommendedRole">): CSSProperties {
+    return {
+      ...getBrainLayerStyle(id),
+      ...brainResultCardScaleStyle,
+    };
+  }
+
   return (
     <section className="talent-intelligence-section" aria-label="Talent intelligence profile">
       <div className="talent-intelligence-background" aria-hidden="true" />
@@ -352,7 +373,7 @@ export function TalentIntelligenceSection() {
       </div>
 
       <article className="talent-profile-card" aria-label="Verified talent profile">
-        <div className="talent-profile-inner">
+        <div className="talent-profile-inner" style={talentProfileInnerScaleStyle}>
           <header className="talent-profile-header">
             <h3>Elena Kovács</h3>
             <p>
@@ -558,7 +579,7 @@ export function TalentIntelligenceSection() {
 
         <section
           className="talent-brain-layer talent-brain-result-card"
-          style={getBrainLayerStyle("strengths")}
+          style={getBrainResultCardStyle("strengths")}
         >
           <BrainIcon name="star" />
           <h4>STRENGTHS</h4>
@@ -571,7 +592,7 @@ export function TalentIntelligenceSection() {
 
         <section
           className="talent-brain-layer talent-brain-result-card"
-          style={getBrainLayerStyle("riskNote")}
+          style={getBrainResultCardStyle("riskNote")}
         >
           <BrainIcon name="warning" />
           <h4>RISK NOTE</h4>
@@ -584,7 +605,7 @@ export function TalentIntelligenceSection() {
 
         <section
           className="talent-brain-layer talent-brain-result-card"
-          style={getBrainLayerStyle("recommendedRole")}
+          style={getBrainResultCardStyle("recommendedRole")}
         >
           <BrainIcon name="user" />
           <h4>RECOMMENDED ROLE</h4>
