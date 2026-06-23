@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { CSSProperties } from "react";
 
 type NodeId = "need" | "match" | "review" | "qa" | "deliver";
@@ -170,15 +169,6 @@ export function WhyWorkflowLoop() {
             </span>
           );
         })}
-
-        <Image
-          src="/images/blackdog-workflow-mini-dog.png"
-          alt=""
-          width={96}
-          height={96}
-          className="why-proof-workflow-mini-dog"
-          aria-hidden="true"
-        />
 
         {LOOP_NODES.map((node) => (
           <span

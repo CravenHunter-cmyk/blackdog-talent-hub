@@ -4158,20 +4158,6 @@ html {
   min-width: 0;
 }
 
-.why-proof-workflow-mini-dog {
-  position: absolute;
-  left: 50%;
-  top: 54%;
-  z-index: 2;
-  display: block;
-  width: 48px;
-  height: auto;
-  opacity: 0.94;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  filter: drop-shadow(0 10px 16px rgba(10, 81, 94, 0.16));
-}
-
 .why-proof-workflow-node {
   position: absolute;
   left: var(--workflow-node-x);
@@ -4316,11 +4302,6 @@ html {
   .why-proof-workflow-loop {
     width: min(100%, 326px);
     height: 94px;
-  }
-
-  .why-proof-workflow-mini-dog {
-    top: 55%;
-    width: 42px;
   }
 
   .why-proof-workflow-node {
