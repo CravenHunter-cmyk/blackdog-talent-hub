@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { BlackDogBrainTabs } from "@/components/blackdog-brain/BlackDogBrainTabs";
-import { BlackDogBrainHome } from "@/components/blackdog-brain/BlackDogBrainWorkspace";
+import { BlackDogBrainOverview } from "@/components/blackdog-brain/BlackDogBrainOverview";
 
 export const metadata: Metadata = {
   title: "Overview | BlackDog Brain",
@@ -8,10 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return (
-    <>
-      <BlackDogBrainTabs />
-      <BlackDogBrainHome />
-    </>
-  );
+  return <BlackDogBrainOverview />;
 }
