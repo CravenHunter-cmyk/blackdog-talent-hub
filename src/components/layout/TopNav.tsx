@@ -37,6 +37,9 @@ export function TopNav() {
     <header
       className="sticky top-0 z-50 border-b border-[#e2d8c8] shadow-[0_8px_20px_rgba(31,41,51,0.05)] backdrop-blur"
       style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
         backgroundImage: "linear-gradient(180deg, rgba(255, 252, 246, 0.88) 0%, rgba(255, 250, 240, 0.78) 100%)",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
