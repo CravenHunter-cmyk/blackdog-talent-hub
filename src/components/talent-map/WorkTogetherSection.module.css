@@ -1,0 +1,911 @@
+.workTogetherSection {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 820px;
+  border-radius: 32px;
+  background-image: url("/images/Blackdog_Work Torgether.png");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: #07143a;
+}
+
+.backgroundSoftOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(248, 252, 255, 0.03) 42%, rgba(229, 243, 255, 0.14) 100%),
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0) 38%);
+}
+
+.inner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: min(calc(100% - 88px), 1536px);
+  min-height: inherit;
+  grid-template-rows: auto auto 1fr auto;
+  margin: 0 auto;
+  padding: 36px 0 42px;
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 14px;
+  min-width: 0;
+  transform: translateY(-2px);
+}
+
+.brandPaw {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: #ff7a00;
+}
+
+.brandPaw svg {
+  width: 38px;
+  height: 38px;
+}
+
+.brandName {
+  color: #07143a;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+.brandPartner {
+  color: #344775;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  line-height: 1;
+}
+
+.header {
+  max-width: 1120px;
+  margin: 38px auto 0;
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  color: #07143a;
+  font-size: clamp(46px, 4.12vw, 66px);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 0.98;
+  white-space: nowrap;
+}
+
+.title span {
+  color: #ff6f00;
+}
+
+.titleRule {
+  display: block;
+  width: 50px;
+  height: 3px;
+  margin: 16px auto 0;
+  border-radius: 999px;
+  background: #0968ff;
+}
+
+.subtitle {
+  margin: 16px auto 0;
+  color: #263963;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.38;
+}
+
+.subtitle strong {
+  color: #0968ff;
+  font-weight: 900;
+}
+
+.relationship {
+  position: relative;
+  z-index: 0;
+  display: grid;
+  height: 334px;
+  grid-template-columns: minmax(230px, 1fr) minmax(310px, 0.86fr) minmax(230px, 1fr);
+  align-items: center;
+  margin-top: 20px;
+}
+
+.relationship::before {
+  display: none;
+}
+
+.nodeCard,
+.centerCard {
+  position: relative;
+  z-index: 1;
+}
+
+.nodeCard {
+  display: grid;
+  width: min(100%, 246px);
+  min-height: 326px;
+  justify-items: center;
+  align-content: start;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(242, 248, 255, 0.48)),
+    rgba(255, 255, 255, 0.42);
+  box-shadow:
+    0 23px 62px rgba(37, 99, 235, 0.15),
+    inset 0 0 0 1px rgba(81, 145, 255, 0.13);
+  padding: 34px 22px 24px;
+  text-align: center;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.nodeCard:hover {
+  box-shadow:
+    0 26px 68px rgba(37, 99, 235, 0.18),
+    inset 0 0 0 1px rgba(81, 145, 255, 0.16);
+  transform: translateY(-2px);
+}
+
+.clientsCard {
+  justify-self: center;
+  margin-top: 22px;
+  margin-left: clamp(8px, 5vw, 72px);
+}
+
+.talentCard {
+  justify-self: center;
+  margin-top: 22px;
+  margin-right: clamp(8px, 5vw, 72px);
+}
+
+.nodeIcon,
+.mailCircle,
+.emailIcon,
+.pawMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.nodeIcon {
+  width: 80px;
+  height: 80px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #6ea0ff 0%, #0d55df 86%);
+  color: #ffffff;
+  box-shadow:
+    0 15px 25px rgba(20, 91, 221, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.nodeIcon svg {
+  width: 39px;
+  height: 39px;
+}
+
+.nodeCard h3 {
+  margin: 21px 0 0;
+  color: #0968ff;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.nodeRule {
+  display: block;
+  width: 26px;
+  height: 3px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: #0968ff;
+}
+
+.nodeCard p {
+  margin: 12px 0 0;
+  color: #07143a;
+  font-size: 16px;
+  font-weight: 720;
+  line-height: 1.45;
+}
+
+.cardArt {
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  left: 24px;
+  height: 70px;
+  opacity: 0.36;
+  pointer-events: none;
+}
+
+.clientsArt {
+  border-bottom: 1px solid rgba(101, 157, 255, 0.38);
+  background:
+    linear-gradient(90deg, transparent 0 10%, rgba(101, 157, 255, 0.26) 10% 13%, transparent 13% 19%, rgba(101, 157, 255, 0.26) 19% 23%, transparent 23% 31%, rgba(101, 157, 255, 0.26) 31% 37%, transparent 37% 46%, rgba(101, 157, 255, 0.26) 46% 54%, transparent 54% 66%, rgba(101, 157, 255, 0.26) 66% 75%, transparent 75% 100%),
+    linear-gradient(135deg, transparent 0 34%, rgba(101, 157, 255, 0.3) 35% 36%, transparent 37% 51%, rgba(101, 157, 255, 0.3) 52% 53%, transparent 54% 100%);
+}
+
+.clientsArt::before {
+  content: "";
+  position: absolute;
+  inset: 8px 0 13px;
+  background:
+    linear-gradient(180deg, transparent 0 62%, rgba(101, 157, 255, 0.26) 62% 100%) 8% 100% / 14px 34px no-repeat,
+    linear-gradient(180deg, transparent 0 48%, rgba(101, 157, 255, 0.23) 48% 100%) 28% 100% / 14px 46px no-repeat,
+    linear-gradient(180deg, transparent 0 38%, rgba(101, 157, 255, 0.25) 38% 100%) 48% 100% / 14px 58px no-repeat,
+    linear-gradient(180deg, transparent 0 26%, rgba(101, 157, 255, 0.28) 26% 100%) 68% 100% / 14px 70px no-repeat,
+    linear-gradient(180deg, transparent 0 16%, rgba(101, 157, 255, 0.3) 16% 100%) 88% 100% / 14px 78px no-repeat;
+}
+
+.talentArt {
+  right: 18px;
+  bottom: 15px;
+  left: 18px;
+  height: 86px;
+  border-radius: 50% 50% 0 0;
+  background:
+    radial-gradient(ellipse at 50% 72%, transparent 0 38%, rgba(101, 157, 255, 0.28) 39% 40%, transparent 41% 100%),
+    radial-gradient(circle at 50% 58%, rgba(101, 157, 255, 0.18) 0 34%, transparent 35%),
+    radial-gradient(circle at 50% 58%, transparent 0 51%, rgba(101, 157, 255, 0.22) 52% 53%, transparent 54%);
+}
+
+.talentArt::before {
+  content: "";
+  position: absolute;
+  inset: 12px 16px 0;
+  border-radius: 50% 50% 0 0;
+  background:
+    radial-gradient(circle at 46% 36%, rgba(101, 157, 255, 0.28) 0 1px, transparent 2px),
+    radial-gradient(circle at 58% 29%, rgba(101, 157, 255, 0.22) 0 1px, transparent 2px),
+    radial-gradient(circle at 38% 52%, rgba(101, 157, 255, 0.2) 0 1px, transparent 2px),
+    linear-gradient(90deg, transparent 0 49%, rgba(101, 157, 255, 0.2) 50%, transparent 51%),
+    linear-gradient(0deg, transparent 0 49%, rgba(101, 157, 255, 0.18) 50%, transparent 51%);
+}
+
+.centerCard {
+  display: grid;
+  justify-self: center;
+  align-self: start;
+  justify-items: center;
+  width: min(100%, 280px);
+  margin-top: -20px;
+  text-align: center;
+}
+
+.pawMark {
+  width: 56px;
+  height: 56px;
+  color: #ff7a00;
+}
+
+.pawMarkImage {
+  display: block;
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.pawMark svg {
+  width: 54px;
+  height: 54px;
+}
+
+.centerCard h3 {
+  margin: 12px 0 0;
+  color: #07143a;
+  font-size: 29px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.centerCard p {
+  margin: 10px 0 0;
+  color: #07143a;
+  font-size: 16px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.contactBar {
+  position: relative;
+  display: grid;
+  width: min(calc(100% - 140px), 1280px);
+  min-height: 90px;
+  grid-template-columns: minmax(390px, 0.96fr) 1px minmax(440px, 1fr) minmax(120px, 0.34fr);
+  align-items: center;
+  gap: 22px;
+  justify-self: center;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 20px 60px rgba(37, 99, 235, 0.2),
+    inset 0 0 0 1px rgba(81, 145, 255, 0.13);
+  padding: 10px 30px;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.contactIntro {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 17px;
+}
+
+.mailCircle {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #6ea0ff 0%, #0d55df 86%);
+  color: #ffffff;
+  box-shadow:
+    0 16px 25px rgba(20, 91, 221, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.mailCircle svg {
+  width: 25px;
+  height: 25px;
+}
+
+.contactIntro h3 {
+  margin: 0;
+  color: #07143a;
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.contactIntro p {
+  margin: 5px 0 0;
+  color: #22375f;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.contactDivider {
+  display: block;
+  width: 1px;
+  height: 38px;
+  background: rgba(45, 108, 210, 0.25);
+}
+
+.emailLink {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 18px;
+  color: #0968ff;
+  font-size: 24px;
+  white-space: nowrap;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.emailLink:hover {
+  color: #0754cf;
+  transform: translateY(-2px);
+}
+
+.emailIcon {
+  width: 32px;
+  height: 32px;
+  color: #0968ff;
+}
+
+.emailIcon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.contactArt {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 48px;
+  opacity: 0.42;
+}
+
+.chatBubble {
+  position: absolute;
+  top: 3px;
+  left: 22px;
+  width: 56px;
+  height: 32px;
+  border: 3px solid rgba(87, 145, 255, 0.44);
+  border-radius: 999px;
+}
+
+.chatBubble::before {
+  content: "";
+  position: absolute;
+  right: 9px;
+  bottom: -9px;
+  width: 15px;
+  height: 15px;
+  border-right: 3px solid rgba(87, 145, 255, 0.44);
+  border-bottom: 3px solid rgba(87, 145, 255, 0.44);
+  transform: rotate(28deg);
+}
+
+.chatBubble::after {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 16px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(87, 145, 255, 0.44);
+  box-shadow:
+    14px 0 0 rgba(87, 145, 255, 0.44),
+    28px 0 0 rgba(87, 145, 255, 0.44);
+}
+
+.peopleLine {
+  position: absolute;
+  right: 92px;
+  bottom: 7px;
+  left: 6px;
+  height: 40px;
+  background:
+    radial-gradient(circle at 11% 22%, transparent 0 8px, rgba(87, 145, 255, 0.42) 9px 11px, transparent 12px),
+    radial-gradient(circle at 55% 22%, transparent 0 8px, rgba(87, 145, 255, 0.42) 9px 11px, transparent 12px),
+    radial-gradient(circle at 82% 22%, transparent 0 8px, rgba(87, 145, 255, 0.42) 9px 11px, transparent 12px),
+    radial-gradient(ellipse at 11% 100%, transparent 0 19px, rgba(87, 145, 255, 0.42) 20px 22px, transparent 23px),
+    radial-gradient(ellipse at 55% 100%, transparent 0 19px, rgba(87, 145, 255, 0.42) 20px 22px, transparent 23px),
+    radial-gradient(ellipse at 82% 100%, transparent 0 19px, rgba(87, 145, 255, 0.42) 20px 22px, transparent 23px);
+}
+
+.peopleLine::before {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: 16%;
+  width: 100px;
+  height: 46px;
+  border-top: 2px dashed rgba(87, 145, 255, 0.34);
+  border-radius: 50%;
+}
+
+.globeLine {
+  position: absolute;
+  right: 2px;
+  bottom: 4px;
+  width: 64px;
+  height: 64px;
+  border: 3px solid rgba(87, 145, 255, 0.38);
+  border-radius: 999px;
+}
+
+.globeLine::before {
+  content: "";
+  position: absolute;
+  inset: 12px 7px;
+  border-right: 2px solid rgba(87, 145, 255, 0.32);
+  border-left: 2px solid rgba(87, 145, 255, 0.32);
+  border-radius: 50%;
+}
+
+.globeLine::after {
+  content: "";
+  position: absolute;
+  top: 33px;
+  right: 8px;
+  left: 8px;
+  height: 2px;
+  background: rgba(87, 145, 255, 0.32);
+  box-shadow:
+    0 -17px 0 rgba(87, 145, 255, 0.24),
+    0 17px 0 rgba(87, 145, 255, 0.24);
+}
+
+.workTogetherSection [data-work-together-movable] {
+  --work-together-x: 0;
+  --work-together-y: 0;
+  transform: translate3d(var(--work-together-x, 0), var(--work-together-y, 0), 0);
+}
+
+.workTogetherSection [data-work-together-movable="contact-bar"] {
+  --work-together-x: 22px;
+  --work-together-y: 25px;
+}
+
+.workTogetherSection [data-work-together-movable="talent-card"] {
+  --work-together-x: 0;
+  --work-together-y: -23px;
+}
+
+.workTogetherSection [data-work-together-movable="clients-art"] {
+  --work-together-x: 2px;
+  --work-together-y: 4px;
+}
+
+.workTogetherSection [data-work-together-movable="clients-card"] {
+  --work-together-x: 0;
+  --work-together-y: -20px;
+}
+
+.workTogetherSection [data-work-together-movable="subtitle"] {
+  --work-together-x: -2px;
+  --work-together-y: -9px;
+}
+
+.workTogetherSection [data-work-together-movable="header-group"] {
+  --work-together-x: 0;
+  --work-together-y: -29px;
+}
+
+@media (min-width: 1536px) {
+  .workTogetherSection {
+    min-height: 860px;
+  }
+}
+
+@media (max-width: 1320px) {
+  .inner {
+    width: min(calc(100% - 64px), 1220px);
+  }
+
+  .title {
+    font-size: clamp(43px, 4.1vw, 58px);
+  }
+
+  .relationship {
+    grid-template-columns: minmax(220px, 0.95fr) minmax(270px, 0.82fr) minmax(220px, 0.95fr);
+    height: 326px;
+  }
+
+  .nodeCard {
+    width: min(100%, 226px);
+    min-height: 304px;
+  }
+
+  .contactBar {
+    width: calc(100% - 86px);
+    grid-template-columns: minmax(260px, 1fr) 1px minmax(310px, 1.05fr);
+    min-height: 88px;
+    padding-block: 10px;
+  }
+
+  .contactArt {
+    display: none;
+  }
+}
+
+@media (max-width: 980px) {
+  .workTogetherSection {
+    min-height: 880px;
+  }
+
+  .inner {
+    width: calc(100% - 40px);
+    padding-top: 28px;
+  }
+
+  .brandRow {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin-left: 0;
+    transform: none;
+  }
+
+  .brandName {
+    font-size: 22px;
+  }
+
+  .brandPartner {
+    font-size: 12px;
+  }
+
+  .header {
+    margin-top: 34px;
+  }
+
+  .title {
+    font-size: 44px;
+    white-space: normal;
+  }
+
+  .subtitle {
+    font-size: 17px;
+  }
+
+  .relationship {
+    height: 398px;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    margin-top: 28px;
+  }
+
+  .relationship::before {
+    display: none;
+  }
+
+  .centerCard {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    margin-top: 0;
+  }
+
+  .nodeCard {
+    width: min(100%, 196px);
+    min-height: 214px;
+    align-content: start;
+    margin-top: 150px;
+    padding: 22px 14px 16px;
+  }
+
+  .nodeIcon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .nodeIcon svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .nodeCard h3 {
+    margin-top: 14px;
+    font-size: 23px;
+  }
+
+  .nodeCard p {
+    font-size: 13px;
+  }
+
+  .cardArt {
+    display: none;
+  }
+
+  .clientsCard,
+  .talentCard {
+    justify-self: center;
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .contactBar {
+    width: 100%;
+    min-height: 0;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 18px 22px;
+  }
+
+  .contactDivider {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .workTogetherSection {
+    min-height: 760px;
+    border-radius: 26px;
+    background-position: center bottom;
+  }
+
+  .backgroundSoftOverlay {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.54) 0%, rgba(248, 252, 255, 0.04) 46%, rgba(229, 243, 255, 0.16) 100%),
+      radial-gradient(circle at 50% 13%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 44%);
+  }
+
+  .inner {
+    width: calc(100% - 32px);
+    padding: 22px 0 28px;
+  }
+
+  .brandRow {
+    justify-content: flex-start;
+    gap: 9px;
+    margin-left: 0;
+    padding-right: 94px;
+    transform: none;
+  }
+
+  .brandPaw {
+    width: 26px;
+    height: 26px;
+  }
+
+  .brandPaw svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .brandName {
+    font-size: 17px;
+  }
+
+  .brandPartner {
+    flex-basis: 100%;
+    margin-left: 35px;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+
+  .header {
+    margin-top: 28px;
+  }
+
+  .title {
+    font-size: 34px;
+    line-height: 1.05;
+    white-space: normal;
+  }
+
+  .titleRule {
+    width: 44px;
+    height: 3px;
+    margin-top: 12px;
+  }
+
+  .subtitle {
+    margin-top: 12px;
+    font-size: 13px;
+    line-height: 1.46;
+  }
+
+  .subtitle br {
+    display: none;
+  }
+
+  .relationship {
+    display: flex;
+    height: auto;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 22px;
+  }
+
+  .centerCard {
+    order: 2;
+    width: auto;
+    margin: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.66);
+    padding: 8px 12px;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  .pawMark,
+  .centerCard p,
+  .nodeIcon,
+  .nodeRule,
+  .nodeCard p {
+    display: none;
+  }
+
+  .centerCard h3 {
+    margin: 0;
+    font-size: 12px;
+  }
+
+  .nodeCard {
+    order: 1;
+    width: auto;
+    min-height: 0;
+    border-width: 1px;
+    border-radius: 999px;
+    padding: 8px 12px;
+  }
+
+  .talentCard {
+    order: 3;
+  }
+
+  .nodeCard h3 {
+    margin: 0;
+    font-size: 12px;
+    color: #07143a;
+  }
+
+  .contactBar {
+    align-self: end;
+    width: 100%;
+    gap: 10px;
+    border-radius: 21px;
+    padding: 10px 14px;
+  }
+
+  .contactIntro {
+    gap: 12px;
+  }
+
+  .mailCircle {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mailCircle svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .contactIntro h3 {
+    font-size: 17px;
+    white-space: nowrap;
+  }
+
+  .contactIntro p {
+    margin-top: 4px;
+    font-size: 12px;
+  }
+
+  .emailLink {
+    gap: 9px;
+    font-size: 16px;
+  }
+
+  .emailIcon,
+  .emailIcon svg {
+    width: 26px;
+    height: 26px;
+  }
+
+}
+
+@media (max-width: 420px) {
+  .title {
+    font-size: 32px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+  }
+
+  .nodeCard,
+  .centerCard {
+    padding: 8px 10px;
+  }
+
+  .nodeCard h3,
+  .centerCard h3 {
+    font-size: 12px;
+  }
+
+  .contactIntro h3 {
+    font-size: 16px;
+  }
+
+  .emailLink {
+    font-size: 15px;
+  }
+}

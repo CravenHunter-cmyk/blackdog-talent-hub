@@ -11,12 +11,12 @@ export function MetricCards({ resources }: MetricCardsProps) {
       value: resources.reduce((sum, item) => sum + item.totalResources, 0).toLocaleString(),
       description: "Verified global talent profiles",
       tone: {
-        accent: "bg-[#1f4d3a]",
-        border: "border-[#cdd9cf]",
-        iconBg: "bg-[#e9f1ec]",
-        iconText: "text-[#1f4d3a]",
-        valueText: "text-[#14261f]",
-        glow: "shadow-[0_10px_22px_rgba(31,77,58,0.10)]",
+        accent: "bg-[#0f766e]",
+        border: "border-[rgba(15,118,110,0.16)]",
+        iconBg: "bg-[rgba(15,118,110,0.10)]",
+        iconText: "text-[#0f766e]",
+        valueText: "text-[#0f766e]",
+        glow: "shadow-[0_10px_22px_rgba(15,118,110,0.10)]",
       },
     },
     {
@@ -24,12 +24,12 @@ export function MetricCards({ resources }: MetricCardsProps) {
       value: resources.reduce((sum, item) => sum + item.activeTalents, 0).toLocaleString(),
       description: "Available for current projects",
       tone: {
-        accent: "bg-[#2f7d57]",
-        border: "border-[#c9dfd0]",
-        iconBg: "bg-[#edf8f1]",
-        iconText: "text-[#2f7d57]",
-        valueText: "text-[#1f3f2f]",
-        glow: "shadow-[0_10px_22px_rgba(47,125,87,0.10)]",
+        accent: "bg-[#2e9f6e]",
+        border: "border-[rgba(46,159,110,0.16)]",
+        iconBg: "bg-[rgba(46,159,110,0.10)]",
+        iconText: "text-[#2e9f6e]",
+        valueText: "text-[#2e9f6e]",
+        glow: "shadow-[0_10px_22px_rgba(46,159,110,0.10)]",
       },
     },
     {
@@ -37,12 +37,12 @@ export function MetricCards({ resources }: MetricCardsProps) {
       value: resources.length.toString(),
       description: "Native language networks",
       tone: {
-        accent: "bg-[#2f6f73]",
-        border: "border-[#c8dcdd]",
-        iconBg: "bg-[#edf7f7]",
-        iconText: "text-[#2f6f73]",
-        valueText: "text-[#1f3f46]",
-        glow: "shadow-[0_10px_22px_rgba(47,111,115,0.10)]",
+        accent: "bg-[#1d7fa3]",
+        border: "border-[rgba(29,127,163,0.16)]",
+        iconBg: "bg-[rgba(29,127,163,0.10)]",
+        iconText: "text-[#1d7fa3]",
+        valueText: "text-[#1d7fa3]",
+        glow: "shadow-[0_10px_22px_rgba(29,127,163,0.10)]",
       },
     },
     {
@@ -50,12 +50,12 @@ export function MetricCards({ resources }: MetricCardsProps) {
       value: resources.length.toString(),
       description: "Operated delivery groups",
       tone: {
-        accent: "bg-[#9a6a35]",
-        border: "border-[#e2cfb4]",
-        iconBg: "bg-[#fbf1e2]",
-        iconText: "text-[#9a6a35]",
-        valueText: "text-[#3f2f22]",
-        glow: "shadow-[0_10px_22px_rgba(154,106,53,0.10)]",
+        accent: "bg-[#d97706]",
+        border: "border-[rgba(217,119,6,0.16)]",
+        iconBg: "bg-[rgba(217,119,6,0.10)]",
+        iconText: "text-[#d97706]",
+        valueText: "text-[#d97706]",
+        glow: "shadow-[0_10px_22px_rgba(217,119,6,0.10)]",
       },
     },
     {
@@ -63,24 +63,24 @@ export function MetricCards({ resources }: MetricCardsProps) {
       value: resources.reduce((sum, item) => sum + item.onlineNow, 0).toLocaleString(),
       description: "Ready for live coordination",
       tone: {
-        accent: "bg-[#16a34a]",
-        border: "border-[#bfe4cc]",
-        iconBg: "bg-[#eaf8ef]",
-        iconText: "text-[#168a42]",
-        valueText: "text-[#14532d]",
-        glow: "shadow-[0_10px_22px_rgba(22,163,74,0.10)]",
+        accent: "bg-[#0891b2]",
+        border: "border-[rgba(8,145,178,0.16)]",
+        iconBg: "bg-[rgba(8,145,178,0.10)]",
+        iconText: "text-[#0891b2]",
+        valueText: "text-[#0891b2]",
+        glow: "shadow-[0_10px_22px_rgba(8,145,178,0.10)]",
       },
     },
   ];
 
   return (
-    <section aria-labelledby="platform-snapshot-title">
-      <div className="mb-2.5 flex flex-col gap-1 md:flex-row md:items-baseline md:gap-3">
+    <section aria-labelledby="platform-snapshot-title" className="bg-transparent">
+      <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-baseline md:gap-3">
         <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-3">
           <h2 id="platform-snapshot-title" className="text-sm font-semibold text-[#1f5c43]">
             Platform Snapshot
           </h2>
-          <p className="max-w-xl text-sm font-medium leading-5 text-[#7a8178]">
+          <p className="max-w-xl text-sm font-medium leading-5 text-[#6f6256]">
             Live talent network status.
           </p>
         </div>
@@ -90,7 +90,7 @@ export function MetricCards({ resources }: MetricCardsProps) {
         {metrics.map((metric) => (
           <div
             key={metric.label}
-            className={`relative min-h-[138px] overflow-hidden rounded-xl border bg-[#fbfaf6] p-4 shadow-[0_14px_30px_rgba(31,41,51,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(31,41,51,0.12)] ${metric.tone.border} ${metric.tone.glow}`}
+            className={`relative min-h-[132px] overflow-hidden rounded-[20px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.62),rgba(255,255,255,0.38))] p-4 shadow-[0_16px_36px_rgba(15,81,80,0.10)] backdrop-blur-[12px] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(31,41,51,0.12)] ${metric.tone.border} ${metric.tone.glow}`}
           >
             <div className={`absolute inset-x-0 top-0 h-1.5 ${metric.tone.accent}`} />
             <div className="mb-3 flex items-center gap-2.5">

@@ -1,9 +1,22 @@
 import { languageManagementTeams } from "@/data/languageManagementTeams";
+import { PawSectionIcon } from "@/components/talent-map/PawSectionIcon";
 import type { LanguageResource } from "@/types/talent";
 
 type LanguageManagementTeamProps = {
   selected: LanguageResource;
 };
+
+function statusBadgeClass(status: string) {
+  if (status === "Recommended") {
+    return "border-[rgba(25,200,180,0.30)] bg-[rgba(25,200,180,0.15)] text-[#8ff7e8]";
+  }
+
+  if (status === "Available") {
+    return "border-[rgba(31,123,255,0.32)] bg-[rgba(31,123,255,0.16)] text-[#9dccff]";
+  }
+
+  return "border-[rgba(245,158,27,0.34)] bg-[rgba(245,158,27,0.16)] text-[#ffd68a]";
+}
 
 export function LanguageManagementTeam({ selected }: LanguageManagementTeamProps) {
   const exactTeam = languageManagementTeams.find(
@@ -18,25 +31,28 @@ export function LanguageManagementTeam({ selected }: LanguageManagementTeamProps
   if (!team) return null;
 
   return (
-    <div className="mt-5 border-t border-[#e2d8c8] pt-5">
-      <div className="mb-3 flex flex-col justify-between gap-2 md:flex-row md:items-end">
-        <div>
-          <h3 className="text-lg font-bold text-[#111827]">Language Management Team Options</h3>
-          <p className="mt-1 text-sm font-medium text-[#6f6256]">Management team combinations for this pool.</p>
+    <div className="talent-management-team mt-6 border-t border-[rgba(90,170,255,0.09)] pt-5">
+      <div className="mb-3 flex flex-col justify-between gap-2 md:flex-row md:items-center">
+        <div className="talent-map-section-heading talent-section-heading talent-section-heading--management">
+          <PawSectionIcon className="talent-map-section-spark talent-section-heading__icon" />
+          <div className="talent-section-heading__copy">
+            <h3>Language Management Team Options</h3>
+            <p>Management team combinations for this pool.</p>
+          </div>
         </div>
-        <div className="text-sm text-[#6f6256]">
+        <div className="text-sm text-[rgba(207,229,255,0.66)]">
           Current pool:{" "}
-          <span className="font-medium text-[#111827]">
+          <span className="font-medium text-[#f7fbff]">
             {selected.language} - {selected.region}
           </span>
         </div>
       </div>
 
-      <div className="scroll-x-panel w-full rounded-lg border border-[#e2d8c8] bg-white shadow-[0_12px_28px_rgba(31,41,51,0.08)]">
+      <div className="scroll-x-panel talent-management-team-table w-full overflow-hidden rounded-[20px] border border-[rgba(90,170,255,0.12)] bg-[rgba(3,15,32,0.72)] shadow-[0_18px_50px_rgba(0,0,0,0.16),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-[16px]">
         <table className="data-table min-w-[1120px]">
           <thead>
             <tr>
-              <th className="th-left">Option</th>
+              <th className="th-left">Team</th>
               <th className="th-center">Coverage</th>
               <th className="th-left">Project Manager</th>
               <th className="th-left">Resource Manager</th>
@@ -47,21 +63,21 @@ export function LanguageManagementTeam({ selected }: LanguageManagementTeamProps
           </thead>
           <tbody>
             {team.options.map((option) => (
-              <tr key={`${option.coverage}-${option.optionName}`} className="border-t border-[#e1e4dd] hover:bg-[#f3f7f0]">
-                <td className="td-left whitespace-nowrap font-semibold text-[#111827]">
+              <tr key={`${option.coverage}-${option.optionName}`} className="border-t border-[rgba(90,170,255,0.10)] hover:bg-[rgba(90,170,255,0.08)]">
+                <td className="td-left whitespace-nowrap font-semibold text-[#f7fbff]">
                   {option.optionName}
                 </td>
-                <td className="td-center whitespace-nowrap text-[#6f6256]">{option.coverage}</td>
-                <td className="td-left whitespace-nowrap text-[#6f6256]">
+                <td className="td-center whitespace-nowrap text-[rgba(207,229,255,0.66)]">{option.coverage}</td>
+                <td className="td-left whitespace-nowrap text-[rgba(207,229,255,0.66)]">
                   {option.projectManager}
                 </td>
-                <td className="td-left whitespace-nowrap text-[#6f6256]">
+                <td className="td-left whitespace-nowrap text-[rgba(207,229,255,0.66)]">
                   {option.resourceManager}
                 </td>
-                <td className="td-left whitespace-nowrap text-[#6f6256]">{option.pocManager}</td>
-                <td className="td-left text-[#6f6256]">{option.recommendedFor}</td>
+                <td className="td-left whitespace-nowrap text-[rgba(207,229,255,0.66)]">{option.pocManager}</td>
+                <td className="td-left text-[rgba(207,229,255,0.66)]">{option.recommendedFor}</td>
                 <td className="td-center whitespace-nowrap">
-                  <span className="rounded-md border border-[#1f5c43] bg-[#f3f7f0] px-2 py-1 text-xs font-bold text-[#1f5c43]">
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadgeClass(option.status)}`}>
                     {option.status}
                   </span>
                 </td>

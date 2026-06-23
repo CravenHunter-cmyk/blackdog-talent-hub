@@ -27,11 +27,14 @@ export function TalentMapFilters({
   onOnlineStatusChange,
 }: TalentMapFiltersProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1.4fr]">
+    <div
+      className="language-resource-matrix-filters"
+      data-matrix-movable="matrix-filters"
+      data-matrix-label="Filters"
+    >
       <select
         value={languageFilter}
         onChange={(event) => onLanguageFilterChange(event.target.value)}
-        className="rounded-md border border-[#e2d8c8] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#111827] outline-none transition focus:border-[#1f5c43] focus:bg-white"
         aria-label="Filter by language"
       >
         {languages.map((language) => (
@@ -44,7 +47,6 @@ export function TalentMapFilters({
       <select
         value={readinessFilter}
         onChange={(event) => onReadinessFilterChange(event.target.value as ReadinessFilter)}
-        className="rounded-md border border-[#e2d8c8] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#111827] outline-none transition focus:border-[#1f5c43] focus:bg-white"
         aria-label="Filter by readiness"
       >
         {readinessOptions.map((readiness) => (
@@ -57,7 +59,6 @@ export function TalentMapFilters({
       <select
         value={onlineStatus}
         onChange={(event) => onOnlineStatusChange(event.target.value as OnlineStatusFilter)}
-        className="rounded-md border border-[#e2d8c8] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#111827] outline-none transition focus:border-[#1f5c43] focus:bg-white"
         aria-label="Filter by online status"
       >
         {onlineStatusOptions.map((status) => (
@@ -67,12 +68,23 @@ export function TalentMapFilters({
         ))}
       </select>
 
-      <input
-        value={search}
-        onChange={(event) => onSearchChange(event.target.value)}
-        placeholder="Search code, language, or region..."
-        className="rounded-md border border-[#e2d8c8] bg-[#fbfaf6] px-3 py-2 text-sm font-medium text-[#111827] outline-none transition placeholder:text-[#94a3b8] focus:border-[#1f5c43] focus:bg-white"
-      />
+      <div className="language-resource-search-field">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="m20 20-4.5-4.5m2-4.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+          />
+        </svg>
+        <input
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search code, language, or region..."
+        />
+      </div>
     </div>
   );
 }
