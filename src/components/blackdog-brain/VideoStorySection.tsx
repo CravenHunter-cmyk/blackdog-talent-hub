@@ -1,44 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { VideoModal } from "@/components/common/VideoModal";
+
+const brainIntroVideoSrc = process.env.NEXT_PUBLIC_BLACKDOG_BRAIN_INTRO_VIDEO_URL || "";
 
 export function VideoStorySection() {
   const [videoOpen, setVideoOpen] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const VIDEO_SRC = process.env.NEXT_PUBLIC_BLACKDOG_BRAIN_INTRO_VIDEO_URL || "";
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (videoOpen) {
-      video.currentTime = 0;
-      void video.play().catch(() => {});
-      return;
-    }
-
-    video.pause();
-    video.currentTime = 0;
-  }, [videoOpen]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setVideoOpen(false);
-      }
-    };
-
-    if (videoOpen) {
-      window.addEventListener("keydown", onKeyDown);
-      return () => window.removeEventListener("keydown", onKeyDown);
-    }
-
-    return undefined;
-  }, [videoOpen]);
 
   const openVideo = () => {
-    if (VIDEO_SRC) setVideoOpen(true);
+    if (brainIntroVideoSrc) setVideoOpen(true);
   };
   const closeVideo = () => setVideoOpen(false);
 
@@ -64,6 +36,7 @@ export function VideoStorySection() {
                 <button
                   type="button"
                   onClick={openVideo}
+                  disabled={!brainIntroVideoSrc}
                   className="group relative block w-full overflow-hidden rounded-[30px] border border-[rgba(255,255,255,0.18)] bg-[#251f4a] text-left shadow-[0_26px_76px_rgba(18,24,38,0.20)]"
                   aria-label="Watch the 1 min story"
                 >
@@ -100,38 +73,12 @@ export function VideoStorySection() {
         </div>
       </section>
 
-      {videoOpen && VIDEO_SRC ? (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[rgba(10,12,20,0.78)] px-4 py-6 backdrop-blur-[14px] sm:px-6 sm:py-12"
-          role="presentation"
-          onClick={closeVideo}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="BlackDog Brain story video"
-            className="relative w-full max-w-[1280px] overflow-hidden rounded-[24px] bg-black shadow-[0_32px_120px_rgba(0,0,0,0.42)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label="Close video preview"
-              onClick={closeVideo}
-              className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/88 text-[#111827] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:bg-white"
-            >
-              <span className="text-2xl leading-none">×</span>
-            </button>
-            <video
-              ref={videoRef}
-              src={VIDEO_SRC}
-              controls
-              playsInline
-              preload="metadata"
-              className="block w-full bg-black"
-            />
-          </div>
-        </div>
-      ) : null}
+      <VideoModal
+        src={brainIntroVideoSrc}
+        isOpen={videoOpen}
+        onClose={closeVideo}
+        title="BlackDog Brain intro video"
+      />
     </>
   );
 }

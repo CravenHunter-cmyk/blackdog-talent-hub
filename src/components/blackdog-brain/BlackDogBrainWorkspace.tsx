@@ -191,7 +191,7 @@ function moduleIntroText(track: BrainTrack, workspace: BrainModule) {
 
 export function BlackDogBrainHome() {
   return (
-    <main className="min-h-screen bg-[#f8f5ec] pb-24 pt-6 text-[#111827]">
+    <main className="min-h-screen bg-transparent pb-24 pt-6 text-[#111827]">
       <div className="page-shell space-y-6">
         <section className="overflow-hidden rounded-2xl border border-[#d0c3b3] bg-[#fbfaf6] shadow-[0_18px_46px_rgba(31,41,51,0.10)]">
           <div className="grid gap-0 xl:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)]">
@@ -280,7 +280,7 @@ export function BlackDogBrainTrackPage({ trackId }: { trackId: BrainTrackId }) {
   const track = brainTracks[trackId];
 
   return (
-    <main className="min-h-screen bg-[#f8f5ec] pb-24 pt-6 text-[#111827]">
+    <main className="min-h-screen bg-transparent pb-24 pt-6 text-[#111827]">
       <div className="page-shell space-y-6">
         <section className="rounded-2xl border border-[#d0c3b3] bg-[#fbfaf6] p-5 shadow-[0_18px_46px_rgba(31,41,51,0.10)] sm:p-6">
           <Link href="/blackdog-brain" className="text-xs font-black uppercase tracking-[0.16em] text-[#1f5c43]">
@@ -355,7 +355,7 @@ export function BlackDogBrainModulePage({ trackId = "business", moduleId }: { tr
   const relatedModules = track.modules.filter((item) => item.id !== currentModule.id);
 
   return (
-    <main className="min-h-screen bg-[#f8f5ec] pb-24 pt-6 text-[#111827]">
+    <main className="min-h-screen bg-transparent pb-24 pt-6 text-[#111827]">
       <div className="page-shell space-y-6">
         <section className="rounded-2xl border border-[#d0c3b3] bg-[#fbfaf6] p-5 shadow-[0_18px_46px_rgba(31,41,51,0.10)] sm:p-6">
           <Link href={track.path} className="text-xs font-black uppercase tracking-[0.16em] text-[#1f5c43]">
