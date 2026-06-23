@@ -17,8 +17,13 @@ export function BlackDogBrainTabs() {
   return (
     <section
       aria-label="BlackDog Brain sections"
-      className="relative z-40 border-b border-[#eadfce] bg-[#fff8f1]/92 shadow-[0_10px_24px_rgba(31,41,51,0.04)] backdrop-blur"
+      className="sticky top-[76px] z-40 border-b border-[#eadfce] bg-[#fff8f1]/92 shadow-[0_10px_24px_rgba(31,41,51,0.04)] backdrop-blur"
       data-brain-subnav="true"
+      style={{
+        position: "sticky",
+        top: 76,
+        zIndex: 40,
+      }}
     >
       <div className="page-shell flex min-h-[66px] items-center justify-center py-3">
         <nav className="scroll-x-panel flex w-fit max-w-full flex-nowrap items-center gap-2 rounded-full border border-[#dfd6c8] bg-white/90 p-1.5 shadow-[0_16px_36px_rgba(31,41,51,0.10)] backdrop-blur">
