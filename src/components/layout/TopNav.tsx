@@ -10,9 +10,7 @@ const navItems = [
   { label: "BlackDog Brain", href: "/blackdog-brain" },
   { label: "BlackDog Tools", href: "/blackdog-tools" },
   { label: "BlackDog Talent Museum", href: "/talent-museum" },
-  { label: "Talent Hub", href: "/talent-hub" },
-  { label: "PM Hub", href: "/pm-hub" },
-  { label: "Sourcing Hub", href: "/sourcing-hub" },
+  { label: "WorkHub", href: "/workhub" },
   { label: "BlackDog Platform", href: "/blackdog-platform" },
   { label: "Command", href: "/command" },
 ];
@@ -23,6 +21,18 @@ export function TopNav() {
 
   const isNavActive = (href: string) => {
     if (href === "/talent-map") return pathname === "/" || pathname === href || pathname.startsWith(`${href}/`);
+    if (href === "/workhub") {
+      return (
+        pathname === href ||
+        pathname.startsWith(`${href}/`) ||
+        pathname.startsWith("/talent-hub") ||
+        pathname.startsWith("/pm-hub") ||
+        pathname.startsWith("/sourcing-hub") ||
+        pathname.startsWith("/talent-messages") ||
+        pathname.startsWith("/team-hub") ||
+        pathname.startsWith("/recruiting")
+      );
+    }
     return href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   };
 

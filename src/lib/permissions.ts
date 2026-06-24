@@ -288,6 +288,7 @@ export function canAccessRoute(user: PlatformUser | null, route: string) {
   if (route.startsWith("/talent-library")) return hasPermission(user, "talentLibrary.view") && user.role !== "talent";
   if (route.startsWith("/talent-hub")) return hasPermission(user, "talentHub.view");
   if (route.startsWith("/talent-messages")) return hasPermission(user, "talentHub.view");
+  if (route.startsWith("/workhub")) return hasPermission(user, "platform.private.view");
   if (route.startsWith("/pm-hub")) return hasPermission(user, "platform.private.view") || hasPermission(user, "client.project.view");
   if (route.startsWith("/team-hub")) return hasPermission(user, "platform.private.view") || hasPermission(user, "client.project.view");
   if (route.startsWith("/work-center")) return hasPermission(user, "workCenter.view");
