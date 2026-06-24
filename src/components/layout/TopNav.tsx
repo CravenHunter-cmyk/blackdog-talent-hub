@@ -13,6 +13,7 @@ const navItems = [
   { label: "Talent Hub", href: "/talent-hub" },
   { label: "PM Hub", href: "/pm-hub" },
   { label: "Sourcing Hub", href: "/sourcing-hub" },
+  { label: "BlackDog Platform", href: "/blackdog-platform" },
   { label: "Command", href: "/command" },
 ];
 

@@ -292,6 +292,7 @@ export function canAccessRoute(user: PlatformUser | null, route: string) {
   if (route.startsWith("/team-hub")) return hasPermission(user, "platform.private.view") || hasPermission(user, "client.project.view");
   if (route.startsWith("/work-center")) return hasPermission(user, "workCenter.view");
   if (route.startsWith("/blackdog-brain")) return hasPermission(user, "brain.view") && user.role !== "talent";
+  if (route.startsWith("/blackdog-platform")) return hasPermission(user, "platform.private.view");
   if (route.startsWith("/blackdog-tools")) return hasPermission(user, "platform.private.view");
   if (route.startsWith("/workspace/tools/youtube-speech-link-collector")) {
     return hasPermission(user, "platform.private.view") && hasBlackDogToolAccess(user, YOUTUBE_SPEECH_LINK_COLLECTOR_TOOL_ID);
