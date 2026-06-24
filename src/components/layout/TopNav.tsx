@@ -8,8 +8,8 @@ import { useCurrentPlatformUser } from "@/components/auth/useCurrentPlatformUser
 const navItems = [
   { label: "Talent Map", href: "/talent-map" },
   { label: "BlackDog Brain", href: "/blackdog-brain" },
-  { label: "BlackDog Tools", href: "/blackdog-tools" },
   { label: "BlackDog Talent Museum", href: "/talent-museum" },
+  { label: "BlackDog Tools", href: "/blackdog-tools" },
   { label: "WorkHub", href: "/workhub" },
   { label: "BlackDog Platform", href: "/blackdog-platform" },
   { label: "Command", href: "/command" },
