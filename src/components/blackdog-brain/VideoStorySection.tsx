@@ -3,8 +3,13 @@
 import Image from "next/image";
 import { useState } from "react";
 import { VideoModal } from "@/components/common/VideoModal";
+import { ResponsiveArtboard } from "./ResponsiveArtboard";
 
 const brainIntroVideoSrc = process.env.NEXT_PUBLIC_BLACKDOG_BRAIN_INTRO_VIDEO_URL || "";
+const brainVideoFrameClass =
+  "brain-overview-video-frame relative left-1/2 w-[calc(100vw-48px)] max-w-none -translate-x-1/2 max-[900px]:w-[calc(100vw-24px)]";
+const brainVideoBaseWidth = 1600;
+const brainVideoBaseHeight = 823;
 
 export function VideoStorySection() {
   const [videoOpen, setVideoOpen] = useState(false);
@@ -17,15 +22,16 @@ export function VideoStorySection() {
   return (
     <>
       <section id="video-story" className="scroll-mt-28">
-        <div className="relative left-1/2 w-[min(1520px,calc(100vw-64px))] -translate-x-1/2">
+        <div className={brainVideoFrameClass}>
+        <ResponsiveArtboard baseWidth={brainVideoBaseWidth} baseHeight={brainVideoBaseHeight} className="brain-overview-video-artboard">
           <div
-            className="relative overflow-hidden rounded-[36px] border border-[rgba(255,255,255,0.72)] bg-[#fff1e6] shadow-[0_24px_80px_rgba(18,24,38,0.08)]"
+            className="relative h-full w-full overflow-hidden rounded-[36px] border border-[rgba(255,255,255,0.72)] bg-[#fff1e6] shadow-[0_24px_80px_rgba(18,24,38,0.08)]"
           >
             <div
               className="absolute inset-[-8px] z-0 bg-no-repeat"
               style={{
                 backgroundImage: "url('/images/BlackdogBrain_video_Background.png')",
-                backgroundPosition: "center center",
+                backgroundPosition: "top center",
                 backgroundSize: "cover",
               }}
               aria-hidden="true"
@@ -46,6 +52,7 @@ export function VideoStorySection() {
                       alt="BlackDog Brain in 60 seconds"
                       fill
                       priority
+                      unoptimized
                       sizes="(max-width: 1024px) 100vw, 1000px"
                       className="object-cover"
                     />
@@ -70,6 +77,7 @@ export function VideoStorySection() {
                 </div>
             </div>
           </div>
+        </ResponsiveArtboard>
         </div>
       </section>
 

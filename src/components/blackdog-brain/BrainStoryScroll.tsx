@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BlackDogLogo } from "@/components/brand/BlackDogLogo";
+import { ResponsiveArtboard } from "./ResponsiveArtboard";
 import { VideoStorySection } from "./VideoStorySection";
 
 const heroTags = [
@@ -30,6 +31,13 @@ const heroTags = [
     ),
   },
 ];
+
+const brainHeroFrameClass =
+  "brain-overview-hero-frame relative left-1/2 w-[calc(100vw-48px)] max-w-none -translate-x-1/2 max-[900px]:w-[calc(100vw-24px)]";
+const brainWideFrameClass =
+  "brain-overview-wide-frame relative left-1/2 w-[calc(100vw-48px)] max-w-none -translate-x-1/2 max-[900px]:w-[calc(100vw-24px)]";
+const brainOverviewBaseWidth = 1600;
+const brainOverviewBaseHeight = 823;
 
 function HeroTag({ label, icon }: { label: string[]; icon: ReactNode }) {
   return (
@@ -193,55 +201,61 @@ function ToolStoryIcon({
 
 function HeroCanvas() {
   return (
-    <div className="relative h-[clamp(680px,42vw,740px)] min-h-[700px] overflow-hidden rounded-[40px] border border-[rgba(255,255,255,0.45)] bg-[linear-gradient(180deg,#fff8f1_0%,#fff6ee_40%,#f8f3ff_100%)] shadow-[0_24px_70px_rgba(18,24,38,0.10)]">
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,248,241,0.98)_0%,rgba(255,248,241,0.94)_26%,rgba(255,248,241,0.78)_38%,rgba(255,248,241,0.36)_52%,rgba(255,248,241,0.08)_68%,rgba(255,248,241,0)_100%)]" />
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: "url('/images/BlackdogBrain_01.png')",
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "62% center",
-          backgroundSize: "cover",
-        }}
-      />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(255,255,255,0.30),transparent_24%),radial-gradient(circle_at_28%_74%,rgba(255,255,255,0.12),transparent_24%)]" />
-      <div className="relative z-10 flex h-full items-start">
-        <div className="w-full max-w-[760px] px-6 pt-[clamp(46px,4.8vw,72px)] pb-[56px] sm:px-8 lg:px-[clamp(48px,5.5vw,92px)]">
-          <div className="mb-14">
-            <HeroLogoMark />
-          </div>
-          <h1 className="mt-5 max-w-[760px] text-[clamp(52px,4.3vw,68px)] font-black leading-[1.04] tracking-[-0.045em] text-[#111827]">
-            <span className="block">Every need</span>
-            <span className="block">deserves its own</span>
-            <span className="block">
-              <span className="not-italic text-[#ff6a1a]">dedicated</span> AI tool.
-            </span>
-          </h1>
-          <p className="mt-5 max-w-[460px] text-[17px] leading-[1.55] text-[#667085]">
-            BlackDog Brain turns AI into practical tools built around your real needs.
-          </p>
+    <ResponsiveArtboard
+      baseWidth={brainOverviewBaseWidth}
+      baseHeight={brainOverviewBaseHeight}
+      className="brain-overview-hero-artboard"
+    >
+      <div className="brain-overview-hero-card relative h-full w-full overflow-hidden rounded-[40px] border border-[rgba(255,255,255,0.45)] bg-[linear-gradient(180deg,#fff8f1_0%,#fff6ee_40%,#f8f3ff_100%)] shadow-[0_24px_70px_rgba(18,24,38,0.10)]">
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,248,241,0.98)_0%,rgba(255,248,241,0.94)_26%,rgba(255,248,241,0.78)_38%,rgba(255,248,241,0.36)_52%,rgba(255,248,241,0.08)_68%,rgba(255,248,241,0)_100%)]" />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: "url('/images/BlackdogBrain_01.png')",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "62% center",
+            backgroundSize: "contain",
+          }}
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(255,255,255,0.30),transparent_24%),radial-gradient(circle_at_28%_74%,rgba(255,255,255,0.12),transparent_24%)]" />
+        <div className="relative z-10 flex h-full items-start">
+          <div className="w-[760px] px-[92px] pt-[72px] pb-[56px]">
+            <div className="mb-14">
+              <HeroLogoMark />
+            </div>
+            <h1 className="mt-5 max-w-[760px] text-[68px] font-black leading-[1.04] tracking-[-0.045em] text-[#111827]">
+              <span className="block">Every need</span>
+              <span className="block">deserves its own</span>
+              <span className="block">
+                <span className="not-italic text-[#ff6a1a]">dedicated</span> AI tool.
+              </span>
+            </h1>
+            <p className="mt-5 max-w-[460px] text-[17px] leading-[1.55] text-[#667085]">
+              BlackDog Brain turns AI into practical tools built around your real needs.
+            </p>
 
-          <div className="mt-[30px] max-w-[620px]">
-            <HeroFeatureList />
-          </div>
+            <div className="mt-[30px] max-w-[620px]">
+              <HeroFeatureList />
+            </div>
 
-          <div className="mt-[28px] flex flex-wrap gap-3">
-            <Link
-              href="/login"
-              className="inline-flex h-12 items-center rounded-full bg-[#ff6a1a] px-7 text-sm font-bold text-white shadow-[0_16px_30px_rgba(255,106,26,0.24)] transition hover:-translate-y-[1px] hover:shadow-[0_20px_34px_rgba(255,106,26,0.3)]"
-            >
-              Get Started
-            </Link>
-            <Link
-              href="/blackdog-brain/evaluation-platform"
-              className="inline-flex h-12 items-center rounded-full border border-[rgba(17,24,39,0.12)] bg-white/76 px-7 text-sm font-bold text-[#101828] shadow-[0_10px_24px_rgba(18,24,38,0.06)] transition hover:-translate-y-[1px] hover:bg-white"
-            >
-              See Examples
-            </Link>
+            <div className="mt-[28px] flex flex-wrap gap-3">
+              <Link
+                href="/login"
+                className="inline-flex h-12 items-center rounded-full bg-[#ff6a1a] px-7 text-sm font-bold text-white shadow-[0_16px_30px_rgba(255,106,26,0.24)] transition hover:-translate-y-[1px] hover:shadow-[0_20px_34px_rgba(255,106,26,0.3)]"
+              >
+                Get Started
+              </Link>
+              <Link
+                href="/blackdog-brain/evaluation-platform"
+                className="inline-flex h-12 items-center rounded-full border border-[rgba(17,24,39,0.12)] bg-white/76 px-7 text-sm font-bold text-[#101828] shadow-[0_10px_24px_rgba(18,24,38,0.06)] transition hover:-translate-y-[1px] hover:bg-white"
+              >
+                See Examples
+              </Link>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </ResponsiveArtboard>
   );
 }
 
@@ -354,7 +368,7 @@ function NeedNeedGraph() {
 
 function HeroFeatureList() {
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-5 sm:gap-y-5 xl:grid-cols-4 xl:gap-x-7 xl:gap-y-0">
+    <div className="grid grid-cols-4 gap-x-7 gap-y-0">
       {heroTags.map((tag) => (
         <HeroTag key={tag.label.join("-")} label={tag.label} icon={tag.icon} />
       ))}
@@ -362,14 +376,32 @@ function HeroFeatureList() {
   );
 }
 
+function BrainWideArtboard({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div className={brainWideFrameClass}>
+      <ResponsiveArtboard
+        baseWidth={brainOverviewBaseWidth}
+        baseHeight={brainOverviewBaseHeight}
+        className="brain-overview-wide-artboard"
+      >
+        {children}
+      </ResponsiveArtboard>
+    </div>
+  );
+}
+
 export function BrainStoryScroll() {
   return (
-    <div className="bg-[#fff8f1] text-[#111827]">
+    <div className="relative isolate min-h-screen text-[#111827]">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_12%,rgba(255,106,26,0.10),transparent_28%),radial-gradient(circle_at_80%_16%,rgba(124,92,255,0.10),transparent_30%),linear-gradient(180deg,#fff8f1_0%,#fffdf8_55%,#fff8f3_100%)]" />
 
-      <main className="mx-auto w-[min(calc(100vw-40px),1280px)] space-y-24 px-0 pt-9 pb-[72px] sm:w-[min(calc(100vw-48px),1280px)] sm:pt-9 sm:pb-[72px] lg:w-[min(calc(100vw-56px),1280px)] lg:pt-9 lg:pb-[72px]">
+      <main className="flex w-full flex-col gap-[clamp(20px,2vw,32px)] px-0 pt-[clamp(16px,2vw,28px)] pb-[72px]">
         <section id="overview" className="scroll-mt-28">
-          <div className="relative left-1/2 w-[min(1520px,calc(100vw-64px))] -translate-x-1/2">
+          <div className={brainHeroFrameClass}>
             <HeroCanvas />
           </div>
         </section>
@@ -377,20 +409,21 @@ export function BrainStoryScroll() {
         <VideoStorySection />
 
         <section id="solutions" className="scroll-mt-28">
-          <div className="relative left-1/2 w-[min(1520px,calc(100vw-64px))] -translate-x-1/2 overflow-hidden rounded-[36px] bg-[#fff8f1] shadow-[0_24px_80px_rgba(18,24,38,0.08)]">
+          <BrainWideArtboard>
+          <div className="relative h-full w-full overflow-hidden rounded-[36px] bg-[#fff8f1] shadow-[0_24px_80px_rgba(18,24,38,0.08)]">
             <div
               className="absolute inset-0 bg-no-repeat"
               style={{
                 backgroundImage: "url('/images/BlackdogBrain_02.png')",
                 backgroundSize: "100% auto",
-                backgroundPosition: "center bottom",
+                backgroundPosition: "top center",
                 backgroundColor: "#fff8f1",
               }}
               aria-hidden="true"
             />
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.94)_28%,rgba(255,255,255,0.68)_44%,rgba(255,255,255,0.22)_58%,rgba(255,255,255,0)_72%)]" />
 
-            <div className="relative z-10 grid gap-7 px-6 py-16 sm:px-8 sm:py-18 lg:min-h-[680px] lg:grid-cols-[minmax(420px,0.44fr)_minmax(0,0.56fr)] lg:items-center lg:gap-8 lg:px-[56px] lg:py-[64px]">
+            <div className="relative z-10 grid h-full gap-7 px-6 py-16 sm:px-8 sm:py-18 lg:grid-cols-[minmax(420px,0.44fr)_minmax(0,0.56fr)] lg:items-center lg:gap-8 lg:px-[56px] lg:py-[64px]">
               <div className="max-w-[560px] lg:pl-9">
                 <div className="text-[clamp(40px,3.6vw,54px)] font-black leading-[1.06] tracking-[-0.035em] text-[#111827]">
                   It starts with
@@ -426,16 +459,18 @@ export function BrainStoryScroll() {
               </div>
             </div>
           </div>
+          </BrainWideArtboard>
         </section>
 
         <section id="tools" className="scroll-mt-28">
-          <div className="relative left-1/2 w-[min(1520px,calc(100vw-64px))] -translate-x-1/2 overflow-hidden rounded-[36px] bg-[#fff4ea] shadow-[0_24px_80px_rgba(18,24,38,0.08)]">
+          <BrainWideArtboard>
+          <div className="relative h-full w-full overflow-hidden rounded-[36px] bg-[#fff4ea] shadow-[0_24px_80px_rgba(18,24,38,0.08)]">
             <div
               className="absolute inset-0 bg-no-repeat"
               style={{
                 backgroundImage: "url('/images/BlackdogBrain_03.jpeg')",
                 backgroundSize: "cover",
-                backgroundPosition: "center center",
+                backgroundPosition: "top center",
                 backgroundColor: "#fff4ea",
               }}
               aria-hidden="true"
@@ -443,7 +478,7 @@ export function BrainStoryScroll() {
             <div className="absolute inset-y-0 left-0 z-[1] w-[48%] bg-[radial-gradient(circle_at_18%_18%,rgba(255,128,48,0.16),transparent_34%),linear-gradient(90deg,rgba(255,237,218,0.84),rgba(255,246,235,0.22),transparent)]" />
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,238,220,0.96)_0%,rgba(255,241,226,0.92)_24%,rgba(255,246,235,0.76)_40%,rgba(255,246,235,0.36)_56%,rgba(255,246,235,0.08)_70%,rgba(255,246,235,0)_82%)]" />
 
-            <div className="relative z-10 flex min-h-[620px] items-center px-6 py-16 sm:px-8 sm:py-18 lg:px-[80px] lg:py-[64px]">
+            <div className="relative z-10 flex h-full items-center px-6 py-16 sm:px-8 sm:py-18 lg:px-[80px] lg:py-[64px]">
               <div className="w-full max-w-[620px] lg:w-[46%] lg:max-w-[800px] lg:pl-8">
                 <div aria-hidden="true" className="h-[24px]" />
                 <h2 className="mt-3 max-w-[800px] text-[clamp(38px,2.8vw,46px)] font-black leading-[1.08] tracking-[-0.03em] text-[#111827]">
@@ -492,13 +527,14 @@ export function BrainStoryScroll() {
               </div>
             </div>
           </div>
+          </BrainWideArtboard>
         </section>
 
-        <section id="work-life" className="scroll-mt-28 mt-8">
-          <div className="relative left-1/2 w-[min(1520px,calc(100vw-64px))] -translate-x-1/2">
-            <div className="flex flex-col gap-6">
+        <section id="work-life" className="scroll-mt-28">
+          <div className="flex flex-col gap-[clamp(20px,2vw,32px)]">
+            <BrainWideArtboard>
               <article
-                className="relative overflow-hidden rounded-[32px] border border-[rgba(255,255,255,0.72)] bg-[#f7f1ff] shadow-[0_24px_80px_rgba(18,24,38,0.08)]"
+                className="relative h-full w-full overflow-hidden rounded-[32px] border border-[rgba(255,255,255,0.72)] bg-[#f7f1ff] shadow-[0_24px_80px_rgba(18,24,38,0.08)]"
             >
                 <Image
                   src="/images/BlackdogBrain_04_work.png"
@@ -549,9 +585,11 @@ export function BrainStoryScroll() {
                   </div>
                 </div>
               </article>
+            </BrainWideArtboard>
 
+            <BrainWideArtboard>
               <article
-                className="relative overflow-hidden rounded-[32px] border border-[rgba(255,255,255,0.72)] bg-[#fff4ea] shadow-[0_24px_80px_rgba(18,24,38,0.08)]"
+                className="relative h-full w-full overflow-hidden rounded-[32px] border border-[rgba(255,255,255,0.72)] bg-[#fff4ea] shadow-[0_24px_80px_rgba(18,24,38,0.08)]"
             >
                 <Image
                   src="/images/BlackdogBrain_04_life.png"
@@ -602,25 +640,25 @@ export function BrainStoryScroll() {
                   </div>
                 </div>
               </article>
-            </div>
+            </BrainWideArtboard>
           </div>
         </section>
 
-        <section className="scroll-mt-28 mt-10">
-          <div className="relative left-1/2 w-[min(1520px,calc(100vw-64px))] -translate-x-1/2">
-            <div className="processCard relative overflow-hidden rounded-[36px] border border-[rgba(255,255,255,0.72)] bg-[#fff3e8] shadow-[0_24px_80px_rgba(18,24,38,0.08)]">
+        <section className="scroll-mt-28">
+          <BrainWideArtboard>
+            <div className="processCard relative h-full w-full overflow-hidden rounded-[36px] border border-[rgba(255,255,255,0.72)] bg-[#fff3e8] shadow-[0_24px_80px_rgba(18,24,38,0.08)]">
               <div
                 className="absolute inset-[-10px] z-0 bg-no-repeat"
                 style={{
                   backgroundImage: "url('/images/BlackdogBrain_05.png')",
-                  backgroundPosition: "center center",
+                  backgroundPosition: "top center",
                   backgroundSize: "cover",
                 }}
                 aria-hidden="true"
               />
               <div className="absolute inset-0 z-[1] bg-[linear-gradient(90deg,rgba(255,243,232,0.96)_0%,rgba(255,243,232,0.90)_28%,rgba(255,247,241,0.64)_46%,rgba(255,247,241,0.20)_66%,rgba(255,247,241,0.06)_82%)]" />
 
-              <div className="relative z-[2] px-6 py-16 sm:px-8 sm:py-18 lg:min-h-[640px] lg:px-[72px] lg:py-[72px]">
+              <div className="relative z-[2] h-full px-6 py-16 sm:px-8 sm:py-18 lg:px-[72px] lg:py-[72px]">
                 <div className="max-w-[820px]">
                   <div aria-hidden="true" className="h-[18px]" />
                   <h2 className="mt-4 max-w-[820px] text-[clamp(42px,3.4vw,60px)] font-black leading-[1.06] tracking-[-0.05em] text-[#111827]">
@@ -704,24 +742,24 @@ export function BrainStoryScroll() {
                 </div>
               </div>
             </div>
-          </div>
+          </BrainWideArtboard>
         </section>
 
         <section id="about-us" className="scroll-mt-28">
-          <div className="relative left-1/2 w-[min(1520px,calc(100vw-64px))] -translate-x-1/2">
-            <div className="believeCard relative overflow-hidden rounded-[36px] border border-[rgba(255,255,255,0.72)] bg-[#fff3e8] shadow-[0_24px_80px_rgba(18,24,38,0.08)]">
+          <BrainWideArtboard>
+            <div className="believeCard relative h-full w-full overflow-hidden rounded-[36px] border border-[rgba(255,255,255,0.72)] bg-[#fff3e8] shadow-[0_24px_80px_rgba(18,24,38,0.08)]">
               <div
                 className="absolute inset-[-6px] z-0 bg-no-repeat"
                 style={{
                   backgroundImage: "url('/images/BlackdogBrain_06.png')",
-                  backgroundPosition: "center 48%",
+                  backgroundPosition: "top center",
                   backgroundSize: "cover",
                   opacity: 1,
                   filter: "none",
                 }}
                 aria-hidden="true"
               />
-              <div className="relative z-[2] px-6 py-16 sm:px-8 sm:py-18 lg:min-h-[640px] lg:px-[72px] lg:py-[78px] lg:pb-[86px]">
+              <div className="relative z-[2] h-full px-6 py-16 sm:px-8 sm:py-18 lg:px-[72px] lg:py-[78px] lg:pb-[86px]">
                 <div className="believeCopy relative max-w-[600px] translate-y-[60px]">
                   <div
                     aria-hidden="true"
@@ -754,7 +792,7 @@ export function BrainStoryScroll() {
                 </div>
               </div>
             </div>
-          </div>
+          </BrainWideArtboard>
         </section>
 
       </main>
